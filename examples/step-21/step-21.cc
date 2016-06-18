@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2006 - 2013 by the deal.II authors
+ * Copyright (C) 2006 - 2015 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -57,6 +57,7 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/data_out.h>
 
+#include <iostream>
 #include <fstream>
 #include <sstream>
 
@@ -411,7 +412,7 @@ namespace Step21
 
           double permeability = 0;
           for (unsigned int i=0; i<centers.size(); ++i)
-            permeability += std::exp(-(points[p]-centers[i]).square()
+            permeability += std::exp(-(points[p]-centers[i]).norm_square()
                                      / (0.05 * 0.05));
 
           const double normalized_permeability
@@ -460,31 +461,31 @@ namespace Step21
   // converges in at most <code>src.size()</code> steps.) As a consequence, we
   // set the maximum number of iterations equal to the maximum of the size of
   // the linear system and 200.
-  template <class Matrix>
+  template <class MatrixType>
   class InverseMatrix : public Subscriptor
   {
   public:
-    InverseMatrix (const Matrix &m);
+    InverseMatrix (const MatrixType &m);
 
     void vmult (Vector<double>       &dst,
                 const Vector<double> &src) const;
 
   private:
-    const SmartPointer<const Matrix> matrix;
+    const SmartPointer<const MatrixType> matrix;
   };
 
 
-  template <class Matrix>
-  InverseMatrix<Matrix>::InverseMatrix (const Matrix &m)
+  template <class MatrixType>
+  InverseMatrix<MatrixType>::InverseMatrix (const MatrixType &m)
     :
     matrix (&m)
   {}
 
 
 
-  template <class Matrix>
-  void InverseMatrix<Matrix>::vmult (Vector<double>       &dst,
-                                     const Vector<double> &src) const
+  template <class MatrixType>
+  void InverseMatrix<MatrixType>::vmult (Vector<double>       &dst,
+                                         const Vector<double> &src) const
   {
     SolverControl solver_control (std::max(src.size(), static_cast<std::size_t> (200)),
                                   1e-8*src.l2_norm());
@@ -1121,7 +1122,9 @@ namespace Step21
     data_out.build_patches (degree+1);
 
     std::ostringstream filename;
-    filename << "solution-" << timestep_number << ".vtk";
+    filename << "solution-"
+             << Utilities::int_to_string(timestep_number,4)
+             << ".vtk";
 
     std::ofstream output (filename.str().c_str());
     data_out.write_vtk (output);
@@ -1279,8 +1282,6 @@ int main ()
     {
       using namespace dealii;
       using namespace Step21;
-
-      deallog.depth_console (0);
 
       TwoPhaseFlowProblem<2> two_phase_flow_problem(0);
       two_phase_flow_problem.run ();

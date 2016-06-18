@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -60,9 +60,9 @@ void test ()
   // t_times_1 should be a multiple of the
   // unit tensor, given the structure we have
   // given to it
-  Assert ((t_times_1 - (dim*10000 + 2*100)*unit_symmetric_tensor<dim>()).norm()
-          < 1e-14*t_times_1.norm(),
-          ExcInternalError());
+  AssertThrow ((t_times_1 - (dim*10000 + 2*100)*unit_symmetric_tensor<dim>()).norm()
+               < 1e-14*t_times_1.norm(),
+               ExcInternalError());
 }
 
 
@@ -73,7 +73,6 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();

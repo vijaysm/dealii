@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2013 by the deal.II authors
+// Copyright (C) 2007 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -52,8 +52,8 @@ void check ()
   f.laplacian_list (points, laplacians);
 
   for (unsigned int i=0; i<10; ++i)
-    Assert (points[i].norm() == laplacians[i],
-            ExcInternalError());
+    AssertThrow (points[i].norm() == laplacians[i],
+                 ExcInternalError());
 
   deallog << "OK" << std::endl;
 }
@@ -66,7 +66,6 @@ int main()
   std::string logname = "output";
   std::ofstream logfile(logname.c_str());
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   check<1> ();

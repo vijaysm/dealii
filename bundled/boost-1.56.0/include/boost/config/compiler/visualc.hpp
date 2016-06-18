@@ -168,6 +168,16 @@
 #  define BOOST_NO_CXX11_DECLTYPE_N3276
 #endif
 
+// Apply the bugfix from this patch: https://svn.boost.org/trac/boost/ticket/10215
+// 
+//// Although VC 2013 claims to support defaulted functions, it 
+//// does not support the =default construct. See 
+//// http://msdn.microsoft.com/en-us/library/hh409293.aspx 
+//// 
+#ifdef _MSC_VER
+  #define BOOST_NO_CXX11_DEFAULTED_FUNCTIONS 
+#endif
+
 // C++11 features not supported by any versions
 #define BOOST_NO_CXX11_CHAR16_T
 #define BOOST_NO_CXX11_CHAR32_T
@@ -253,7 +263,8 @@
 
 //
 // last known and checked version is 18.00.20827.3 (VC12 RC, aka 2013 RC):
-#if (_MSC_VER > 1800 && _MSC_FULL_VER > 180020827)
+// tjhei: change 180020827 to 190023506 (vs 2015 update 1)
+#if (_MSC_VER > 1800 && _MSC_FULL_VER > 190023506)
 #  if defined(BOOST_ASSERT_CONFIG)
 #     error "Unknown compiler version - please run the configure tests and report the results"
 #  else

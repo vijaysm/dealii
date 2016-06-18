@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 by the deal.II authors
+// Copyright (C) 2013 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,13 +40,30 @@ DEAL_II_NAMESPACE_OPEN
 
 //#define DEBUG_NEDELEC
 
+namespace internal
+{
+  namespace
+  {
+    double
+    get_embedding_computation_tolerance(const unsigned int p)
+    {
+      // This heuristic was computed by monitoring the worst residual
+      // resulting from the least squares computation when computing
+      // the face embedding matrices in the FE_Nedelec constructor.
+      // The residual growth is exponential, but is bounded by this
+      // function up to degree 12.
+      return 1.e-15*std::exp(std::pow(p,1.075));
+    }
+  }
+}
+
 
 template <int dim>
 FE_Nedelec<dim>::FE_Nedelec (const unsigned int p) :
   FE_PolyTensor<PolynomialsNedelec<dim>, dim>
   (p,
    FiniteElementData<dim> (get_dpo_vector (p), dim, p + 1,
-                           FiniteElementData<dim>::Hcurl, 1),
+                           FiniteElementData<dim>::Hcurl),
    std::vector<bool> (PolynomialsNedelec<dim>::compute_n_pols (p), true),
    std::vector<ComponentMask>
    (PolynomialsNedelec<dim>::compute_n_pols (p),
@@ -86,7 +103,8 @@ FE_Nedelec<dim>::FE_Nedelec (const unsigned int p) :
     face_embeddings[i].reinit (this->dofs_per_face, this->dofs_per_face);
 
   FETools::compute_face_embedding_matrices<dim,double>
-  (*this, face_embeddings, 0, 0);
+  (*this, face_embeddings, 0, 0,
+   internal::get_embedding_computation_tolerance(p));
 
   switch (dim)
     {
@@ -2296,8 +2314,9 @@ FE_Nedelec<dim>::compare_for_face_domination (const FiniteElement<dim> &fe_other
       else
         return FiniteElementDomination::other_element_dominates;
     }
-  else if (dynamic_cast<const FE_Nothing<dim>*>(&fe_other) != 0)
+  else if (const FE_Nothing<dim> *fe_nothing = dynamic_cast<const FE_Nothing<dim>*>(&fe_other))
     {
+      // TODO: ???
       // the FE_Nothing has no
       // degrees of
       // freedom. nevertheless, we
@@ -2308,7 +2327,17 @@ FE_Nedelec<dim>::compare_for_face_domination (const FiniteElement<dim> &fe_other
       // and rather allow the
       // function to be discontinuous
       // along the interface
-      return FiniteElementDomination::other_element_dominates;
+//      return FiniteElementDomination::other_element_dominates;
+      if (fe_nothing->is_dominating())
+        {
+          return FiniteElementDomination::other_element_dominates;
+        }
+      else
+        {
+          // the FE_Nothing has no degrees of freedom and it is typically used in
+          // a context where we don't require any continuity along the interface
+          return FiniteElementDomination::no_requirements;
+        }
     }
 
   Assert (false, ExcNotImplemented());
@@ -2991,7 +3020,8 @@ FE_Nedelec<dim>
 #endif
       this_nonconst.reinit_restriction_and_prolongation_matrices ();
       // Fill prolongation matrices with embedding operators
-      FETools::compute_embedding_matrices (this_nonconst, this_nonconst.prolongation, true);
+      FETools::compute_embedding_matrices (this_nonconst, this_nonconst.prolongation, true,
+                                           internal::get_embedding_computation_tolerance(this->degree));
 #ifdef DEBUG_NEDELEC
       deallog << "Restriction" << std::endl;
 #endif
@@ -3041,7 +3071,8 @@ FE_Nedelec<dim>
 #endif
       this_nonconst.reinit_restriction_and_prolongation_matrices ();
       // Fill prolongation matrices with embedding operators
-      FETools::compute_embedding_matrices (this_nonconst, this_nonconst.prolongation, true);
+      FETools::compute_embedding_matrices (this_nonconst, this_nonconst.prolongation, true,
+                                           internal::get_embedding_computation_tolerance(this->degree));
 #ifdef DEBUG_NEDELEC
       deallog << "Restriction" << std::endl;
 #endif

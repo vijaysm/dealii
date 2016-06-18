@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2014 by the deal.II authors
+// Copyright (C) 2011 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -116,15 +116,27 @@ namespace internal
             // and invert back
             std::vector<unsigned int> scalar_inv =
               Utilities::invert_permutation(scalar_lexicographic);
-            std::vector<unsigned int> lexicographic (fe_in.dofs_per_cell);
-            for (unsigned int comp=0; comp<fe_in.n_components(); ++comp)
+            std::vector<unsigned int> lexicographic(fe_in.dofs_per_cell,
+                                                    numbers::invalid_unsigned_int);
+            unsigned int components_before = 0;
+            for (unsigned int e=0; e<base_element_number; ++e)
+              components_before += fe_in.element_multiplicity(e);
+            for (unsigned int comp=0;
+                 comp<fe_in.element_multiplicity(base_element_number); ++comp)
               for (unsigned int i=0; i<scalar_inv.size(); ++i)
-                lexicographic[fe_in.component_to_system_index(comp,i)]
+                lexicographic[fe_in.component_to_system_index(comp+components_before,i)]
                   = scalar_inv.size () * comp + scalar_inv[i];
 
-            // invert numbering again
-            lexicographic_numbering =
-              Utilities::invert_permutation(lexicographic);
+            // invert numbering again. Need to do it manually because we might
+            // have undefined blocks
+            lexicographic_numbering.resize(fe_in.element_multiplicity(base_element_number)*fe->dofs_per_cell);
+            for (unsigned int i=0; i<lexicographic.size(); ++i)
+              if (lexicographic[i] != numbers::invalid_unsigned_int)
+                {
+                  AssertIndexRange(lexicographic[i],
+                                   lexicographic_numbering.size());
+                  lexicographic_numbering[lexicographic[i]] = i;
+                }
           }
 
         // to evaluate 1D polynomials, evaluate along the line where y=z=0,
@@ -302,25 +314,25 @@ namespace internal
         for (unsigned int q=0; q<stride; ++q)
           {
             shape_val_evenodd[i*stride+q] =
-              0.5 * (shape_values[i*n_q_points_1d+q] +
-                     shape_values[i*n_q_points_1d+n_q_points_1d-1-q]);
+              Number(0.5) * (shape_values[i*n_q_points_1d+q] +
+                             shape_values[i*n_q_points_1d+n_q_points_1d-1-q]);
             shape_val_evenodd[(fe_degree-i)*stride+q] =
-              0.5 * (shape_values[i*n_q_points_1d+q] -
-                     shape_values[i*n_q_points_1d+n_q_points_1d-1-q]);
+              Number(0.5) * (shape_values[i*n_q_points_1d+q] -
+                             shape_values[i*n_q_points_1d+n_q_points_1d-1-q]);
 
             shape_gra_evenodd[i*stride+q] =
-              0.5 * (shape_gradients[i*n_q_points_1d+q] +
-                     shape_gradients[i*n_q_points_1d+n_q_points_1d-1-q]);
+              Number(0.5) * (shape_gradients[i*n_q_points_1d+q] +
+                             shape_gradients[i*n_q_points_1d+n_q_points_1d-1-q]);
             shape_gra_evenodd[(fe_degree-i)*stride+q] =
-              0.5 * (shape_gradients[i*n_q_points_1d+q] -
-                     shape_gradients[i*n_q_points_1d+n_q_points_1d-1-q]);
+              Number(0.5) * (shape_gradients[i*n_q_points_1d+q] -
+                             shape_gradients[i*n_q_points_1d+n_q_points_1d-1-q]);
 
             shape_hes_evenodd[i*stride+q] =
-              0.5 * (shape_hessians[i*n_q_points_1d+q] +
-                     shape_hessians[i*n_q_points_1d+n_q_points_1d-1-q]);
+              Number(0.5) * (shape_hessians[i*n_q_points_1d+q] +
+                             shape_hessians[i*n_q_points_1d+n_q_points_1d-1-q]);
             shape_hes_evenodd[(fe_degree-i)*stride+q] =
-              0.5 * (shape_hessians[i*n_q_points_1d+q] -
-                     shape_hessians[i*n_q_points_1d+n_q_points_1d-1-q]);
+              Number(0.5) * (shape_hessians[i*n_q_points_1d+q] -
+                             shape_hessians[i*n_q_points_1d+n_q_points_1d-1-q]);
           }
       if (fe_degree % 2 == 0)
         for (unsigned int q=0; q<stride; ++q)

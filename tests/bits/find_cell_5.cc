@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -60,7 +60,7 @@ void check (Triangulation<3> &tria)
       )
     );
 
-  Assert (p.distance (pp) < 1e-15,  ExcInternalError());
+  AssertThrow (p.distance (pp) < 1e-15,  ExcInternalError());
 
 }
 
@@ -69,7 +69,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   try

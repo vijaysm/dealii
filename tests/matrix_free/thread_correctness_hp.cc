@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013-2014 by the deal.II authors
+// Copyright (C) 2013 - 2015-2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -50,9 +50,9 @@ public:
     // orders
     std::pair<unsigned int,unsigned int> subrange_deg;
 #define CALL_METHOD(degree)                                             \
-    subrange_deg = data.create_cell_subrange_hp(cell_range, degree);    \ 
-    if (subrange_deg.second > subrange_deg.first)                       \
-      helmholtz_operator<dim,degree,Vector<Number> > (data, dst, src, subrange_deg)
+  subrange_deg = data.create_cell_subrange_hp(cell_range, degree);    \
+  if (subrange_deg.second > subrange_deg.first)                       \
+    helmholtz_operator<dim,degree,Vector<Number> > (data, dst, src, subrange_deg)
 
     CALL_METHOD(1);
     CALL_METHOD(2);
@@ -135,7 +135,7 @@ void do_test (const unsigned int parallel_option)
                                             constraints);
   constraints.close ();
 
-  //std::cout << "Number of cells: " << dof.get_tria().n_active_cells() << std::endl;
+  //std::cout << "Number of cells: " << dof.get_triangulation().n_active_cells() << std::endl;
   //std::cout << "Number of degrees of freedom: " << dof.n_dofs() << std::endl;
   //std::cout << "Number of constraints: " << constraints.n_constraints() << std::endl;
 

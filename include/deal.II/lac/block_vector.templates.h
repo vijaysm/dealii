@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2013 by the deal.II authors
+// Copyright (C) 1999 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__block_vector_templates_h
-#define __deal2__block_vector_templates_h
+#ifndef dealii__block_vector_templates_h
+#define dealii__block_vector_templates_h
 
 
 #include <deal.II/base/config.h>
@@ -35,9 +35,9 @@ BlockVector<Number>::BlockVector (const unsigned int n_blocks,
 
 
 template <typename Number>
-BlockVector<Number>::BlockVector (const std::vector<size_type> &n)
+BlockVector<Number>::BlockVector (const std::vector<size_type> &block_sizes)
 {
-  reinit (n, false);
+  reinit (block_sizes, false);
 }
 
 
@@ -92,53 +92,53 @@ BlockVector<Number>::BlockVector (const TrilinosWrappers::BlockVector &v)
 
 
 template <typename Number>
-void BlockVector<Number>::reinit (const unsigned int n_bl,
-                                  const size_type    bl_sz,
-                                  const bool         fast)
+void BlockVector<Number>::reinit (const unsigned int n_blocks,
+                                  const size_type    block_size,
+                                  const bool         omit_zeroing_entries)
 {
-  std::vector<size_type> n(n_bl, bl_sz);
-  reinit(n, fast);
+  std::vector<size_type> block_sizes(n_blocks, block_size);
+  reinit(block_sizes, omit_zeroing_entries);
 }
 
 
 template <typename Number>
-void BlockVector<Number>::reinit (const std::vector<size_type> &n,
-                                  const bool                    fast)
+void BlockVector<Number>::reinit (const std::vector<size_type> &block_sizes,
+                                  const bool                    omit_zeroing_entries)
 {
-  this->block_indices.reinit (n);
+  this->block_indices.reinit (block_sizes);
   if (this->components.size() != this->n_blocks())
     this->components.resize(this->n_blocks());
 
   for (size_type i=0; i<this->n_blocks(); ++i)
-    this->components[i].reinit(n[i], fast);
+    this->components[i].reinit(block_sizes[i], omit_zeroing_entries);
 }
 
 
 template <typename Number>
 void BlockVector<Number>::reinit (
   const BlockIndices &n,
-  const bool fast)
+  const bool omit_zeroing_entries)
 {
   this->block_indices = n;
   if (this->components.size() != this->n_blocks())
     this->components.resize(this->n_blocks());
 
   for (size_type i=0; i<this->n_blocks(); ++i)
-    this->components[i].reinit(n.block_size(i), fast);
+    this->components[i].reinit(n.block_size(i), omit_zeroing_entries);
 }
 
 
 template <typename Number>
 template <typename Number2>
 void BlockVector<Number>::reinit (const BlockVector<Number2> &v,
-                                  const bool fast)
+                                  const bool omit_zeroing_entries)
 {
   this->block_indices = v.get_block_indices();
   if (this->components.size() != this->n_blocks())
     this->components.resize(this->n_blocks());
 
   for (size_type i=0; i<this->n_blocks(); ++i)
-    this->block(i).reinit(v.block(i), fast);
+    this->block(i).reinit(v.block(i), omit_zeroing_entries);
 }
 
 
@@ -151,9 +151,9 @@ BlockVector<Number>::~BlockVector ()
 template <typename Number>
 inline
 BlockVector<Number> &
-BlockVector<Number>::operator = (const TrilinosWrappers::BlockVector &v)
+BlockVector<Number>::operator= (const TrilinosWrappers::BlockVector &v)
 {
-  BaseClass::operator = (v);
+  BaseClass::operator= (v);
   return *this;
 }
 #endif
@@ -162,11 +162,8 @@ BlockVector<Number>::operator = (const TrilinosWrappers::BlockVector &v)
 template <typename Number>
 void BlockVector<Number>::swap (BlockVector<Number> &v)
 {
-  Assert (this->n_blocks() == v.n_blocks(),
-          ExcDimensionMismatch(this->n_blocks(), v.n_blocks()));
+  std::swap(this->components, v.components);
 
-  for (size_type i=0; i<this->n_blocks(); ++i)
-    dealii::swap (this->components[i], v.components[i]);
   dealii::swap (this->block_indices, v.block_indices);
 }
 

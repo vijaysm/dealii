@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2013 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -80,8 +80,8 @@ void test (const unsigned int n)
   A.Tvmult (z, tmp);
 
   y -= z;
-  Assert (y.l2_norm() <= 1e-12 * z.l2_norm(),
-          ExcInternalError());
+  AssertThrow (y.l2_norm() <= 1e-12 * z.l2_norm(),
+               ExcInternalError());
 
   deallog << "OK" << std::endl;
 }
@@ -93,7 +93,6 @@ main ()
   const std::string logname = "output";
   std::ofstream logfile(logname.c_str());
   deallog.attach(logfile);
-  deallog.depth_console(0);
   Testing::srand(3391466);
 
   test(3);

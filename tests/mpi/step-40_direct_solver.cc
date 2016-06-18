@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -138,7 +138,7 @@ namespace Step40
                                       locally_relevant_dofs,
                                       mpi_communicator);
     system_rhs.reinit (locally_owned_dofs, mpi_communicator);
-    system_rhs = 0;
+    system_rhs = PetscScalar();
 
     constraints.clear ();
     constraints.reinit (locally_relevant_dofs);
@@ -182,8 +182,8 @@ namespace Step40
     const unsigned int   dofs_per_cell = fe.dofs_per_cell;
     const unsigned int   n_q_points    = quadrature_formula.size();
 
-    FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
-    Vector<double>       cell_rhs (dofs_per_cell);
+    FullMatrix<PetscScalar>   cell_matrix (dofs_per_cell, dofs_per_cell);
+    Vector<PetscScalar>       cell_rhs (dofs_per_cell);
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
@@ -193,8 +193,8 @@ namespace Step40
     for (; cell!=endc; ++cell)
       if (cell->is_locally_owned())
         {
-          cell_matrix = 0;
-          cell_rhs = 0;
+          cell_matrix = PetscScalar();
+          cell_rhs = PetscScalar();
 
           fe_values.reinit (cell);
 
@@ -322,7 +322,6 @@ int test_mpi ()
       using namespace dealii;
       using namespace Step40;
 
-      deallog.depth_console (0);
 
       {
         LaplaceProblem<2> laplace_problem_2d;
@@ -362,13 +361,12 @@ int test_mpi ()
 
 int main(int argc, char *argv[])
 {
-  Utilities::MPI::MPI_InitFinalize mpi (argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
 
   if (Utilities::MPI::this_mpi_process (MPI_COMM_WORLD) == 0)
     {
       std::ofstream logfile("output");
       deallog.attach(logfile);
-      deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
 
       deallog.push("mpi");

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2013 by the deal.II authors
+// Copyright (C) 1999 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,25 +40,6 @@ template <int dim> const unsigned int GeometryInfo<dim>::hexes_per_cell;
 
 
 using namespace numbers;
-
-// make sure that also the icc compiler defines (and not only declares)
-// these variables
-namespace internal
-{
-  void foo (const unsigned int *) {}
-
-  template <int dim>
-  void define_variables ()
-  {
-    foo(&::dealii::GeometryInfo<dim>::vertices_per_cell);
-  }
-
-  template void define_variables<2> ();
-  template void define_variables<3> ();
-  template void define_variables<4> ();
-}
-
-
 
 template <>
 const unsigned int
@@ -547,7 +528,9 @@ RefinementCase<1>
 GeometryInfo<1>::line_refinement_case(const RefinementCase<1> &cell_refinement_case,
                                       const unsigned int line_no)
 {
+  (void)line_no;
   const unsigned int dim = 1;
+  (void)dim;
   Assert(cell_refinement_case<RefinementCase<dim>::isotropic_refinement+1,
          ExcIndexRange(cell_refinement_case, 0, RefinementCase<dim>::isotropic_refinement+1));
   Assert(line_no<GeometryInfo<dim>::lines_per_cell,
@@ -579,7 +562,7 @@ GeometryInfo<3>::line_refinement_case(const RefinementCase<3> &cell_refinement_c
          ExcIndexRange(line_no, 0, GeometryInfo<dim>::lines_per_cell));
 
   // array indicating, which simple refine
-  // case cuts a line in dirextion x, y or
+  // case cuts a line in direction x, y or
   // z. For example, cut_y and everything
   // containing cut_y (cut_xy, cut_yz,
   // cut_xyz) cuts lines, which are in y
@@ -709,6 +692,7 @@ template<>
 RefinementCase<1>
 GeometryInfo<1>::min_cell_refinement_case_for_line_refinement(const unsigned int line_no)
 {
+  (void)line_no;
   Assert(line_no==0, ExcIndexRange(line_no,0,1));
 
   return RefinementCase<1>::cut_x;
@@ -720,6 +704,7 @@ RefinementCase<2>
 GeometryInfo<2>::min_cell_refinement_case_for_line_refinement(const unsigned int line_no)
 {
   const unsigned int dim = 2;
+  (void)dim;
   Assert(line_no<GeometryInfo<dim>::lines_per_cell,
          ExcIndexRange(line_no, 0, GeometryInfo<dim>::lines_per_cell));
 
@@ -1086,6 +1071,7 @@ GeometryInfo<1>::child_cell_on_face (const RefinementCase<1> &,
                                      const bool, const bool, const bool,
                                      const RefinementCase<0> &)
 {
+  (void)subface;
   Assert (face<faces_per_cell, ExcIndexRange(face, 0, faces_per_cell));
   Assert (subface<max_children_per_face,
           ExcIndexRange(subface, 0, max_children_per_face));
@@ -1429,6 +1415,7 @@ unsigned int
 GeometryInfo<1>::line_to_cell_vertices (const unsigned int line,
                                         const unsigned int vertex)
 {
+  (void)line;
   Assert (line<lines_per_cell, ExcIndexRange(line, 0, lines_per_cell));
   Assert (vertex<2, ExcIndexRange(vertex, 0, 2));
 
@@ -1488,6 +1475,8 @@ GeometryInfo<1>::face_to_cell_lines (const unsigned int face,
                                      const unsigned int line,
                                      const bool, const bool, const bool)
 {
+  (void)face;
+  (void)line;
   Assert (face+1<faces_per_cell+1, ExcIndexRange(face, 0, faces_per_cell));
   Assert (line+1<lines_per_face+1, ExcIndexRange(line, 0, lines_per_face));
 
@@ -1504,6 +1493,7 @@ GeometryInfo<2>::face_to_cell_lines (const unsigned int face,
                                      const unsigned int line,
                                      const bool, const bool, const bool)
 {
+  (void)line;
   Assert (face<faces_per_cell, ExcIndexRange(face, 0, faces_per_cell));
   Assert (line<lines_per_face, ExcIndexRange(line, 0, lines_per_face));
 
@@ -1811,10 +1801,7 @@ namespace internal
     Tensor<1,3>
     wedge_product (const Tensor<1,3> (&derivative)[2])
     {
-      Tensor<1,3> result;
-      cross_product (result, derivative[0], derivative[1]);
-
-      return result;
+      return cross_product_3d (derivative[0], derivative[1]);
     }
 
 

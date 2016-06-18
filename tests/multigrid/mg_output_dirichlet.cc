@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -121,7 +121,7 @@ void initialize (const DoFHandler<dim> &dof,
   std::vector<types::global_dof_index> dof_indices(dofs_per_cell);
   std::vector<types::global_dof_index> face_indices(dofs_per_face);
 
-  for (unsigned int l=0; l<dof.get_tria().n_levels(); ++l)
+  for (unsigned int l=0; l<dof.get_triangulation().n_levels(); ++l)
     {
       for (typename DoFHandler<dim>::cell_iterator
            cell = dof.begin_mg(l);
@@ -153,7 +153,7 @@ void print (const DoFHandler<dim> &dof,
 {
   const unsigned int dofs_per_cell = dof.get_fe().dofs_per_cell;
   std::vector<types::global_dof_index> dof_indices(dofs_per_cell);
-  for (unsigned int l=0; l<dof.get_tria().n_levels(); ++l)
+  for (unsigned int l=0; l<dof.get_triangulation().n_levels(); ++l)
     {
       deallog << std::endl;
       deallog << "Level " << l << std::endl;
@@ -223,13 +223,7 @@ void check_simple(const FiniteElement<dim> &fe)
   DoFTools::make_hanging_node_constraints (
     mgdof,
     hnc);
-
-  DoFTools::make_hanging_node_constraints (
-    mgdof_renumbered,
-    hnc_renumbered);
   hnc.close ();
-  hnc_renumbered.close ();
-
 
   std::vector<unsigned int> block_component (4,0);
   block_component[2] = 1;
@@ -239,6 +233,10 @@ void check_simple(const FiniteElement<dim> &fe)
   for (unsigned int level=0; level<tr.n_levels(); ++level)
     DoFRenumbering::component_wise (mgdof_renumbered, level, block_component);
 
+  DoFTools::make_hanging_node_constraints (
+    mgdof_renumbered,
+    hnc_renumbered);
+  hnc_renumbered.close ();
 
   MGConstrainedDoFs mg_constrained_dofs;
   mg_constrained_dofs.initialize(mgdof, dirichlet_boundary_functions);
@@ -290,7 +288,6 @@ int main()
   std::ofstream logfile("output");
   deallog << std::setprecision(4);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   //check_simple (FESystem<2>(FE_Q<2>(1), 2));

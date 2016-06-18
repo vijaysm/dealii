@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,7 +30,6 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   double a_double[3][3][2] = {{{1,-1}, {2,0}, {3,0}},
@@ -54,8 +53,8 @@ int main ()
   Tensor<2,dim,std::complex<double> > t(a);
   Tensor<2,dim,std::complex<double> > tt;
   Tensor<2,dim,std::complex<double> > result(b);
-  Assert (transpose(transpose(t)) == t, ExcInternalError());
-  Assert (transpose(transpose(result)) == result, ExcInternalError());
+  AssertThrow (transpose(transpose(t)) == t, ExcInternalError());
+  AssertThrow (transpose(transpose(result)) == result, ExcInternalError());
 
   Vector<std::complex<double> > unrolled(9);
 
@@ -77,7 +76,7 @@ int main ()
 
   deallog << "norm(t)=" << t.norm() << std::endl;
 
-  contract (tt,t,t);
+  tt = t * t;
 
   deallog << "tt=" << std::endl;
   for (unsigned int i=0; i<dim; ++i)
@@ -96,18 +95,17 @@ int main ()
       e1[0] = 1.;
       e2[1] = 1.;
       e3[2] = 1.;
-      Tensor<1,3,std::complex<double> > result;
-      cross_product(result,e1,e2);
+      Tensor<1,3,std::complex<double> > result = cross_product_3d(e1, e2);
       deallog << '\t' << result[0]
               << '\t' << result[1]
               << '\t' << result[2] << std::endl;
 
-      cross_product(result,e2,e3);
+      result = cross_product_3d(e2, e3);
       deallog << '\t' << result[0]
               << '\t' << result[1] << '\t'
               << result[2] << std::endl;
 
-      cross_product(result,e3,e1);
+      result = cross_product_3d(e3, e1);
       deallog << '\t' << result[0]
               << '\t' << result[1]
               << '\t' << result[2] << std::endl;

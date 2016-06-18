@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2013 by the deal.II authors
+// Copyright (C) 2012 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,8 +35,8 @@
 
 using namespace dealii;
 
-template <class DOFINFO, class MATRIX>
-void test(DOFINFO &info, MeshWorker::Assembler::MatrixSimple<MATRIX> &ass)
+template <class DOFINFO, typename MatrixType>
+void test(DOFINFO &info, MeshWorker::Assembler::MatrixSimple<MatrixType> &ass)
 {
   ass.initialize_info(info, false);
   deallog << "No faces" << std::endl;
@@ -52,7 +52,6 @@ int main()
   const std::string logname = "output";
   std::ofstream logfile(logname.c_str());
   deallog.attach(logfile);
-  deallog.depth_console (0);
 
   Triangulation<2,2> tr;
   GridGenerator::hyper_cube(tr);
@@ -73,7 +72,10 @@ int main()
   MeshWorker::DoFInfo<2,2,double> info1b(dof1.block_info());
   MeshWorker::DoFInfo<2,2,double> info2b(dof2.block_info());
 
+  std::vector<FullMatrix<double> > matrices(2);
   MeshWorker::Assembler::MatrixSimple<FullMatrix<double> > ass1;
+  ass1.initialize(matrices[0]);
+
   deallog.push("Single block");
   test(info1, ass1);
   deallog.pop();

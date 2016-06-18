@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,12 +24,13 @@
 #include "../tests.h"
 #include <deal.II/base/logstream.h>
 
-#define PRECISION 2
+#define PRECISION 8
 
 #include <fstream>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_out.h>
+#include <deal.II/grid/grid_tools.h>
 #include <deal.II/fe/mapping_q.h>
 #include <deal.II/fe/mapping_q1_eulerian.h>
 
@@ -39,6 +40,7 @@
 #include <deal.II/base/function.h>
 #include <deal.II/base/quadrature.h>
 #include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/qprojector.h>
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/dofs/dof_tools.h>
 
@@ -140,9 +142,9 @@ void EvaluateNormal2 (DoFHandler<2> *dof_handler,
 
               for (unsigned int q_point=0; q_point<n_q_face; ++q_point)
                 {
-                  Point<2> vn = fe_v_face.normal_vector (q_point);
-                  double nx = vn(0);
-                  double ny = vn(1);
+                  Tensor<1,2> vn = fe_v_face.normal_vector (q_point);
+                  double nx = vn[0];
+                  double ny = vn[1];
 
                   double u = this_value[q_point + offset](0);
                   double v = this_value[q_point + offset](1);
@@ -229,9 +231,9 @@ void EvaluateNormal (DoFHandler<2> *dof_handler,
 
               for (unsigned int q_point=0; q_point<n_q_face; ++q_point)
                 {
-                  Point<2> vn = fe_v_face.normal_vector (q_point);
-                  double nx = vn(0);
-                  double ny = vn(1);
+                  Tensor<1,2> vn = fe_v_face.normal_vector (q_point);
+                  double nx = vn[0];
+                  double ny = vn[1];
 
                   double u = this_value[q_point](0);
                   double v = this_value[q_point](1);
@@ -263,7 +265,6 @@ int main (int /*argc*/, char **/*argv*/)
   deallog << std::setprecision(PRECISION);
   deallog << std::fixed;
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   Triangulation<2> tria_test;
@@ -277,7 +278,7 @@ int main (int /*argc*/, char **/*argv*/)
 
   GridGenerator::subdivided_hyper_rectangle (tria_test, sub_div, p1, p2);
   tria_test.refine_global (2);
-  tria_test.distort_random (0.05);
+  GridTools::distort_random (0.05, tria_test);
 
   // Create a DoFHandler
   FE_RaviartThomas<2> fe (1);

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -58,7 +58,7 @@ check()
 
   PreconditionChebyshev<FullMatrixModified,Vector<double> > prec;
   PreconditionChebyshev<FullMatrixModified,Vector<double> >::AdditionalData
-    data;
+  data;
   data.smoothing_range = 2 * size;
   data.degree = 3;
   prec.initialize(m, data);
@@ -106,7 +106,6 @@ int main()
   deallog << std::fixed;
   deallog << std::setprecision(2);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   check();

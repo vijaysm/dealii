@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__fe_q_h
-#define __deal2__fe_q_h
+#ifndef dealii__fe_q_h
+#define dealii__fe_q_h
 
 #include <deal.II/base/config.h>
 #include <deal.II/base/tensor_product_polynomials.h>
@@ -30,15 +30,16 @@ DEAL_II_NAMESPACE_OPEN
  * Implementation of a scalar Lagrange finite element @p Qp that yields the
  * finite element space of continuous, piecewise polynomials of degree @p p in
  * each coordinate direction. This class is realized using tensor product
- * polynomials based on equidistant or given support points.
+ * polynomials based on 1D Lagrange polynomials with equidistant (degree up to
+ * 2), Gauss-Lobatto (starting from degree 3), or given support points.
  *
  * The standard constructor of this class takes the degree @p p of this finite
  * element. Alternatively, it can take a quadrature formula @p points defining
- * the support points of the Lagrange interpolation in one coordinate direction.
+ * the support points of the Lagrange interpolation in one coordinate
+ * direction.
  *
- * For more information about the <tt>spacedim</tt> template parameter
- * check the documentation of FiniteElement or the one of
- * Triangulation.
+ * For more information about the <tt>spacedim</tt> template parameter check
+ * the documentation of FiniteElement or the one of Triangulation.
  *
  * <h3>Implementation</h3>
  *
@@ -49,21 +50,49 @@ DEAL_II_NAMESPACE_OPEN
  * creates a TensorProductPolynomials object that includes the tensor product
  * of @p Lagrange polynomials with the support points from @p points.
  *
- * Furthermore the constructor fills the @p interface_constraints, the
- * @p prolongation (embedding) and the @p restriction matrices. These
- * are implemented only up to a certain degree and may not be
- * available for very high polynomial degree.
+ * Furthermore the constructor fills the @p interface_constraints, the @p
+ * prolongation (embedding) and the @p restriction matrices. These are
+ * implemented only up to a certain degree and may not be available for very
+ * high polynomial degree.
  *
+ * <h3>Unit support point distribution and conditioning of interpolation</h3>
+ *
+ * When constructing an FE_Q element at polynomial degrees one or two,
+ * equidistant support points at 0 and 1 (linear case) or 0, 0.5, and 1
+ * (quadratic case) are used. The unit support or nodal points
+ * <i>x<sub>i</sub></i> are those points where the <i>j</i>th Lagrange
+ * polynomial satisfies the $\delta_{ij}$ property, i.e., where one polynomial
+ * is one and all the others are zero.  For higher polynomial degrees, the
+ * support points are non-equidistant by default, and chosen to be the support
+ * points of the <tt>(degree+1)</tt>-order Gauss-Lobatto quadrature rule. This
+ * point distribution yields well-conditioned Lagrange interpolation at
+ * arbitrary polynomial degrees. By contrast, polynomials based on equidistant
+ * points get increasingly ill-conditioned as the polynomial degree
+ * increases. In interpolation, this effect is known as the Runge
+ * phenomenon. For Galerkin methods, the Runge phenomenon is typically not
+ * visible in the solution quality but rather in the condition number of the
+ * associated system matrices. For example, the elemental mass matrix of
+ * equidistant points at degree 10 has condition number 2.6e6, whereas the
+ * condition number for Gauss-Lobatto points is around 400.
+ *
+ * The Gauss-Lobatto points in 1D include the end points 0 and +1 of the unit
+ * interval. The interior points are shifted towards the end points, which
+ * gives a denser point distribution close to the element boundary.
+ *
+ * If combined with Gauss-Lobatto quadrature, FE_Q based on the default
+ * support points gives diagonal mass matrices. This case is demonstrated in
+ * step-48. However, this element can be combined with arbitrary quadrature
+ * rules through the usual FEValues approach, including full Gauss
+ * quadrature. In the general case, the mass matrix is non-diagonal.
  *
  * <h3>Numbering of the degrees of freedom (DoFs)</h3>
  *
  * The original ordering of the shape functions represented by the
- * TensorProductPolynomials is a tensor product
- * numbering. However, the shape functions on a cell are renumbered
- * beginning with the shape functions whose support points are at the
- * vertices, then on the line, on the quads, and finally (for 3d) on
- * the hexes. To be explicit, these numberings are listed in the
- * following:
+ * TensorProductPolynomials is a tensor product numbering. However, the shape
+ * functions on a cell are renumbered beginning with the shape functions whose
+ * support points are at the vertices, then on the line, on the quads, and
+ * finally (for 3d) on the hexes. To be explicit, these numberings are listed
+ * in the following:
  *
  * <h4>Q1 elements</h4>
  * <ul>
@@ -95,19 +124,42 @@ DEAL_II_NAMESPACE_OPEN
  *     0-------1        0-------1
  *   @endverbatim
  *
- *   The respective coordinate values of the support points of the degrees
- *   of freedom are as follows:
- *   <ul>
- *   <li> Index 0: <tt>[0, 0, 0]</tt>;
- *   <li> Index 1: <tt>[1, 0, 0]</tt>;
- *   <li> Index 2: <tt>[0, 1, 0]</tt>;
- *   <li> Index 3: <tt>[1, 1, 0]</tt>;
- *   <li> Index 4: <tt>[0, 0, 1]</tt>;
- *   <li> Index 5: <tt>[1, 0, 1]</tt>;
- *   <li> Index 6: <tt>[0, 1, 1]</tt>;
- *   <li> Index 7: <tt>[1, 1, 1]</tt>;
- *   </ul>
+ * The respective coordinate values of the support points of the shape
+ * functions are as follows:
+ * <ul>
+ * <li> Shape function 0: <tt>[0, 0, 0]</tt>;
+ * <li> Shape function 1: <tt>[1, 0, 0]</tt>;
+ * <li> Shape function 2: <tt>[0, 1, 0]</tt>;
+ * <li> Shape function 3: <tt>[1, 1, 0]</tt>;
+ * <li> Shape function 4: <tt>[0, 0, 1]</tt>;
+ * <li> Shape function 5: <tt>[1, 0, 1]</tt>;
+ * <li> Shape function 6: <tt>[0, 1, 1]</tt>;
+ * <li> Shape function 7: <tt>[1, 1, 1]</tt>;
  * </ul>
+ * </ul>
+ *
+ * In 2d, these shape functions look as follows: <table> <tr> <td
+ * align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q1/Q1_shape0000.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q1/Q1_shape0001.png
+ * </td> </tr> <tr> <td align="center"> $Q_1$ element, shape function 0 </td>
+ *
+ * <td align="center"> $Q_1$ element, shape function 1 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q1/Q1_shape0002.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q1/Q1_shape0003.png
+ * </td> </tr> <tr> <td align="center"> $Q_1$ element, shape function 2 </td>
+ *
+ * <td align="center"> $Q_1$ element, shape function 3 </td> </tr> </table>
+ *
+ *
  * <h4>Q2 elements</h4>
  * <ul>
  * <li> 1D case:
@@ -148,40 +200,94 @@ DEAL_II_NAMESPACE_OPEN
  *     |/       /       |       |/
  *     *-------*        *-------*
  *   @endverbatim
- *   The center vertex has number 26.
+ * The center vertex has number 26.
  *
- *   The respective coordinate values of the support points of the degrees
- *   of freedom are as follows:
- *   <ul>
- *   <li> Index 0: <tt>[0, 0, 0]</tt>;
- *   <li> Index 1: <tt>[1, 0, 0]</tt>;
- *   <li> Index 2: <tt>[0, 1, 0]</tt>;
- *   <li> Index 3: <tt>[1, 1, 0]</tt>;
- *   <li> Index 4: <tt>[0, 0, 1]</tt>;
- *   <li> Index 5: <tt>[1, 0, 1]</tt>;
- *   <li> Index 6: <tt>[0, 1, 1]</tt>;
- *   <li> Index 7: <tt>[1, 1, 1]</tt>;
- *   <li> Index 8: <tt>[0, 1/2, 0]</tt>;
- *   <li> Index 9: <tt>[1, 1/2, 0]</tt>;
- *   <li> Index 10: <tt>[1/2, 0, 0]</tt>;
- *   <li> Index 11: <tt>[1/2, 1, 0]</tt>;
- *   <li> Index 12: <tt>[0, 1/2, 1]</tt>;
- *   <li> Index 13: <tt>[1, 1/2, 1]</tt>;
- *   <li> Index 14: <tt>[1/2, 0, 1]</tt>;
- *   <li> Index 15: <tt>[1/2, 1, 1]</tt>;
- *   <li> Index 16: <tt>[0, 0, 1/2]</tt>;
- *   <li> Index 17: <tt>[1, 0, 1/2]</tt>;
- *   <li> Index 18: <tt>[0, 1, 1/2]</tt>;
- *   <li> Index 19: <tt>[1, 1, 1/2]</tt>;
- *   <li> Index 20: <tt>[0, 1/2, 1/2]</tt>;
- *   <li> Index 21: <tt>[1, 1/2, 1/2]</tt>;
- *   <li> Index 22: <tt>[1/2, 0, 1/2]</tt>;
- *   <li> Index 23: <tt>[1/2, 1, 1/2]</tt>;
- *   <li> Index 24: <tt>[1/2, 1/2, 0]</tt>;
- *   <li> Index 25: <tt>[1/2, 1/2, 1]</tt>;
- *   <li> Index 26: <tt>[1/2, 1/2, 1/2]</tt>;
- *   </ul>
+ * The respective coordinate values of the support points of the shape
+ * functions are as follows:
+ * <ul>
+ * <li> Shape function 0: <tt>[0, 0, 0]</tt>;
+ * <li> Shape function 1: <tt>[1, 0, 0]</tt>;
+ * <li> Shape function 2: <tt>[0, 1, 0]</tt>;
+ * <li> Shape function 3: <tt>[1, 1, 0]</tt>;
+ * <li> Shape function 4: <tt>[0, 0, 1]</tt>;
+ * <li> Shape function 5: <tt>[1, 0, 1]</tt>;
+ * <li> Shape function 6: <tt>[0, 1, 1]</tt>;
+ * <li> Shape function 7: <tt>[1, 1, 1]</tt>;
+ * <li> Shape function 8: <tt>[0, 1/2, 0]</tt>;
+ * <li> Shape function 9: <tt>[1, 1/2, 0]</tt>;
+ * <li> Shape function 10: <tt>[1/2, 0, 0]</tt>;
+ * <li> Shape function 11: <tt>[1/2, 1, 0]</tt>;
+ * <li> Shape function 12: <tt>[0, 1/2, 1]</tt>;
+ * <li> Shape function 13: <tt>[1, 1/2, 1]</tt>;
+ * <li> Shape function 14: <tt>[1/2, 0, 1]</tt>;
+ * <li> Shape function 15: <tt>[1/2, 1, 1]</tt>;
+ * <li> Shape function 16: <tt>[0, 0, 1/2]</tt>;
+ * <li> Shape function 17: <tt>[1, 0, 1/2]</tt>;
+ * <li> Shape function 18: <tt>[0, 1, 1/2]</tt>;
+ * <li> Shape function 19: <tt>[1, 1, 1/2]</tt>;
+ * <li> Shape function 20: <tt>[0, 1/2, 1/2]</tt>;
+ * <li> Shape function 21: <tt>[1, 1/2, 1/2]</tt>;
+ * <li> Shape function 22: <tt>[1/2, 0, 1/2]</tt>;
+ * <li> Shape function 23: <tt>[1/2, 1, 1/2]</tt>;
+ * <li> Shape function 24: <tt>[1/2, 1/2, 0]</tt>;
+ * <li> Shape function 25: <tt>[1/2, 1/2, 1]</tt>;
+ * <li> Shape function 26: <tt>[1/2, 1/2, 1/2]</tt>;
  * </ul>
+ * </ul>
+ *
+ *
+ * In 2d, these shape functions look as follows (the black plane corresponds
+ * to zero; negative shape function values may not be visible): <table> <tr>
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q2/Q2_shape0000.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q2/Q2_shape0001.png
+ * </td> </tr> <tr> <td align="center"> $Q_2$ element, shape function 0 </td>
+ *
+ * <td align="center"> $Q_2$ element, shape function 1 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q2/Q2_shape0002.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q2/Q2_shape0003.png
+ * </td> </tr> <tr> <td align="center"> $Q_2$ element, shape function 2 </td>
+ *
+ * <td align="center"> $Q_2$ element, shape function 3 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q2/Q2_shape0004.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q2/Q2_shape0005.png
+ * </td> </tr> <tr> <td align="center"> $Q_2$ element, shape function 4 </td>
+ *
+ * <td align="center"> $Q_2$ element, shape function 5 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q2/Q2_shape0006.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q2/Q2_shape0007.png
+ * </td> </tr> <tr> <td align="center"> $Q_2$ element, shape function 6 </td>
+ *
+ * <td align="center"> $Q_2$ element, shape function 7 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q2/Q2_shape0008.png
+ * </td>
+ *
+ * <td align="center"> </td> </tr> <tr> <td align="center"> $Q_2$ element,
+ * shape function 8 </td>
+ *
+ * <td align="center"> </td> </tr> </table>
+ *
+ *
  * <h4>Q3 elements</h4>
  * <ul>
  * <li> 1D case:
@@ -200,6 +306,90 @@ DEAL_II_NAMESPACE_OPEN
  *      0--8--9--1
  *   @endverbatim
  * </ul>
+ *
+ * In 2d, these shape functions look as follows (the black plane corresponds
+ * to zero; negative shape function values may not be visible): <table> <tr>
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0000.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0001.png
+ * </td> </tr> <tr> <td align="center"> $Q_3$ element, shape function 0 </td>
+ *
+ * <td align="center"> $Q_3$ element, shape function 1 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0002.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0003.png
+ * </td> </tr> <tr> <td align="center"> $Q_3$ element, shape function 2 </td>
+ *
+ * <td align="center"> $Q_3$ element, shape function 3 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0004.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0005.png
+ * </td> </tr> <tr> <td align="center"> $Q_3$ element, shape function 4 </td>
+ *
+ * <td align="center"> $Q_3$ element, shape function 5 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0006.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0007.png
+ * </td> </tr> <tr> <td align="center"> $Q_3$ element, shape function 6 </td>
+ *
+ * <td align="center"> $Q_3$ element, shape function 7 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0008.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0009.png
+ * </td> </tr> <tr> <td align="center"> $Q_3$ element, shape function 8 </td>
+ *
+ * <td align="center"> $Q_3$ element, shape function 9 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0010.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0011.png
+ * </td> </tr> <tr> <td align="center"> $Q_3$ element, shape function 10 </td>
+ *
+ * <td align="center"> $Q_3$ element, shape function 11 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0012.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0013.png
+ * </td> </tr> <tr> <td align="center"> $Q_3$ element, shape function 12 </td>
+ *
+ * <td align="center"> $Q_3$ element, shape function 13 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0014.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q3/Q3_shape0015.png
+ * </td> </tr> <tr> <td align="center"> $Q_3$ element, shape function 14 </td>
+ *
+ * <td align="center"> $Q_3$ element, shape function 15 </td> </tr> </table>
+ *
+ *
  * <h4>Q4 elements</h4>
  * <ul>
  * <li> 1D case:
@@ -221,26 +411,163 @@ DEAL_II_NAMESPACE_OPEN
  *   @endverbatim
  * </ul>
  *
- * @author Wolfgang Bangerth, 1998, 2003; Guido Kanschat, 2001; Ralf Hartmann, 2001, 2004, 2005; Oliver Kayser-Herold, 2004; Katharina Kormann, 2008; Martin Kronbichler, 2008
+ * In 2d, these shape functions look as follows (the black plane corresponds
+ * to zero; negative shape function values may not be visible): <table> <tr>
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0000.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0001.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 0 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 1 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0002.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0003.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 2 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 3 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0004.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0005.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 4 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 5 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0006.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0007.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 6 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 7 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0008.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0009.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 8 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 9 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0010.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0011.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 10 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 11 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0012.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0013.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 12 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 13 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0014.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0015.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 14 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 15 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0016.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0017.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 16 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 17 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0018.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0019.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 18 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 19 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0020.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0021.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 20 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 21 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0022.png
+ * </td>
+ *
+ * <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0023.png
+ * </td> </tr> <tr> <td align="center"> $Q_4$ element, shape function 22 </td>
+ *
+ * <td align="center"> $Q_4$ element, shape function 23 </td> </tr>
+ *
+ * <tr> <td align="center">
+ * @image html http://www.dealii.org/images/shape-functions/lagrange/Q4/Q4_shape0024.png
+ * </td>
+ *
+ * <td align="center"> </td> </tr> <tr> <td align="center"> $Q_4$ element,
+ * shape function 24 </td>
+ *
+ * <td align="center"> </td> </tr> </table>
+ *
+ *
+ *
+ * @author Wolfgang Bangerth, 1998, 2003; Guido Kanschat, 2001; Ralf Hartmann,
+ * 2001, 2004, 2005; Oliver Kayser-Herold, 2004; Katharina Kormann, 2008;
+ * Martin Kronbichler, 2008
  */
 template <int dim, int spacedim=dim>
 class FE_Q : public FE_Q_Base<TensorProductPolynomials<dim>,dim,spacedim>
 {
 public:
   /**
-   * Constructor for tensor product polynomials of degree @p p.
+   * Constructor for tensor product polynomials of degree @p p based on
+   * Gauss-Lobatto support (node) points. For polynomial degrees of one and
+   * two, these are the usual equidistant points.
    */
   FE_Q (const unsigned int p);
 
   /**
    * Constructor for tensor product polynomials with support points @p points
    * based on a one-dimensional quadrature formula. The degree of the finite
-   * element is <tt>points.size()-1</tt>.  Note that the first point has to be
-   * 0 and the last one 1. If
-   * <tt>FE_Q<dim>(QGaussLobatto<1>(fe_degree+1))</tt> is specified, so-called
-   * Gauss-Lobatto elements are obtained which can give a diagonal mass matrix
-   * if combined with Gauss-Lobatto quadrature on the same points. Their use
-   * is shown in step-48.
+   * element is <tt>points.size()-1</tt>. Note that the first point has to be
+   * 0 and the last one 1. Constructing
+   * <tt>FE_Q<dim>(QGaussLobatto<1>(fe_degree+1))</tt> is equivalent to the
+   * constructor that specifies the polynomial degree only. For selecting
+   * equidistant nodes at <tt>fe_degree > 2</tt>, construct
+   * <tt>FE_Q<dim>(QIterated<1>(QTrapez<1>(),fe_degree))</tt>.
    */
   FE_Q (const Quadrature<1> &points);
 

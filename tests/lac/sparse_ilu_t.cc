@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2013 by the deal.II authors
+// Copyright (C) 2001 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -38,7 +38,6 @@ int main()
   deallog << std::fixed;
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
 
@@ -88,8 +87,10 @@ int main()
               Assert (false, ExcNotImplemented());
             };
           ilu_pattern.compress();
-          SparseILU<double> ilu (ilu_pattern);
-          ilu.decompose (A);
+          SparseILU<double>::AdditionalData data;
+          data.use_this_sparsity = &ilu_pattern;
+          SparseILU<double> ilu;
+          ilu.initialize (A, data);
 
           // now for three test vectors v
           // determine norm of

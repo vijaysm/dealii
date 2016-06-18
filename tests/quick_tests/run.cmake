@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2013 by the deal.II authors
+## Copyright (C) 2013 - 2016 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -21,12 +21,11 @@ SEPARATE_ARGUMENTS(ALL_TESTS)
 
 EXECUTE_PROCESS(COMMAND ${CMAKE_CTEST_COMMAND} --force-new-ctest-process --output-on-failure -O quicktests.log RESULT_VARIABLE res_var)
 
-if(NOT "${res_var}" STREQUAL "0")
-  MESSAGE( "
-
-*******************************     WARNING     *******************************
-
-Some of the tests failed!
+IF(NOT "${res_var}" STREQUAL "0")
+  MESSAGE("
+***************************************************************************
+**                 Error: Some of the quick tests failed.                **
+***************************************************************************
 
 Please scroll up or check the file tests/quick_tests/quicktests.log for the
 error messages. If you are unable to fix the problems, see the FAQ or write
@@ -39,7 +38,8 @@ to the mailing list linked at http://www.dealii.org\n"
 The affinity test can fail when you are linking in a library like BLAS
 which uses OpenMP. Even without calling any BLAS functions, OpenMP messes
 with the thread affinity which causes TBB to run single-threaded only. You
-can fix this by exporting OMP_NUM_THREADS=1.\n"
+can fix this by exporting OMP_NUM_THREADS=1. Also see GOMP_CPU_AFFINITY 
+and OMP_PROC_BIND.\n"
         )
     ENDIF()
 
@@ -59,5 +59,12 @@ recent version or use a different MPI library like MPICH.\n"
     ENDIF()
 
   ENDFOREACH()
+
+  # The CMake command MESSAGE(SEND_ERROR ...) is, to the best of the authors'
+  # knowledge, the only way to set the exit status of CMake to a nonzero value.
+  # If we used MESSAGE(SEND_ERROR ...) at the top (with the actual error
+  # message) then subsequent messages (i.e., the test specific help) would not
+  # be printed. Hence, do it down here.
+  MESSAGE(SEND_ERROR "")
 
 ENDIF()

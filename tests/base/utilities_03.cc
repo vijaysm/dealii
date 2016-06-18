@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -33,7 +33,7 @@ void test ()
   v.push_back ("1.5");
   v.push_back (" -12.5");
   v.push_back ("+125.5 ");
-  Assert (Utilities::string_to_double (v).size() == 3, ExcInternalError());
+  AssertThrow (Utilities::string_to_double (v).size() == 3, ExcInternalError());
   deallog << Utilities::string_to_double (v)[0] << std::endl;
   deallog << Utilities::string_to_double (v)[1] << std::endl;
   deallog << Utilities::string_to_double (v)[2] << std::endl;
@@ -46,7 +46,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test ();

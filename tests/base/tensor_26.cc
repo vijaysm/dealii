@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 by the deal.II authors
+// Copyright (C) 2014 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -32,7 +32,7 @@ template <int dim>
 void test_tensor ()
 {
   // a real tensor
-  Tensor<1,dim,double> t (false);
+  Tensor<1,dim,double> t;
 
   for (unsigned int i=0; i<dim; ++i)
     {
@@ -40,18 +40,18 @@ void test_tensor ()
     }
 
   // multiply on the right by a complex<double>
-  const Tensor<1,dim,std::complex<double> > right = 
+  const Tensor<1,dim,std::complex<double> > right =
     t * std::complex<double> (1,2);
 
   // multiply on the left by a complex<double>
-  const Tensor<1,dim,std::complex<double> > left  = 
+  const Tensor<1,dim,std::complex<double> > left  =
     std::complex<double> (1,2) * t;
 
   // they should yield the same result
   Assert (left == right, ExcInternalError ());
 
   deallog << "dim = " << dim   << std::endl
-	  << left << " : "     << right << std::endl;
+          << left << " : "     << right << std::endl;
 }
 
 
@@ -60,7 +60,6 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test_tensor<1>();

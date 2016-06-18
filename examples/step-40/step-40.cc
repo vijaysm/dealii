@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2009 - 2014 by the deal.II authors
+ * Copyright (C) 2009 - 2016 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -30,14 +30,22 @@
 
 #include <deal.II/lac/generic_linear_algebra.h>
 
-#define USE_PETSC_LA
+// uncomment the following #define if you have PETSc and Trilinos installed
+// and you prefer using Trilinos in this example:
+// #define FORCE_USE_OF_TRILINOS
 
+// This will either import PETSc or TrilinosWrappers into the namespace
+// LA. Note that we are defining the macro USE_PETSC_LA so that we can detect
+// if we are using PETSc (see solve() for an example where this is necessary)
 namespace LA
 {
-#ifdef USE_PETSC_LA
+#if defined(DEAL_II_WITH_PETSC) && !(defined(DEAL_II_WITH_TRILINOS) && defined(FORCE_USE_OF_TRILINOS))
   using namespace dealii::LinearAlgebraPETSc;
-#else
+#  define USE_PETSC_LA
+#elif defined(DEAL_II_WITH_TRILINOS)
   using namespace dealii::LinearAlgebraTrilinos;
+#else
+#  error DEAL_II_WITH_PETSC or DEAL_II_WITH_TRILINOS required
 #endif
 }
 
@@ -45,7 +53,7 @@ namespace LA
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/constraint_matrix.h>
-#include <deal.II/lac/compressed_simple_sparsity_pattern.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 
 #include <deal.II/lac/petsc_parallel_sparse_matrix.h>
 #include <deal.II/lac/petsc_parallel_vector.h>
@@ -168,9 +176,9 @@ namespace Step40
 
     ConstraintMatrix                          constraints;
 
-    LA::MPI::SparseMatrix system_matrix;
-    LA::MPI::Vector locally_relevant_solution;
-    LA::MPI::Vector system_rhs;
+    LA::MPI::SparseMatrix                     system_matrix;
+    LA::MPI::Vector                           locally_relevant_solution;
+    LA::MPI::Vector                           system_rhs;
 
     ConditionalOStream                        pcout;
     TimerOutput                               computing_timer;
@@ -295,7 +303,7 @@ namespace Step40
 
     // The last part of this function deals with initializing the matrix with
     // accompanying sparsity pattern. As in previous tutorial programs, we use
-    // the CompressedSimpleSparsityPattern as an intermediate with which we
+    // the DynamicSparsityPattern as an intermediate with which we
     // then initialize the PETSc matrix. To do so we have to tell the sparsity
     // pattern its size but as above there is no way the resulting object will
     // be able to store even a single pointer for each global degree of
@@ -315,18 +323,18 @@ namespace Step40
     // entries that will exist in that part of the finite element matrix that
     // it will own. The final step is to initialize the matrix with the
     // sparsity pattern.
-    CompressedSimpleSparsityPattern csp (locally_relevant_dofs);
+    DynamicSparsityPattern dsp (locally_relevant_dofs);
 
-    DoFTools::make_sparsity_pattern (dof_handler, csp,
+    DoFTools::make_sparsity_pattern (dof_handler, dsp,
                                      constraints, false);
-    SparsityTools::distribute_sparsity_pattern (csp,
+    SparsityTools::distribute_sparsity_pattern (dsp,
                                                 dof_handler.n_locally_owned_dofs_per_processor(),
                                                 mpi_communicator,
                                                 locally_relevant_dofs);
 
     system_matrix.reinit (locally_owned_dofs,
                           locally_owned_dofs,
-                          csp,
+                          dsp,
                           mpi_communicator);
   }
 
@@ -419,6 +427,11 @@ namespace Step40
                                                   system_rhs);
         }
 
+    // Notice that the assembling above is just a local operation. So, to
+    // form the "global" linear system, a synchronization between all
+    // processors is needed. This could be done by invoking the function
+    // compress(). See @ref GlossCompress  "Compressing distributed objects"
+    // for more information on what is compress() designed to do.
     system_matrix.compress (VectorOperation::add);
     system_rhs.compress (VectorOperation::add);
   }
@@ -462,7 +475,12 @@ namespace Step40
 
     SolverControl solver_control (dof_handler.n_dofs(), 1e-12);
 
+#ifdef USE_PETSC_LA
     LA::SolverCG solver(solver_control, mpi_communicator);
+#else
+    LA::SolverCG solver(solver_control);
+#endif
+
     LA::MPI::PreconditionAMG preconditioner;
 
     LA::MPI::PreconditionAMG::AdditionalData data;
@@ -568,7 +586,7 @@ namespace Step40
     data_out.build_patches ();
 
     // The next step is to write this data to disk. We choose file names of
-    // the form <code>solution-XX-PPPP.vtu</code> where <code>XX</code>
+    // the form <code>solution-XX.PPPP.vtu</code> where <code>XX</code>
     // indicates the refinement cycle, <code>PPPP</code> refers to the
     // processor number (enough for up to 10,000 processors, though we hope
     // that nobody ever tries to generate this much data -- you would likely
@@ -601,7 +619,9 @@ namespace Step40
                                Utilities::int_to_string (i, 4) +
                                ".vtu");
 
-        std::ofstream master_output ((filename + ".pvtu").c_str());
+        std::ofstream master_output (("solution-" +
+                                      Utilities::int_to_string (cycle, 2) +
+                                      ".pvtu").c_str());
         data_out.write_pvtu_record (master_output, filenames);
       }
   }
@@ -690,12 +710,9 @@ int main(int argc, char *argv[])
       using namespace Step40;
 
       Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
-      deallog.depth_console (0);
 
-      {
-        LaplaceProblem<2> laplace_problem_2d;
-        laplace_problem_2d.run ();
-      }
+      LaplaceProblem<2> laplace_problem_2d;
+      laplace_problem_2d.run ();
     }
   catch (std::exception &exc)
     {

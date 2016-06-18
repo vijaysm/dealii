@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2013 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,7 +19,7 @@
 #include "../tests.h"
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/index_set.h>
-#include <deal.II/lac/parallel_vector.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -41,8 +41,8 @@ void test ()
   local_relevant = local_owned;
   local_relevant.add_range(1,2);
 
-  parallel::distributed::Vector<double> v(local_owned, local_relevant, MPI_COMM_WORLD);
-  parallel::distributed::Vector<double> w(v);
+  LinearAlgebra::distributed::Vector<double> v(local_owned, local_relevant, MPI_COMM_WORLD);
+  LinearAlgebra::distributed::Vector<double> w(v);
 
   // set local values and check them
   v(myid*2)=myid*2.0;
@@ -51,7 +51,7 @@ void test ()
   v.update_ghost_values();
 
   // check that the value of the ghost is 1.0
-  Assert (v(1) == 1., ExcInternalError());
+  AssertThrow (v(1) == 1., ExcInternalError());
 
   // copy vector
   w  = v;
@@ -59,8 +59,8 @@ void test ()
 
   v.update_ghost_values();
   w.update_ghost_values();
-  Assert (v(1) == 2., ExcInternalError());
-  Assert (w(1) == 1., ExcInternalError());
+  AssertThrow (v(1) == 2., ExcInternalError());
+  AssertThrow (w(1) == 1., ExcInternalError());
 
   if (myid == 0)
     deallog << "OK" << std::endl;
@@ -70,7 +70,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::System::MPI_InitFinalize mpi_initialization(argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, testing_max_num_threads());
 
   unsigned int myid = Utilities::MPI::this_mpi_process (MPI_COMM_WORLD);
   deallog.push(Utilities::int_to_string(myid));
@@ -80,7 +80,6 @@ int main (int argc, char **argv)
       std::ofstream logfile("output");
       deallog.attach(logfile);
       deallog << std::setprecision(4);
-      deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
 
       test();

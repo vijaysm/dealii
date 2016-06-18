@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,7 +19,7 @@
 /*
  --------------------------------------------------------
  An error occurred in line <3349> of file </ssd/deal-trunk/deal.II/include/deal.II/dofs/dof_accessor.templates.h> in function
-     void dealii::DoFCellAccessor<DH, lda>::get_dof_values(const InputVector&, ForwardIterator, ForwardIterator) const [with InputVector = dealii::TrilinosWrappers::MPI::Vector, ForwardIterator = double*, DH = dealii::DoFHandler<2>, bool level_dof_access = false]
+     void dealii::DoFCellAccessor<DoFHandlerType, lda>::get_dof_values(const InputVector&, ForwardIterator, ForwardIterator) const [with InputVector = dealii::TrilinosWrappers::MPI::Vector, ForwardIterator = double*, DoFHandlerType = dealii::DoFHandler<2>, bool level_dof_access = false]
  The violated condition was:
      this->is_artificial() == false
  The name and call sequence of the exception was:
@@ -77,12 +77,12 @@ void test()
   TrilinosWrappers::MPI::Vector vec_rel ( locally_relevant_set);
   vec_rel = vec;
 
-  MappingQ1<dim> mapping;
+  MappingQGeneric<dim> mapping(1);
   Vector<float> indicators(tr.n_active_cells());
   DerivativeApproximation::approximate_gradient  (mapping,
-						  dofh,
-						  vec_rel,
-						  indicators);
+                                                  dofh,
+                                                  vec_rel,
+                                                  indicators);
 
   // we got here, so no exception.
   if (myid == 0)
@@ -92,7 +92,7 @@ void test()
 
 int main(int argc, char *argv[])
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
   MPILogInitAll log;
 
   test<2>();

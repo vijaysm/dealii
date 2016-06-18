@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -62,7 +62,9 @@ void test ()
   std::vector<unsigned int> sub(dim, 1);
   sub[dim-1] = 2;
 
-  GridGenerator::subdivided_hyper_rectangle (triangulation, sub, Point<dim>(), Point<dim>());
+  Point<2> p1;
+  Point<2> p2(1.0, 2.0);
+  GridGenerator::subdivided_hyper_rectangle (triangulation, sub, p1, p2);
   triangulation.begin_active()->set_refine_flag();
   triangulation.execute_coarsening_and_refinement();
 
@@ -123,7 +125,6 @@ int main ()
   logfile.precision(2);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<2> ();

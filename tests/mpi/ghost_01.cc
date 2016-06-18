@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -52,7 +52,6 @@ void test ()
   vb.compress(VectorOperation::insert);
   vb*=2.0;
   v=vb;
-  //v.update_ghost_values();
 
   Assert(!vb.has_ghost_elements(), ExcInternalError());
   Assert(v.has_ghost_elements(), ExcInternalError());
@@ -60,18 +59,18 @@ void test ()
   // check local values
   if (Utilities::MPI::this_mpi_process (MPI_COMM_WORLD) == 0)
     {
-      deallog << myid*2 << ":" << v(myid*2) << std::endl;
-      deallog << myid*2+1 << ":" << v(myid*2+1) << std::endl;
+      deallog << myid*2 << ":" << get_real_assert_zero_imag(v(myid*2)) << std::endl;
+      deallog << myid*2+1 << ":" << get_real_assert_zero_imag(v(myid*2+1)) << std::endl;
     }
 
-  Assert(v(myid*2) == myid*4.0, ExcInternalError());
-  Assert(v(myid*2+1) == myid*4.0+2.0, ExcInternalError());
+  Assert(get_real_assert_zero_imag(v(myid*2)) == myid*4.0, ExcInternalError());
+  Assert(get_real_assert_zero_imag(v(myid*2+1)) == myid*4.0+2.0, ExcInternalError());
 
 
   // check ghost values
   if (Utilities::MPI::this_mpi_process (MPI_COMM_WORLD) == 0)
-    deallog << "ghost: " << v(1) << std::endl;
-  Assert(v(1) == 2.0, ExcInternalError());
+    deallog << "ghost: " << get_real_assert_zero_imag(v(1)) << std::endl;
+  Assert(get_real_assert_zero_imag(v(1)) == 2.0, ExcInternalError());
 
   // done
   if (myid==0)
@@ -82,7 +81,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
   unsigned int myid = Utilities::MPI::this_mpi_process (MPI_COMM_WORLD);
 
   deallog.push(Utilities::int_to_string(myid));
@@ -92,7 +91,6 @@ int main (int argc, char **argv)
       std::ofstream logfile("output");
       deallog.attach(logfile);
       deallog << std::setprecision(4);
-      deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
 
       test();

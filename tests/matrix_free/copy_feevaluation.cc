@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 by the deal.II authors
+// Copyright (C) 2013 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -42,6 +42,7 @@ std::ofstream logfile("output");
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q.h>
 #include <deal.II/numerics/vector_tools.h>
 
 #include <fstream>
@@ -70,9 +71,9 @@ public:
     typedef VectorizedArray<Number> vector_t;
     // allocate FEEvaluation. This test will test proper alignment
     AlignedVector<FEEvaluation<dim,degree_p+1,degree_p+2,dim,Number> > velocity
-      (1, FEEvaluation<dim,degree_p+1,degree_p+2,dim,Number>(data, 0));
+    (1, FEEvaluation<dim,degree_p+1,degree_p+2,dim,Number>(data, 0));
     AlignedVector<FEEvaluation<dim,degree_p,  degree_p+2,1,  Number> > pressure
-      (1, FEEvaluation<dim,degree_p,  degree_p+2,1,  Number>(data, 1));
+    (1, FEEvaluation<dim,degree_p,  degree_p+2,1,  Number>(data, 1));
 
     for (unsigned int cell=cell_range.first; cell<cell_range.second; ++cell)
       {
@@ -328,7 +329,6 @@ void test ()
 int main ()
 {
   deallog.attach(logfile);
-  deallog.depth_console(0);
 
   deallog << std::setprecision (3);
 

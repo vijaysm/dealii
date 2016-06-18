@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -62,8 +62,8 @@ void test (const FiniteElement<dim> &fe,
                            delta_x;
             }
 
-          Assert ((gradient-fd_grad).norm () <= 2e-5,
-                  ExcInternalError());
+          AssertThrow ((gradient-fd_grad).norm () <= 2e-5,
+                       ExcInternalError());
         }
   deallog << "OK" << std::endl;
 }
@@ -147,13 +147,11 @@ main()
   deallog << std::setprecision(2);
   deallog << std::fixed;
   deallog.attach(logfile);
-  deallog.depth_console(0);
 
   check<FE_Q> (1,4);
   check1<FE_Q_Hierarchical> (1,4);
   check<FE_DGQ> (0,4);
   check<FE_DGP> (0,4);
-  check<FE_DGPNonparametric> (0,4);
   check1<FE_DGPMonomial> (0,3);
 
   check1<FE_Nedelec> (0,1);

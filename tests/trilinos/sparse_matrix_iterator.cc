@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2013 by the deal.II authors
+// Copyright (C) 2012 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,9 +23,8 @@ int main(int argc, char **argv)
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console (0);
 
-  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, testing_max_num_threads());
 
   TrilinosWrappers::SparsityPattern pattern(4,5,2);
   pattern.add(0,2);

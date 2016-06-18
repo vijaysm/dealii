@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2013 by the deal.II authors
+// Copyright (C) 2007 - 2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,7 +26,7 @@ main()
   deallog.threshold_double(1.e-10);
 
   CHECK_SYS3((FESystem<2>(FE_Q<2>(1),3)), 3,
-             FE_DGQ<2>(3), 1,
+             FE_DGQArbitraryNodes<2>(QIterated<1>(QTrapez<1>(),3)), 1,
              FE_Q<2>(1), 3,
              2);
 }

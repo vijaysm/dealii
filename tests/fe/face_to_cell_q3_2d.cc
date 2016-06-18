@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,17 +36,17 @@ void test()
       deallog << "Face=" << face << std::endl;
 
       for (int flip=0; flip<2; ++flip)
-	{
-	  deallog << "  flip=" << (flip == 0 ? "false" : "true")
-		  << std::endl
-		  << "    ";
-	  for (unsigned int i = 0; i < dofs_per_face; ++i)
-	    deallog << fe.face_to_cell_index(i, face,
-					     true,
-					     (flip == 0 ? false : true),
-					     false) << " - ";
-	  deallog << std::endl;
-	}
+        {
+          deallog << "  flip=" << (flip == 0 ? "false" : "true")
+                  << std::endl
+                  << "    ";
+          for (unsigned int i = 0; i < dofs_per_face; ++i)
+            deallog << fe.face_to_cell_index(i, face,
+                                             true,
+                                             (flip == 0 ? false : true),
+                                             false) << " - ";
+          deallog << std::endl;
+        }
     }
 }
 
@@ -54,7 +54,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<2>();

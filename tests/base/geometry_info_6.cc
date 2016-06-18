@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -46,7 +46,7 @@ void test ()
       {
         deallog << "Reference cell: " << determinants[v]
                 << std::endl;
-        Assert (static_cast<double>(determinants[v]) == 1, ExcInternalError());
+        AssertThrow (static_cast<double>(determinants[v]) == 1, ExcInternalError());
       }
   }
 
@@ -67,7 +67,7 @@ void test ()
       {
         deallog << "Squashed cell: " << determinants[v]
                 << std::endl;
-        Assert (static_cast<double>(determinants[v]) == 0.1, ExcInternalError());
+        AssertThrow (static_cast<double>(determinants[v]) == 0.1, ExcInternalError());
       }
   }
 
@@ -97,7 +97,7 @@ void test ()
       {
         deallog << "Squashed+rotated cell: " << determinants[v]
                 << std::endl;
-        Assert (static_cast<double>(determinants[v]) == 0.1, ExcInternalError());
+        AssertThrow (static_cast<double>(determinants[v]) == 0.1, ExcInternalError());
       }
   }
 
@@ -138,7 +138,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();

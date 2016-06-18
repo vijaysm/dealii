@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2013 by the deal.II authors
+// Copyright (C) 2012 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -69,7 +69,7 @@ void test_real_to_unit_cell()
   // one face and adjacent edges of
   // the single cell
   triangulation.set_boundary (1, boundary);
-  triangulation.begin_active()->face(5)->set_all_boundary_indicators (1);
+  triangulation.begin_active()->face(5)->set_all_boundary_ids (1);
 
   // now see if the point is inside
   // or outside
@@ -86,7 +86,6 @@ main()
 {
   std::ofstream logfile ("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test_real_to_unit_cell();

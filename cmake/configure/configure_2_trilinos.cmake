@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2014 by the deal.II authors
+## Copyright (C) 2012 - 2015 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -42,7 +42,7 @@ MACRO(FEATURE_TRILINOS_FIND_EXTERNAL var)
       )
 
     FOREACH(_module
-      Amesos Epetra Ifpack AztecOO Sacado Teuchos
+      Amesos Epetra Ifpack AztecOO Sacado Teuchos ML
       )
       ITEM_MATCHES(_module_found ${_module} ${Trilinos_PACKAGE_LIST})
       IF(_module_found)
@@ -53,6 +53,20 @@ MACRO(FEATURE_TRILINOS_FIND_EXTERNAL var)
         SET(${var} FALSE)
       ENDIF()
     ENDFOREACH()
+
+    IF((TRILINOS_VERSION_MAJOR EQUAL 11 AND
+        NOT (TRILINOS_VERSION_MINOR LESS 14)) 
+       OR
+       (NOT (TRILINOS_VERSION_MAJOR LESS 12)))
+        ITEM_MATCHES(_module_found MueLu ${Trilinos_PACKAGE_LIST})
+      IF(_module_found)
+        MESSAGE(STATUS "Found MueLu")
+      ELSE()
+        MESSAGE(STATUS "Module MueLu not found!")
+        SET(_modules_missing "${_modules_missing} MueLu")
+        SET(${var} FALSE)
+      ENDIF()
+    ENDIF()
 
     IF(NOT ${var})
       MESSAGE(STATUS "Could not find a sufficient Trilinos installation: "
@@ -67,31 +81,18 @@ MACRO(FEATURE_TRILINOS_FIND_EXTERNAL var)
     ENDIF()
 
     #
-    # Trilinos 10.6 had quite a number of bugs we ran into, see
-    # for example
-    #   https://software.sandia.gov/bugzilla/show_bug.cgi?id=5062
-    #   https://software.sandia.gov/bugzilla/show_bug.cgi?id=5319
+    # We require at least Trilinos 11.2
     #
-    # The same is unfortunately true for 10.8.[01]:
-    #   https://software.sandia.gov/bugzilla/show_bug.cgi?id=5370
-    #
-    IF((TRILINOS_VERSION_MAJOR EQUAL 10 AND
-        TRILINOS_VERSION_MINOR EQUAL 6)
-       OR
-       (TRILINOS_VERSION_MAJOR EQUAL 10 AND
-        TRILINOS_VERSION_MINOR EQUAL 8 AND
-        TRILINOS_VERSION_SUBMINOR LESS 2))
+    IF(TRILINOS_VERSION VERSION_LESS 11.2)
 
       MESSAGE(STATUS "Could not find a sufficient Trilinos installation: "
-        "Version ${TRILINOS_VERSION_MAJOR}.${TRILINOS_VERSION_MINOR}.${TRILINOS_VERSION_SUBMINOR} has bugs that make "
-        "it incompatible with deal.II. Please use versions before 10.6 or after 10.8.1"
+        "deal.II requires at least version 11.2, but version ${TRILINOS_VERSION} was found."
         )
       SET(TRILINOS_ADDITIONAL_ERROR_STRING
         ${TRILINOS_ADDITIONAL_ERROR_STRING}
         "The Trilinos installation (found at \"${TRILINOS_DIR}\")\n"
-        "with version ${TRILINOS_VERSION_MAJOR}.${TRILINOS_VERSION_MINOR}.${TRILINOS_VERSION_SUBMINOR} has bugs that make\n"
-        "it incompatible with deal.II. Please use versions before 10.6 or after\n"
-        "10.8.1.\n\n"
+        "with version ${TRILINOS_VERSION} is too old.\n"
+        "deal.II requires at least version 11.2.\n\n"
         )
       SET(${var} FALSE)
     ENDIF()
@@ -117,12 +118,14 @@ MACRO(FEATURE_TRILINOS_FIND_EXTERNAL var)
     ENDIF()
 
     #
-    # Trilinos has to be configured with 32bit indices if deal.II uses unsigned int.
+    # Trilinos has to be configured with 32bit indices if deal.II uses
+    # unsigned int.
     #
     IF(TRILINOS_WITH_NO_32BIT_INDICES AND NOT DEAL_II_WITH_64BIT_INDICES)
-      MESSAGE(STATUS "deal.II was configured to use 32bit global indices but "
+      MESSAGE(STATUS "Could not find a sufficient Trilinos installation: "
+        "deal.II was configured to use 32bit global indices but "
         "Trilinos was not."
-        ) 
+        )
       SET(TRILINOS_ADDITIONAL_ERROR_STRING
         ${TRILINOS_ADDITIONAL_ERROR_STRING}
         "The Trilinos installation (found at \"${TRILINOS_DIR}\")\n"
@@ -135,11 +138,12 @@ MACRO(FEATURE_TRILINOS_FIND_EXTERNAL var)
     ENDIF()
 
     #
-    # Trilinos has to be configured with 64bit indices if deal.II uses unsigned long
-    # long int.
+    # Trilinos has to be configured with 64bit indices if deal.II uses
+    # unsigned long long int.
     #
     IF(TRILINOS_WITH_NO_64BIT_INDICES AND DEAL_II_WITH_64BIT_INDICES)
-      MESSAGE(STATUS "deal.II was configured to use 64bit global indices but "
+      MESSAGE(STATUS "Could not find a sufficient Trilinos installation: "
+        "deal.II was configured to use 64bit global indices but "
         "Trilinos was not."
         )
       SET(TRILINOS_ADDITIONAL_ERROR_STRING
@@ -178,6 +182,26 @@ MACRO(FEATURE_TRILINOS_FIND_EXTERNAL var)
       ENDIF()
     ENDIF()
 
+    #
+    # Newer Trilinos versions (12.0.1 or newer) require a matching C++11
+    # support. I.e., if Trilinos is configured with C++11 support, deal.II
+    # also has to be configured with C++11 support:
+    #
+    IF(TRILINOS_WITH_MANDATORY_CXX11 AND NOT DEAL_II_WITH_CXX11)
+      MESSAGE(STATUS "Could not find a sufficient Trilinos installation: "
+        "Trilinos was compiled with C++11 support, but C++11 support is "
+        "disabled (DEAL_II_WITH_CXX11=off)."
+        )
+      SET(TRILINOS_ADDITIONAL_ERROR_STRING
+        ${TRILINOS_ADDITIONAL_ERROR_STRING}
+        "The Trilinos installation (found at \"${TRILINOS_DIR}\")\n"
+        "requires C++11 support, but C++11 support is disabled:\n"
+        "  DEAL_II_WITH_CXX11 = ${DEAL_II_WITH_CXX11}\n"
+        )
+      SET(${var} FALSE)
+
+    ENDIF()
+
     CHECK_MPI_INTERFACE(TRILINOS ${var})
   ENDIF()
 ENDMACRO()
@@ -190,13 +214,6 @@ MACRO(FEATURE_TRILINOS_CONFIGURE_EXTERNAL)
   SET(DEAL_II_EXPAND_TRILINOS_BLOCK_SPARSITY_PATTERN "TrilinosWrappers::BlockSparsityPattern")
   SET(DEAL_II_EXPAND_TRILINOS_MPI_BLOCKVECTOR "TrilinosWrappers::MPI::BlockVector")
   SET(DEAL_II_EXPAND_TRILINOS_MPI_VECTOR "TrilinosWrappers::MPI::Vector")
-
-  #
-  # Disable a bunch of warnings caused by Trilinos headers:
-  #
-  ENABLE_IF_SUPPORTED(TRILINOS_CXX_FLAGS "-Wno-unused")
-  ENABLE_IF_SUPPORTED(TRILINOS_CXX_FLAGS "-Wno-extra")
-  ENABLE_IF_SUPPORTED(TRILINOS_CXX_FLAGS "-Wno-overloaded-virtual")
 ENDMACRO()
 
 

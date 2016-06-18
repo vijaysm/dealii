@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,12 +17,17 @@
 #include <deal.II/lac/block_matrix_array.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/block_vector.h>
+#include <deal.II/lac/trilinos_block_vector.h>
+#include <deal.II/lac/trilinos_parallel_block_vector.h>
+
+#include <deal.II/lac/petsc_block_vector.h>
+#include <deal.II/lac/petsc_parallel_block_vector.h>
 
 DEAL_II_NAMESPACE_OPEN
 
 
-template <typename number>
-BlockMatrixArray<number>::Entry::Entry (const Entry &e)
+template <typename number, typename BlockVectorType>
+BlockMatrixArray<number,BlockVectorType>::Entry::Entry (const Entry &e)
   :
   row(e.row),
   col(e.col),
@@ -36,59 +41,36 @@ BlockMatrixArray<number>::Entry::Entry (const Entry &e)
 
 
 
-template <typename number>
-BlockMatrixArray<number>::Entry::~Entry ()
+template <typename number, typename BlockVectorType>
+BlockMatrixArray<number,BlockVectorType>::Entry::~Entry ()
 {
   if (matrix)
     delete matrix;
 }
 
 
-
-template <typename number>
-BlockMatrixArray<number>::BlockMatrixArray ()
+template <typename number, typename BlockVectorType>
+BlockMatrixArray<number,BlockVectorType>::BlockMatrixArray ()
   : block_rows (0),
     block_cols (0)
 {}
 
 
 
-template <typename number>
-BlockMatrixArray<number>::BlockMatrixArray (
-  const unsigned int n_block_rows,
-  const unsigned int n_block_cols)
+template <typename number, typename BlockVectorType>
+BlockMatrixArray<number,BlockVectorType>::BlockMatrixArray
+(const unsigned int n_block_rows,
+ const unsigned int n_block_cols)
   : block_rows (n_block_rows),
     block_cols (n_block_cols)
 {}
 
 
-template <typename number>
-BlockMatrixArray<number>::BlockMatrixArray (
-  const unsigned int n_block_rows,
-  const unsigned int n_block_cols,
-  VectorMemory<Vector<number> > &)
-  : block_rows (n_block_rows),
-    block_cols (n_block_cols)
-{}
-
-
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockMatrixArray<number>::initialize (
-  const unsigned int n_block_rows,
-  const unsigned int n_block_cols,
-  VectorMemory<Vector<number> > &)
-{
-  block_rows = n_block_rows;
-  block_cols = n_block_cols;
-}
-
-
-template <typename number>
-void
-BlockMatrixArray<number>::initialize (
-  const unsigned int n_block_rows,
-  const unsigned int n_block_cols)
+BlockMatrixArray<number,BlockVectorType>::initialize
+(const unsigned int n_block_rows,
+ const unsigned int n_block_cols)
 {
   block_rows = n_block_rows;
   block_cols = n_block_cols;
@@ -96,11 +78,11 @@ BlockMatrixArray<number>::initialize (
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockMatrixArray<number>::reinit (
-  const unsigned int n_block_rows,
-  const unsigned int n_block_cols)
+BlockMatrixArray<number,BlockVectorType>::reinit
+(const unsigned int n_block_rows,
+ const unsigned int n_block_cols)
 {
   clear();
   block_rows = n_block_rows;
@@ -109,27 +91,27 @@ BlockMatrixArray<number>::reinit (
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockMatrixArray<number>::clear ()
+BlockMatrixArray<number,BlockVectorType>::clear ()
 {
   entries.clear();
 }
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockMatrixArray<number>::vmult_add (BlockVector<number> &dst,
-                                     const BlockVector<number> &src) const
+BlockMatrixArray<number,BlockVectorType>::vmult_add (BlockVectorType &dst,
+                                                     const BlockVectorType &src) const
 {
-  GrowingVectorMemory<Vector<number> > mem;
+  GrowingVectorMemory<typename BlockVectorType::BlockType > mem;
   Assert (dst.n_blocks() == block_rows,
           ExcDimensionMismatch(dst.n_blocks(), block_rows));
   Assert (src.n_blocks() == block_cols,
           ExcDimensionMismatch(src.n_blocks(), block_cols));
 
-  typename VectorMemory<Vector<number> >::Pointer p_aux(mem);
-  Vector<number> &aux = *p_aux;
+  typename VectorMemory<typename BlockVectorType::BlockType >::Pointer p_aux(mem);
+  typename BlockVectorType::BlockType &aux = *p_aux;
 
   typename std::vector<Entry>::const_iterator m = entries.begin();
   typename std::vector<Entry>::const_iterator end = entries.end();
@@ -148,10 +130,10 @@ BlockMatrixArray<number>::vmult_add (BlockVector<number> &dst,
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockMatrixArray<number>::vmult (BlockVector<number> &dst,
-                                 const BlockVector<number> &src) const
+BlockMatrixArray<number,BlockVectorType>::vmult (BlockVectorType &dst,
+                                                 const BlockVectorType &src) const
 {
   dst = 0.;
   vmult_add (dst, src);
@@ -160,12 +142,12 @@ BlockMatrixArray<number>::vmult (BlockVector<number> &dst,
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockMatrixArray<number>::Tvmult_add (BlockVector<number> &dst,
-                                      const BlockVector<number> &src) const
+BlockMatrixArray<number,BlockVectorType>::Tvmult_add (BlockVectorType &dst,
+                                                      const BlockVectorType &src) const
 {
-  GrowingVectorMemory<Vector<number> > mem;
+  GrowingVectorMemory<typename BlockVectorType::BlockType > mem;
   Assert (dst.n_blocks() == block_cols,
           ExcDimensionMismatch(dst.n_blocks(), block_cols));
   Assert (src.n_blocks() == block_rows,
@@ -174,8 +156,8 @@ BlockMatrixArray<number>::Tvmult_add (BlockVector<number> &dst,
   typename std::vector<Entry>::const_iterator m = entries.begin();
   typename std::vector<Entry>::const_iterator end = entries.end();
 
-  typename VectorMemory<Vector<number> >::Pointer p_aux(mem);
-  Vector<number> &aux = *p_aux;
+  typename VectorMemory<typename BlockVectorType::BlockType >::Pointer p_aux(mem);
+  typename BlockVectorType::BlockType &aux = *p_aux;
 
   for (; m != end ; ++m)
     {
@@ -190,10 +172,10 @@ BlockMatrixArray<number>::Tvmult_add (BlockVector<number> &dst,
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockMatrixArray<number>::Tvmult (BlockVector<number> &dst,
-                                  const BlockVector<number> &src) const
+BlockMatrixArray<number,BlockVectorType>::Tvmult (BlockVectorType &dst,
+                                                  const BlockVectorType &src) const
 {
   dst = 0.;
   Tvmult_add (dst, src);
@@ -202,20 +184,20 @@ BlockMatrixArray<number>::Tvmult (BlockVector<number> &dst,
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 number
-BlockMatrixArray<number>::matrix_scalar_product (
-  const BlockVector<number> &u,
-  const BlockVector<number> &v) const
+BlockMatrixArray<number,BlockVectorType>::matrix_scalar_product
+(const BlockVectorType &u,
+ const BlockVectorType &v) const
 {
-  GrowingVectorMemory<Vector<number> > mem;
+  GrowingVectorMemory<typename BlockVectorType::BlockType > mem;
   Assert (u.n_blocks() == block_rows,
           ExcDimensionMismatch(u.n_blocks(), block_rows));
   Assert (v.n_blocks() == block_cols,
           ExcDimensionMismatch(v.n_blocks(), block_cols));
 
-  typename VectorMemory<Vector<number> >::Pointer p_aux(mem);
-  Vector<number> &aux = *p_aux;
+  typename VectorMemory<typename BlockVectorType::BlockType >::Pointer p_aux(mem);
+  typename BlockVectorType::BlockType &aux = *p_aux;
 
   typename std::vector<Entry>::const_iterator m;
   typename std::vector<Entry>::const_iterator end = entries.end();
@@ -242,28 +224,28 @@ BlockMatrixArray<number>::matrix_scalar_product (
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 number
-BlockMatrixArray<number>::matrix_norm_square (
-  const BlockVector<number> &u) const
+BlockMatrixArray<number,BlockVectorType>::matrix_norm_square
+(const BlockVectorType &u) const
 {
   return matrix_scalar_product(u,u);
 }
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 unsigned int
-BlockMatrixArray<number>::n_block_rows () const
+BlockMatrixArray<number,BlockVectorType>::n_block_rows () const
 {
   return block_rows;
 }
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 unsigned int
-BlockMatrixArray<number>::n_block_cols () const
+BlockMatrixArray<number,BlockVectorType>::n_block_cols () const
 {
   return block_cols;
 }
@@ -272,70 +254,47 @@ BlockMatrixArray<number>::n_block_cols () const
 
 //---------------------------------------------------------------------------
 
-template <typename number>
-BlockTrianglePrecondition<number>::BlockTrianglePrecondition()
-  : BlockMatrixArray<number> (),
+template <typename number, typename BlockVectorType>
+BlockTrianglePrecondition<number,BlockVectorType>::BlockTrianglePrecondition()
+  : BlockMatrixArray<number,BlockVectorType> (),
     backward(false)
 {}
 
 
-template <typename number>
-BlockTrianglePrecondition<number>::BlockTrianglePrecondition(
-  const unsigned int block_rows,
-  VectorMemory<Vector<number> > &,
-  const bool backward)
+template <typename number, typename BlockVectorType>
+BlockTrianglePrecondition<number,BlockVectorType>::BlockTrianglePrecondition
+(const unsigned int block_rows)
   :
-  BlockMatrixArray<number> (block_rows, block_rows),
-  backward(backward)
-{}
-
-
-template <typename number>
-BlockTrianglePrecondition<number>::BlockTrianglePrecondition(
-  const unsigned int block_rows)
-  :
-  BlockMatrixArray<number> (block_rows, block_rows),
+  BlockMatrixArray<number,BlockVectorType> (block_rows, block_rows),
   backward(false)
 {}
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockTrianglePrecondition<number>::initialize(
-  const unsigned int n_block_rows,
-  VectorMemory<Vector<number> > &,
-  const bool backward)
+BlockTrianglePrecondition<number,BlockVectorType>::reinit
+(const unsigned int n)
 {
-  BlockMatrixArray<number>::initialize(n_block_rows, n_block_rows);
-  this->backward = backward;
+  BlockMatrixArray<number,BlockVectorType>::reinit(n,n);
 }
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockTrianglePrecondition<number>::reinit (
-  const unsigned int n)
+BlockTrianglePrecondition<number,BlockVectorType>::do_row
+(BlockVectorType &dst,
+ size_type        row_num) const
 {
-  BlockMatrixArray<number>::reinit(n,n);
-}
-
-
-template <typename number>
-void
-BlockTrianglePrecondition<number>::do_row (
-  BlockVector<number> &dst,
-  size_type row_num) const
-{
-  GrowingVectorMemory<Vector<number> > mem;
-  typename std::vector<typename BlockMatrixArray<number>::Entry>::const_iterator
+  GrowingVectorMemory<typename BlockVectorType::BlockType > mem;
+  typename std::vector<typename BlockMatrixArray<number,BlockVectorType>::Entry>::const_iterator
   m = this->entries.begin();
-  typename std::vector<typename BlockMatrixArray<number>::Entry>::const_iterator
+  typename std::vector<typename BlockMatrixArray<number,BlockVectorType>::Entry>::const_iterator
   end = this->entries.end();
-  std::vector<typename std::vector<typename BlockMatrixArray<number>::Entry>::const_iterator>
+  std::vector<typename std::vector<typename BlockMatrixArray<number,BlockVectorType>::Entry>::const_iterator>
   diagonals;
 
-  typename VectorMemory<Vector<number> >::Pointer p_aux(mem);
-  Vector<number> &aux = *p_aux;
+  typename VectorMemory<typename BlockVectorType::BlockType >::Pointer p_aux(mem);
+  typename BlockVectorType::BlockType &aux = *p_aux;
 
   aux.reinit(dst.block(row_num), true);
 
@@ -364,7 +323,7 @@ BlockTrianglePrecondition<number>::do_row (
             m->matrix->Tvmult(aux, dst.block(j));
           else
             m->matrix->vmult(aux, dst.block(j));
-          dst.block(i).add (-1 * m->prefix, aux);
+          dst.block(i).add (-1.0 * m->prefix, aux);
         }
     }
   Assert (diagonals.size() != 0, ExcNoDiagonal(row_num));
@@ -402,18 +361,18 @@ BlockTrianglePrecondition<number>::do_row (
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockTrianglePrecondition<number>::vmult_add (
-  BlockVector<number> &dst,
-  const BlockVector<number> &src) const
+BlockTrianglePrecondition<number,BlockVectorType>::vmult_add
+(BlockVectorType       &dst,
+ const BlockVectorType &src) const
 {
   Assert (dst.n_blocks() == n_block_rows(),
           ExcDimensionMismatch(dst.n_blocks(), n_block_rows()));
   Assert (src.n_blocks() == n_block_cols(),
           ExcDimensionMismatch(src.n_blocks(), n_block_cols()));
 
-  BlockVector<number> aux;
+  BlockVectorType aux;
   aux.reinit(dst);
   vmult(aux, src);
   dst.add(aux);
@@ -421,11 +380,11 @@ BlockTrianglePrecondition<number>::vmult_add (
 
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockTrianglePrecondition<number>::vmult (
-  BlockVector<number> &dst,
-  const BlockVector<number> &src) const
+BlockTrianglePrecondition<number,BlockVectorType>::vmult
+(BlockVectorType       &dst,
+ const BlockVectorType &src) const
 {
   Assert (dst.n_blocks() == n_block_rows(),
           ExcDimensionMismatch(dst.n_blocks(), n_block_rows()));
@@ -447,21 +406,21 @@ BlockTrianglePrecondition<number>::vmult (
 
 }
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockTrianglePrecondition<number>::Tvmult (
-  BlockVector<number> &,
-  const BlockVector<number> &) const
+BlockTrianglePrecondition<number,BlockVectorType>::Tvmult
+(BlockVectorType &,
+ const BlockVectorType &) const
 {
   Assert (false, ExcNotImplemented());
 }
 
 
-template <typename number>
+template <typename number, typename BlockVectorType>
 void
-BlockTrianglePrecondition<number>::Tvmult_add (
-  BlockVector<number> &,
-  const BlockVector<number> &) const
+BlockTrianglePrecondition<number,BlockVectorType>::Tvmult_add
+(BlockVectorType &,
+ const BlockVectorType &) const
 {
   Assert (false, ExcNotImplemented());
 }
@@ -470,5 +429,26 @@ template class BlockMatrixArray<float>;
 template class BlockMatrixArray<double>;
 template class BlockTrianglePrecondition<float>;
 template class BlockTrianglePrecondition<double>;
+
+#ifdef DEAL_II_WITH_TRILINOS
+template class BlockMatrixArray<float, TrilinosWrappers::MPI::BlockVector>;
+template class BlockMatrixArray<double, TrilinosWrappers::MPI::BlockVector>;
+template class BlockTrianglePrecondition<float, TrilinosWrappers::MPI::BlockVector>;
+template class BlockTrianglePrecondition<double, TrilinosWrappers::MPI::BlockVector>;
+#endif
+
+#ifdef DEAL_II_WITH_PETSC
+#ifdef PETSC_USE_COMPLEX
+template class BlockMatrixArray<std::complex<float>, PETScWrappers::MPI::BlockVector>;
+template class BlockMatrixArray<std::complex<double>, PETScWrappers::MPI::BlockVector>;
+template class BlockTrianglePrecondition<std::complex<float>, PETScWrappers::MPI::BlockVector>;
+template class BlockTrianglePrecondition<std::complex<double>, PETScWrappers::MPI::BlockVector>;
+#else
+template class BlockMatrixArray<float, PETScWrappers::MPI::BlockVector>;
+template class BlockMatrixArray<double, PETScWrappers::MPI::BlockVector>;
+template class BlockTrianglePrecondition<float, PETScWrappers::MPI::BlockVector>;
+template class BlockTrianglePrecondition<double, PETScWrappers::MPI::BlockVector>;
+#endif
+#endif
 
 DEAL_II_NAMESPACE_CLOSE

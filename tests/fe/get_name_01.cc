@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,7 +16,7 @@
 
 
 // test get_name()
- 
+
 #include "../tests.h"
 #include <deal.II/base/logstream.h>
 #include <deal.II/fe/fe_q.h>
@@ -34,7 +34,7 @@ template <int dim>
 void test(const FiniteElement<dim> &fe)
 {
   deallog << fe.get_name() << std::endl;
-  
+
 }
 
 
@@ -48,7 +48,11 @@ main()
     test(fe);
   }
   {
-    FE_Q<2> fe(QGaussLobatto<1>(4));
+    FE_Q<2> fe(3);
+    test(fe);
+  }
+  {
+    FE_Q<2> fe(QIterated<1>(QTrapez<1>(),3));
     test(fe);
   }
   {
@@ -66,11 +70,13 @@ main()
     FE_DGQArbitraryNodes<2> fe(quadrature);
     test(fe);
   }
+  {
+    QIterated<1> quadrature(QTrapez<1>(), 3);
+    FE_DGQArbitraryNodes<2> fe(quadrature);
+    test(fe);
+  }
 
-  
+
 
   return 0;
 }
-
-
-

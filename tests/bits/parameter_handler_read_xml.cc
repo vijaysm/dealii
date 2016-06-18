@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2013 by the deal.II authors
+// Copyright (C) 2002 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,7 +27,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   ParameterHandler prm;
@@ -77,7 +76,7 @@ int main ()
   // read from XML
   std::ifstream in (SOURCE_DIR "/prm/parameter_handler_read_xml.prm");
   bool result = prm.read_input_from_xml (in);
-  Assert (result == true, ExcInternalError());
+  AssertThrow (result == true, ExcInternalError());
 
   // write it out again
   prm.print_parameters (deallog.get_file_stream(), ParameterHandler::XML);

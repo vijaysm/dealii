@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -65,12 +65,12 @@ main()
   deallog << std::setprecision(PRECISION);
   deallog << std::fixed;
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   for (unsigned int degree1=1; degree1<=4; ++degree1)
     for (unsigned int degree2=1; degree2<=4; ++degree2)
-      test<1>(FE_Q<1>(degree1), FE_Q<1>(degree2));
+      test<1>(FE_Q<1>(QIterated<1>(QTrapez<1>(),degree1)),
+              FE_Q<1>(QIterated<1>(QTrapez<1>(),degree2)));
   for (unsigned int degree1=2; degree1<=5; ++degree1)
     for (unsigned int degree2=2; degree2<=5; ++degree2)
       test<1>(FE_Q<1>(QGaussLobatto<1>(degree1)),
@@ -78,7 +78,8 @@ main()
 
   for (unsigned int degree1=1; degree1<=3; ++degree1)
     for (unsigned int degree2=1; degree2<=3; ++degree2)
-      test<2>(FE_Q<2>(degree1), FE_Q<2>(degree2));
+      test<2>(FE_Q<2>(QIterated<1>(QTrapez<1>(),degree1)),
+              FE_Q<2>(QIterated<1>(QTrapez<1>(),degree2)));
   for (unsigned int degree1=2; degree1<=4; ++degree1)
     for (unsigned int degree2=2; degree2<=4; ++degree2)
       test<2>(FE_Q<2>(QGaussLobatto<1>(degree1)),
@@ -86,7 +87,8 @@ main()
 
   for (unsigned int degree1=1; degree1<=2; ++degree1)
     for (unsigned int degree2=1; degree2<=2; ++degree2)
-      test<3>(FE_Q<3>(degree1), FE_Q<3>(degree2));
+      test<3>(FE_Q<3>(QIterated<1>(QTrapez<1>(),degree1)),
+              FE_Q<3>(QIterated<1>(QTrapez<1>(),degree2)));
   for (unsigned int degree1=2; degree1<=4; ++degree1)
     for (unsigned int degree2=2; degree2<=4; ++degree2)
       test<3>(FE_Q<3>(QGaussLobatto<1>(degree1)),
@@ -95,6 +97,3 @@ main()
 
   return 0;
 }
-
-
-

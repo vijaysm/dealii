@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2013 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -47,7 +47,7 @@ void test ()
   triangulation.refine_global(1);
 
   //define DoFhandler and FEs
-  FE_Q<2> u(2),u2(3);
+  FE_Q<2> u(2),u2(QIterated<1>(QTrapez<1>(),3));
 
   hp::FECollection<2> fe_collection;
   fe_collection.push_back(u);
@@ -76,7 +76,7 @@ void test ()
   Vector<double> rhs_vector2(hp_dof_handler2.n_dofs());
 
   types::boundary_id myints[1] = {0};
-  std::set<types::boundary_id> boundary_indicators  (myints,myints+1);
+  std::set<types::boundary_id> boundary_ids  (myints,myints+1);
   myints[0]=0;
   hp::QCollection<1>   quadrature;
   quadrature.push_back (QGauss<1>(1));
@@ -93,7 +93,7 @@ void test ()
                                                  quadrature,
                                                  rhs_function,
                                                  rhs_vector2,
-                                                 boundary_indicators);
+                                                 boundary_ids);
   Assert (std::fabs (std::accumulate (rhs_vector2.begin(),
                                       rhs_vector2.end(), 0.)
                      - 4) < 1e-12,
@@ -104,7 +104,7 @@ void test ()
                                                  quadrature,
                                                  rhs_function,
                                                  rhs_vector,
-                                                 boundary_indicators);
+                                                 boundary_ids);
   Assert (std::fabs (std::accumulate (rhs_vector.begin(),
                                       rhs_vector.end(), 0.)
                      - 4) < 1e-12,
@@ -120,7 +120,6 @@ int main ()
   deallog << std::setprecision(2);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test ();

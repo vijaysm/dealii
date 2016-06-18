@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2013 by the deal.II authors
+ * Copyright (C) 2013 - 2015 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -26,7 +26,7 @@
 #include <deal.II/base/logstream.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
-#include <deal.II/lac/compressed_sparsity_pattern.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
@@ -217,19 +217,11 @@ namespace Step26
   // to their correct sizes. We also compute the mass and Laplace
   // matrix here by simply calling two functions in the library.
   //
-  // Note that we compute these matrices taking into account already the
-  // constraints due to hanging nodes. These are all homogenous, i.e.,
-  // they only consist of constraints of the form $U_i = \alpha_{ij} U_j
-  // + \alpha_{ik} U_k$ (whereas inhomogenous constraints would also
-  // have a term not proportional to $U$, i.e., $U_i = \alpha_{ij} U_j
-  // + \alpha_{ik} U_k + c_i$). For this kind of constraint, we can
-  // eliminate hanging nodes independently in the matrix and the
-  // right hand side vectors, but this is not the case for inhomogenous
-  // constraints for which we can eliminate constrained degrees of freedom
-  // only by looking at both the system matrix and corresponding right
-  // right hand side at the same time. This may become a problem when
-  // dealing with non-zero Dirichlet boundary conditions, though we
-  // do not do this here in the current program.
+  // Note that we do not take the hanging node constraints into account when
+  // assembling the matrices (both functions have a ConstraintMatrix argument
+  // that defaults to an empty object). This is because we are going to
+  // condense the constraints in run() after combining the matrices for the
+  // current time-step.
   template<int dim>
   void HeatEquation<dim>::setup_system()
   {
@@ -249,12 +241,12 @@ namespace Step26
                                              constraints);
     constraints.close();
 
-    CompressedSparsityPattern c_sparsity(dof_handler.n_dofs());
+    DynamicSparsityPattern dsp(dof_handler.n_dofs());
     DoFTools::make_sparsity_pattern(dof_handler,
-                                    c_sparsity,
+                                    dsp,
                                     constraints,
                                     /*keep_constrained_dofs = */ true);
-    sparsity_pattern.copy_from(c_sparsity);
+    sparsity_pattern.copy_from(dsp);
 
     mass_matrix.reinit(sparsity_pattern);
     laplace_matrix.reinit(sparsity_pattern);
@@ -262,14 +254,10 @@ namespace Step26
 
     MatrixCreator::create_mass_matrix(dof_handler,
                                       QGauss<dim>(fe.degree+1),
-                                      mass_matrix,
-                                      (const Function<dim> *)0,
-                                      constraints);
+                                      mass_matrix);
     MatrixCreator::create_laplace_matrix(dof_handler,
                                          QGauss<dim>(fe.degree+1),
-                                         laplace_matrix,
-                                         (const Function<dim> *)0,
-                                         constraints);
+                                         laplace_matrix);
 
     solution.reinit(dof_handler.n_dofs());
     old_solution.reinit(dof_handler.n_dofs());
@@ -370,7 +358,14 @@ namespace Step26
          cell = triangulation.begin_active(min_grid_level);
          cell != triangulation.end_active(min_grid_level); ++cell)
       cell->clear_coarsen_flag ();
-
+    // These two loops above are slightly different but this is easily
+    // explained. In the first loop, instead of calling
+    // <code>triangulation.end()</code> we may as well have called
+    // <code>triangulation.end_active(max_grid_level)</code>. The two
+    // calls should yield the same iterator since iterators are sorted
+    // by level and there should not be any cells on levels higher than
+    // on level <code>max_grid_level</code>. In fact, this very piece
+    // of code makes sure that this is the case.
 
     // As part of mesh refinement we need to transfer the solution vectors
     // from the old mesh to the new one. To this end we use the
@@ -395,14 +390,20 @@ namespace Step26
     triangulation.prepare_coarsening_and_refinement();
     solution_trans.prepare_for_coarsening_and_refinement(previous_solution);
 
-    // Now everything is ready, so do the refinement and recreate the dof
-    // structure on the new grid, and initialize the matrix structures and the
-    // new vectors in the <code>setup_system</code> function. Next, we actually
-    // perform the interpolation of the solution from old to new grid.
+    // Now everything is ready, so do the refinement and recreate the DoF
+    // structure on the new grid, and finally initialize the matrix structures
+    // and the new vectors in the <code>setup_system</code> function. Next, we
+    // actually perform the interpolation of the solution from old to new
+    // grid. The final step is to apply the hanging node constraints to the
+    // solution vector, i.e., to make sure that the values of degrees of
+    // freedom located on hanging nodes are so that the solution is
+    // continuous. This is necessary since SolutionTransfer only operates on
+    // cells locally, without regard to the neighborhoof.
     triangulation.execute_coarsening_and_refinement ();
     setup_system ();
 
     solution_trans.interpolate(previous_solution, solution);
+    constraints.distribute (solution);
   }
 
 
@@ -419,6 +420,22 @@ namespace Step26
   // out mesh (we choose the zero function here, which of course we could
   // do in a simpler way by just setting the solution vector to zero). We
   // also output the initial time step once.
+  //
+  // @note If you're an experienced programmer, you may be surprised
+  // that we use a <code>goto</code> statement in this piece of code!
+  // <code>goto</code> statements are not particularly well liked any
+  // more since Edsgar Dijkstra, one of the greats of computer science,
+  // wrote a letter in 1968 called "Go To Statement considered harmful"
+  // (see <a href="http://en.wikipedia.org/wiki/Considered_harmful">here</a>).
+  // The author of this code subscribes to this notion whole-heartedly:
+  // <code>goto</code> is hard to understand. In fact, deal.II contains
+  // virtually no occurrences: excluding code that was essentially
+  // transcribed from books and not counting duplicated code pieces,
+  // there are 3 locations in about 600,000 lines of code; we also
+  // use it in 4 tutorial programs, in exactly the same context
+  // as here. Instead of trying to justify the occurrence here,
+  // let's first look at the code and we'll come back to the issue
+  // at the end of function.
   template<int dim>
   void HeatEquation<dim>::run()
   {
@@ -570,6 +587,65 @@ start_time_iteration:
       }
   }
 }
+// Now that you have seen what the function does, let us come back to the issue
+// of the <code>goto</code>. In essence, what the code does is
+// something like this:
+// @code
+//   void run ()
+//   {
+//     initialize;
+//   start_time_iteration:
+//     for (timestep=1...)
+//     {
+//        solve timestep;
+//        if (timestep==1 && not happy with the result)
+//        {
+//          adjust some data structures;
+//          goto start_time_iteration; // simply try again
+//        }
+//        postprocess;
+//     }
+//   }
+// @endcode
+// Here, the condition "happy with the result" is whether we'd like to keep
+// the current mesh or would rather refine the mesh and start over on the
+// new mesh. We could of course replace the use of the <code>goto</code>
+// by the following:
+// @code
+//   void run ()
+//   {
+//     initialize;
+//     while (true)
+//     {
+//        solve timestep;
+//        if (not happy with the result)
+//           adjust some data structures;
+//        else
+//           break;
+//     }
+//     postprocess;
+//
+//     for (timestep=2...)
+//     {
+//        solve timestep;
+//        postprocess;
+//     }
+//   }
+// @endcode
+// This has the advantage of getting rid of the <code>goto</code>
+// but the disadvantage of having to duplicate the code that implements
+// the "solve timestep" and "postprocess" operations in two different
+// places. This could be countered by putting these parts of the code
+// (sizable chunks in the actual implementation above) into their
+// own functions, but a <code>while(true)</code> loop with a
+// <code>break</code> statement is not really all that much easier
+// to read or understand than a <code>goto</code>.
+//
+// In the end, one might simply agree that <i>in general</i>
+// <code>goto</code> statements are a bad idea but be pragmatic
+// and state that there may be occasions where they can help avoid
+// code duplication and awkward control flow. This may be one of these
+// places.
 
 
 // @sect3{The <code>main</code> function}
@@ -583,8 +659,6 @@ int main()
     {
       using namespace dealii;
       using namespace Step26;
-
-      deallog.depth_console(0);
 
       HeatEquation<2> heat_equation_solver;
       heat_equation_solver.run();

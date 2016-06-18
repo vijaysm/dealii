@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -71,7 +71,7 @@ void test ()
   deallog << "block(0).size: " << v.block(0).size() << std::endl;
   deallog << "block(1).size: " << v.block(1).size() << std::endl;
   if (block1.n_elements()>0)
-    deallog << "my first entry: " << v(block1.nth_index_in_set(0)) << std::endl;
+    deallog << "my first entry: " << get_real_assert_zero_imag(v(block1.nth_index_in_set(0))) << std::endl;
 
   // done
   if (myid==0)
@@ -82,7 +82,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
   MPILogInitAll log;
   {
     deallog.push("PETSc");

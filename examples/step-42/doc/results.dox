@@ -136,7 +136,7 @@ Contact force = 56.794
 The tables at the end of each cycle show information about computing time
 and the number of calls of different parts of the program like assembly or
 calculating the residual, for the most recent mesh refinement cycle. Some of
-the numbers above can be improved by transfering the solution from one mesh to
+the numbers above can be improved by transferring the solution from one mesh to
 the next, an option we have not exercised here. Of course, you can also make
 the program run faster, especially on the later refinement cycles, by just
 using more processors: the accompanying paper shows good scaling to at least
@@ -155,16 +155,16 @@ inequality is active):
 <table align="center">
   <tr>
     <td>
-    <img src="http://www.dealii.org/images/steps/developer/step-42.CellConstitutionColorbar.png">
+    <img src="https://www.dealii.org/images/steps/developer/step-42.CellConstitutionColorbar.png">
     </td>
     <td>
-    <img src="http://www.dealii.org/images/steps/developer/step-42.CellConstitutionBall2.png" alt="" width="70%">
+    <img src="https://www.dealii.org/images/steps/developer/step-42.CellConstitutionBall2.png" alt="" width="70%">
     </td>
     <td valign="top">
       &nbsp;
     </td>
     <td>
-    <img src="http://www.dealii.org/images/steps/developer/step-42.CellConstitutionLi2.png" alt="" alt="" width="70%">
+    <img src="https://www.dealii.org/images/steps/developer/step-42.CellConstitutionLi2.png" alt="" alt="" width="70%">
     </td>
   </tr>
 </table>

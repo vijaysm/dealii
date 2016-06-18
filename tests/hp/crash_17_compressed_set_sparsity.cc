@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -133,7 +133,7 @@ LaplaceProblem<dim>::LaplaceProblem () :
 {
   for (unsigned int degree=2; degree<5; ++degree)
     {
-      fe_collection.push_back (FE_Q<dim>(degree));
+      fe_collection.push_back (FE_Q<dim>(QIterated<1>(QTrapez<1>(),degree)));
       quadrature_collection.push_back (QGauss<dim>(degree+2));
       face_quadrature_collection.push_back (QGauss<dim-1>(degree+2));
     }
@@ -702,7 +702,6 @@ int main ()
   deallog << std::setprecision(4);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
   try
     {

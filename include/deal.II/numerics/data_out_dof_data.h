@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2013 by the deal.II authors
+// Copyright (C) 1999 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__data_out_dof_data_h
-#define __deal2__data_out_dof_data_h
+#ifndef dealii__data_out_dof_data_h
+#define dealii__data_out_dof_data_h
 
 
 
@@ -37,6 +37,113 @@ DEAL_II_NAMESPACE_OPEN
 
 template <int, int> class FEValuesBase;
 
+
+namespace Exceptions
+{
+  /**
+   * A namespace for exceptions that are used throughout the DataOut*
+   * collection of classes.
+   */
+  namespace DataOut
+  {
+    /**
+     * Exception
+     */
+    DeclException1 (ExcInvalidNumberOfSubdivisions,
+                    int,
+                    << "The number of subdivisions per patch, " << arg1
+                    << ", is not valid. It needs to be greater or equal to "
+                    "one, or zero if you want it to be determined "
+                    "automatically.");
+
+    /**
+     * Exception
+     */
+    DeclExceptionMsg (ExcNoTriangulationSelected,
+                      "For the operation you are attempting, you first need to "
+                      "tell the DataOut or related object which DoFHandler or "
+                      "triangulation you would like to work on.");
+
+    /**
+     * Exception
+     */
+    DeclExceptionMsg (ExcNoDoFHandlerSelected,
+                      "For the operation you are attempting, you first need to "
+                      "tell the DataOut or related object which DoFHandler "
+                      "you would like to work on.");
+
+    /**
+     * Exception
+     */
+    DeclException3 (ExcInvalidVectorSize,
+                    int, int, int,
+                    << "The vector has size " << arg1
+                    << " but the DoFHandler object says that there are " << arg2
+                    << " degrees of freedom and there are " << arg3
+                    << " active cells. The size of your vector needs to be"
+                    << " either equal to the number of degrees of freedom, or"
+                    << " equal to the number of active cells.");
+    /**
+     * Exception
+     */
+    DeclException2 (ExcInvalidCharacter,
+                    std::string, size_t,
+                    << "Please use only the characters [a-zA-Z0-9_<>()] for" << std::endl
+                    << "description strings since some graphics formats will only accept these."
+                    << std::endl
+                    << "The string you gave was <" << arg1
+                    << ">, within which the invalid character is <" << arg1[arg2]
+                    << ">." << std::endl);
+    /**
+     * Exception
+     */
+    DeclExceptionMsg (ExcOldDataStillPresent,
+                      "When attaching a triangulation or DoFHandler object, it is "
+                      "not allowed if old data vectors are still referenced. If "
+                      "you want to reuse an object of the current type, you first "
+                      "need to call the 'clear_data_vector()' function.");
+    /**
+     * Exception
+     */
+    DeclException2 (ExcInvalidNumberOfNames,
+                    int, int,
+                    << "You have to give one name per component in your "
+                    << "data vector. The number you gave was " << arg1
+                    << ", but the number of components is " << arg2
+                    << ".");
+    /**
+     * Exception
+     */
+    DeclExceptionMsg (ExcIncompatibleDatasetNames,
+                      "While merging sets of patches, the two sets to be merged "
+                      "need to refer to data that agrees on the names of the "
+                      "various variables represented. In other words, you "
+                      "cannot merge sets of patches that originate from "
+                      "entirely unrelated simulations.");
+    /**
+     * Exception
+     */
+    DeclExceptionMsg (ExcIncompatiblePatchLists,
+                      "While merging sets of patches, the two sets to be merged "
+                      "need to refer to data that agrees on the number of "
+                      "subdivisions and other properties. In other words, you "
+                      "cannot merge sets of patches that originate from "
+                      "entirely unrelated simulations.");
+
+    DeclException2 (ExcInvalidVectorDeclaration,
+                    int, std::string,
+                    << "When declaring that a number of components in a data "
+                    << "set to be output logically form a vector instead of "
+                    << "simply a set of scalar fields, you need to specify "
+                    << "this for all relevant components. Furthermore, "
+                    << "vectors must always consist of exactly <dim> "
+                    << "components. However, the vector component at "
+                    << "position " << arg1 << " with name <" << arg2
+                    << "> does not satisfy these conditions.");
+  }
+}
+
+
 namespace internal
 {
   namespace DataOut
@@ -48,13 +155,13 @@ namespace internal
      * do this for a number of different vector types. Fortunately, they all
      * have the same interface. So the way we go is to have a base class that
      * provides the functions to access the vector's information, and to have
-     * a derived template class that can be instantiated for each vector
-     * type. Since the vectors all have the same interface, this is no big
-     * problem, as they can all use the same general templatized code.
+     * a derived template class that can be instantiated for each vector type.
+     * Since the vectors all have the same interface, this is no big problem,
+     * as they can all use the same general templatized code.
      *
      * @author Wolfgang Bangerth, 2004
      */
-    template <class DH>
+    template <typename DoFHandlerType>
     class DataEntryBase
     {
     public:
@@ -63,7 +170,7 @@ namespace internal
        * the vector and their interpretation as scalar or vector data. This
        * constructor assumes that no postprocessor is going to be used.
        */
-      DataEntryBase (const DH                       *dofs,
+      DataEntryBase (const DoFHandlerType           *dofs,
                      const std::vector<std::string> &names,
                      const std::vector<DataComponentInterpretation::DataComponentInterpretation> &data_component_interpretation);
 
@@ -72,8 +179,8 @@ namespace internal
        * case, the names and vector declarations are going to be acquired from
        * the postprocessor.
        */
-      DataEntryBase (const DH                       *dofs,
-                     const DataPostprocessor<DH::space_dimension> *data_postprocessor);
+      DataEntryBase (const DoFHandlerType *dofs,
+                     const DataPostprocessor<DoFHandlerType::space_dimension> *data_postprocessor);
 
       /**
        * Destructor made virtual.
@@ -94,8 +201,9 @@ namespace internal
        */
       virtual
       void
-      get_function_values (const FEValuesBase<DH::dimension,DH::space_dimension> &fe_patch_values,
-                           std::vector<double>             &patch_values) const = 0;
+      get_function_values
+      (const FEValuesBase<DoFHandlerType::dimension,DoFHandlerType::space_dimension> &fe_patch_values,
+       std::vector<double> &patch_values) const = 0;
 
       /**
        * Given a FEValuesBase object, extract the values on the present cell
@@ -104,8 +212,9 @@ namespace internal
        */
       virtual
       void
-      get_function_values (const FEValuesBase<DH::dimension,DH::space_dimension> &fe_patch_values,
-                           std::vector<dealii::Vector<double> >    &patch_values_system) const = 0;
+      get_function_values
+      (const FEValuesBase<DoFHandlerType::dimension,DoFHandlerType::space_dimension> &fe_patch_values,
+       std::vector<dealii::Vector<double> > &patch_values_system) const = 0;
 
       /**
        * Given a FEValuesBase object, extract the gradients on the present
@@ -113,8 +222,9 @@ namespace internal
        */
       virtual
       void
-      get_function_gradients (const FEValuesBase<DH::dimension,DH::space_dimension> &fe_patch_values,
-                              std::vector<Tensor<1,DH::space_dimension> >       &patch_gradients) const = 0;
+      get_function_gradients
+      (const FEValuesBase<DoFHandlerType::dimension,DoFHandlerType::space_dimension> &fe_patch_values,
+       std::vector<Tensor<1,DoFHandlerType::space_dimension> > &patch_gradients) const = 0;
 
       /**
        * Given a FEValuesBase object, extract the gradients on the present
@@ -123,8 +233,9 @@ namespace internal
        */
       virtual
       void
-      get_function_gradients (const FEValuesBase<DH::dimension,DH::space_dimension> &fe_patch_values,
-                              std::vector<std::vector<Tensor<1,DH::space_dimension> > > &patch_gradients_system) const = 0;
+      get_function_gradients
+      (const FEValuesBase<DoFHandlerType::dimension,DoFHandlerType::space_dimension> &fe_patch_values,
+       std::vector<std::vector<Tensor<1,DoFHandlerType::space_dimension> > > &patch_gradients_system) const = 0;
 
       /**
        * Given a FEValuesBase object, extract the second derivatives on the
@@ -132,8 +243,9 @@ namespace internal
        */
       virtual
       void
-      get_function_hessians (const FEValuesBase<DH::dimension,DH::space_dimension> &fe_patch_values,
-                             std::vector<Tensor<2,DH::space_dimension> >       &patch_hessians) const = 0;
+      get_function_hessians
+      (const FEValuesBase<DoFHandlerType::dimension,DoFHandlerType::space_dimension> &fe_patch_values,
+       std::vector<Tensor<2,DoFHandlerType::space_dimension> > &patch_hessians) const = 0;
 
       /**
        * Given a FEValuesBase object, extract the second derivatives on the
@@ -142,8 +254,9 @@ namespace internal
        */
       virtual
       void
-      get_function_hessians (const FEValuesBase<DH::dimension,DH::space_dimension> &fe_patch_values,
-                             std::vector<std::vector< Tensor<2,DH::space_dimension> > > &patch_hessians_system) const = 0;
+      get_function_hessians
+      (const FEValuesBase<DoFHandlerType::dimension,DoFHandlerType::space_dimension> &fe_patch_values,
+       std::vector<std::vector< Tensor<2,DoFHandlerType::space_dimension> > > &patch_hessians_system) const = 0;
 
       /**
        * Clear all references to the vectors.
@@ -159,7 +272,7 @@ namespace internal
       /**
        * Pointer to the DoFHandler object that the vector is based on.
        */
-      SmartPointer<const DH> dof_handler;
+      SmartPointer<const DoFHandlerType> dof_handler;
 
       /**
        * Names of the components of this data vector.
@@ -178,7 +291,7 @@ namespace internal
        * Pointer to a DataPostprocessing object which shall be applied to this
        * data vector.
        */
-      SmartPointer<const dealii::DataPostprocessor<DH::space_dimension> > postprocessor;
+      SmartPointer<const dealii::DataPostprocessor<DoFHandlerType::space_dimension> > postprocessor;
 
       /**
        * Number of output variables this dataset provides (either number of
@@ -219,8 +332,8 @@ namespace internal
 
       ParallelDataBase (const ParallelDataBase &data);
 
-      template <typename DH>
-      void reinit_all_fe_values(std::vector<std_cxx11::shared_ptr<DataEntryBase<DH> > > &dof_data,
+      template <typename DoFHandlerType>
+      void reinit_all_fe_values(std::vector<std_cxx11::shared_ptr<DataEntryBase<DoFHandlerType> > > &dof_data,
                                 const typename dealii::Triangulation<dim,spacedim>::cell_iterator &cell,
                                 const unsigned int face = numbers::invalid_unsigned_int);
 
@@ -256,7 +369,7 @@ namespace internal
 /**
  * This is an abstract class which provides the functionality to generate
  * patches for output by base classes from data vectors on a grid. It allows
- * to store one or more pointers to a DoFHandler and attached node and cell
+ * to attach one or more pointers to a DoFHandler and attached node and cell
  * data denoting functions on the grid which shall later be written in any of
  * the implemented data formats.
  *
@@ -295,111 +408,106 @@ namespace internal
  *   data_out.clear();
  * @endcode
  *
- * attach_dof_handler() tells this class that all future operations
- * are to take place with the DoFHandler object and the triangulation
- * it lives on. We then add the solution vector and the error
- * estimator; note that they have different dimensions, because the
- * solution is a nodal vector, here consisting of two components
- * ("x-displacement" and "y-displacement") while the error estimator
- * probably is a vector holding cell data. When attaching a data
- * vector, you have to give a name to each component of the vector,
- * which is done through an object of type <tt>vector<string></tt> as
- * second argument; if only one component is in the vector, for
- * example if we are adding cell data as in the second case, or if the
- * finite element used by the DoFHandler has only one component, then
- * you can use the second add_data_vector() function which takes a @p
- * string instead of the <tt>vector<string></tt>.
+ * attach_dof_handler() tells this class that all future operations are to
+ * take place with the DoFHandler object and the triangulation it lives on. We
+ * then add the solution vector and the error estimator; note that they have
+ * different dimensions, because the solution is a nodal vector, here
+ * consisting of two components ("x-displacement" and "y-displacement") while
+ * the error estimator probably is a vector holding cell data. When attaching
+ * a data vector, you have to give a name to each component of the vector,
+ * which is done through an object of type <tt>vector<string></tt> as second
+ * argument; if only one component is in the vector, for example if we are
+ * adding cell data as in the second case, or if the finite element used by
+ * the DoFHandler has only one component, then you can use the second
+ * add_data_vector() function which takes a @p string instead of the
+ * <tt>vector<string></tt>.
  *
  * The add_data_vector() functions have additional arguments (with default
  * values) that can be used to specify certain transformations. In particular,
  * it allows to attach DataPostprocessor arguments to compute derived
- * information from a data vector at each point at which the field will
- * be evaluated so that it can be written to a file (for example, the
- * Mach number in hypersonic flow can be computed from density and velocities;
- * step-29 also shows an example); another piece of information
- * specified through arguments with default values is how certain output
- * components should be interpreted, i.e. whether each component of the data
- * is logically an independent scalar field, or whether some of them together
- * form logically a vector-field (see the
- * DataComponentInterpretation::DataComponentInterpretation enum, and the @ref
- * step_22 "step-22" tutorial program).
+ * information from a data vector at each point at which the field will be
+ * evaluated so that it can be written to a file (for example, the Mach number
+ * in hypersonic flow can be computed from density and velocities; step-29
+ * also shows an example); another piece of information specified through
+ * arguments with default values is how certain output components should be
+ * interpreted, i.e. whether each component of the data is logically an
+ * independent scalar field, or whether some of them together form logically a
+ * vector-field (see the
+ * DataComponentInterpretation::DataComponentInterpretation enum, and the
+ * @ref step_22 "step-22"
+ * tutorial program).
  *
- * It should be noted that this class does not copy the vector given to it through
- * the add_data_vector() functions, for memory consumption reasons. It only
- * stores a reference to it, so it is in your responsibility to make sure that
- * the data vectors exist long enough.
+ * This class does not copy the vector given to it through the
+ * add_data_vector() functions, for memory consumption reasons. It only stores
+ * a reference to it, so it is in your responsibility to make sure that the
+ * data vectors exist long enough.
  *
  * After adding all data vectors, you need to call a function which generates
- * the patches for output from the stored data. Derived classes name this
- * function build_patches(). Finally, you write() the data in one format or other,
- * to a file.
+ * the patches (i.e., some intermediate data representation) for output from
+ * the stored data. Derived classes name this function build_patches().
+ * Finally, you write() the data in one format or other, to a file.
  *
- * Please note that in the example above, an object of type DataOut was
- * used, i.e. an object of a derived class. This is necessary since this
- * class does not provide means to actually generate the patches, only aids to
- * store and access data.
+ * In the example above, an object of type DataOut was used, i.e. an object of
+ * a derived class. This is necessary since the current class does not provide
+ * means to actually generate the patches, only aids to store and access data.
+ * Any real functionality is implemented in derived classes such as DataOut.
  *
- * Note that the base class of this class, DataOutInterface offers
- * several functions to ease programming with run-time determinable
- * output formats (i.e. you need not use a fixed format by calling
- * DataOutInterface::write_xxx in the above example, but you can
- * select it by a run-time parameter without having to write the
- * <tt>if () ... else ...</tt> clauses yourself), and also functions
- * and classes offering ways to control the appearance of the output
- * by setting flags for each output format.
+ * Note that the base class of this class, DataOutInterface offers several
+ * functions to ease programming with run-time determinable output formats
+ * (i.e. you need not use a fixed format by calling
+ * DataOutInterface::write_xxx in the above example, but you can select it by
+ * a run-time parameter without having to write the <tt>if () ... else
+ * ...</tt> clauses yourself), and also functions and classes offering ways to
+ * control the appearance of the output by setting flags for each output
+ * format.
  *
  *
  * <h3>Information for derived classes</h3>
  *
- * What is actually missing this class is a way to produce the patches
- * for output itself, from the stored data and degree of freedom
- * information.  Since this task is often application dependent it is
- * left to derived classes. For example, in many applications, it
- * might be wanted to limit the depth of output to a certain number of
- * refinement levels and write data from finer cells only in a way
- * interpolated to coarser cells, to reduce the amount of
- * output. Also, it might be wanted to use different numbers of
- * subdivisions on different cells when forming a patch, for example
- * to accomplish for different polynomial degrees of the trial space
- * on different cells. Also, the output need not necessarily consist
- * of a patch for each cell, but might be made up of patches for
- * faces, of other things. Take a look at derived classes to what is
- * possible in this respect.
+ * What this class lacks is a way to produce the patches for output itself,
+ * from the stored data and degree of freedom information. Since this task is
+ * often application dependent it is left to derived classes. For example, in
+ * many applications, it might be wanted to limit the depth of output to a
+ * certain number of refinement levels and write data from finer cells only in
+ * a way interpolated to coarser cells, to reduce the amount of output. Also,
+ * it might be wanted to use different numbers of subdivisions on different
+ * cells when forming a patch, for example to accomplish for different
+ * polynomial degrees of the trial space on different cells. Also, the output
+ * need not necessarily consist of a patch for each cell, but might be made up
+ * of patches for faces, of other things. Take a look at derived classes to
+ * what is possible in this respect.
  *
- * For this reason, it is left to a derived class to provide a
- * function, named usually build_patches() or the like, which fills
- * the #patches array of this class.
+ * For this reason, it is left to a derived class to provide a function, named
+ * usually build_patches() or the like, which fills the #patches array of this
+ * class.
  *
- * Regarding the templates of this class, it needs three values: first
- * the space dimension in which the triangulation and the DoF handler
- * operate, second the dimension of the objects which the patches
- * represent.  Although in most cases they are equal, there are also
- * classes for which this does not hold, for example if one outputs
- * the result of a computation exploiting rotational symmetry in the
- * original domain (in which the space dimension of the output would
- * be one higher than that of the DoF handler, see the
- * DataOut_Rotation() class), or one might conceive that one could
- * write a class that only outputs the solution on a cut through the
- * domain, in which case the space dimension of the output is less
- * than that of the DoF handler. The last template argument denotes
- * the dimension of the space into which the patches are embedded;
- * usually, this dimension is the same as the dimensio of the patches
- * themselves (which is also the default value of the template
- * parameter), but there might be cases where this is not so. For
- * example, in the DataOut_Faces() class, patches are generated
- * from faces of the triangulation. Thus, the dimension of the patch
- * is one less than the dimension of the embedding space, which is, in
- * this case, equal to the dimension of the triangulation and DoF
- * handler. However, for the cut through the domain mentioned above,
- * if the cut is a straight one, then the cut can be embedded into a
- * space of one dimension lower than the dimension of the
- * triangulation, so that the last template parameter has the same
+ * Regarding the templates of this class, it needs three values: first the
+ * space dimension in which the triangulation and the DoF handler operate,
+ * second the dimension of the objects which the patches represent.  Although
+ * in most cases they are equal, there are also classes for which this does
+ * not hold, for example if one outputs the result of a computation exploiting
+ * rotational symmetry in the original domain (in which the space dimension of
+ * the output would be one higher than that of the DoF handler, see the
+ * DataOut_Rotation() class), or one might conceive that one could write a
+ * class that only outputs the solution on a cut through the domain, in which
+ * case the space dimension of the output is less than that of the DoF
+ * handler. The last template argument denotes the dimension of the space into
+ * which the patches are embedded; usually, this dimension is the same as the
+ * dimensio of the patches themselves (which is also the default value of the
+ * template parameter), but there might be cases where this is not so. For
+ * example, in the DataOut_Faces() class, patches are generated from faces of
+ * the triangulation. Thus, the dimension of the patch is one less than the
+ * dimension of the embedding space, which is, in this case, equal to the
+ * dimension of the triangulation and DoF handler. However, for the cut
+ * through the domain mentioned above, if the cut is a straight one, then the
+ * cut can be embedded into a space of one dimension lower than the dimension
+ * of the triangulation, so that the last template parameter has the same
  * value as the second one.
  *
  * @ingroup output
  * @author Wolfgang Bangerth, 1999
  */
-template <class DH, int patch_dim, int patch_space_dim=patch_dim>
+template <typename DoFHandlerType, int patch_dim, int patch_space_dim=patch_dim>
 class DataOut_DoFData : public DataOutInterface<patch_dim,patch_space_dim>
 {
 public:
@@ -408,8 +516,8 @@ public:
    * Typedef to the iterator type of the dof handler class under
    * consideration.
    */
-  typedef typename Triangulation<DH::dimension,DH::space_dimension>::cell_iterator cell_iterator;
-  typedef typename Triangulation<DH::dimension,DH::space_dimension>::active_cell_iterator active_cell_iterator;
+  typedef typename Triangulation<DoFHandlerType::dimension,DoFHandlerType::space_dimension>::cell_iterator cell_iterator;
+  typedef typename Triangulation<DoFHandlerType::dimension,DoFHandlerType::space_dimension>::active_cell_iterator active_cell_iterator;
 
 public:
 
@@ -457,19 +565,19 @@ public:
    * This call is optional: If you add data vectors with specified DoFHandler
    * object, then that contains all information needed to generate the output.
    */
-  void attach_dof_handler (const DH &);
+  void attach_dof_handler (const DoFHandlerType &);
 
   /**
    * Designate a triangulation to be used to extract geometry data and the
    * mapping between nodes and node values.
    *
    * This call is optional: If you add data vectors with specified DoFHandler
-   * object, then that contains all information needed to generate the
-   * output. This call is useful when you only output cell vectors and no
-   * DoFHandler at all, in which case it provides the geometry.
+   * object, then that contains all information needed to generate the output.
+   * This call is useful when you only output cell vectors and no DoFHandler
+   * at all, in which case it provides the geometry.
    */
-  void attach_triangulation (const Triangulation<DH::dimension,
-                             DH::space_dimension> &);
+  void attach_triangulation (const Triangulation<DoFHandlerType::dimension,
+                             DoFHandlerType::space_dimension> &);
 
   /**
    * Add a data vector together with its name.
@@ -487,16 +595,16 @@ public:
    * given. However, there are corner cases where this automatic determination
    * does not work.  One example is if you compute with piecewise constant
    * elements and have a scalar solution, then there are as many cells as
-   * there are degrees of freedom (though they may be numbered
-   * differently). Another possibility is if you have a 1d mesh embedded in 2d
-   * space and the mesh consists of a closed curve of cells; in this case,
-   * there are as many nodes as there are cells, and when using a Q1 element
-   * you will have as many degrees of freedom as there are cells.  In these
-   * cases, you can change the last argument of the function from its default
-   * value #type_automatic to either #type_dof_data or #type_cell_data,
-   * depending on what the vector represents. Apart from such corner cases,
-   * you can leave the argument at its default value and let the function
-   * determine the type of the vector itself.
+   * there are degrees of freedom (though they may be numbered differently).
+   * Another possibility is if you have a 1d mesh embedded in 2d space and the
+   * mesh consists of a closed curve of cells; in this case, there are as many
+   * nodes as there are cells, and when using a Q1 element you will have as
+   * many degrees of freedom as there are cells.  In these cases, you can
+   * change the last argument of the function from its default value
+   * #type_automatic to either #type_dof_data or #type_cell_data, depending on
+   * what the vector represents. Apart from such corner cases, you can leave
+   * the argument at its default value and let the function determine the type
+   * of the vector itself.
    *
    * If it is a vector holding DoF data, the names given shall be one for each
    * component of the underlying finite element.  If it is a finite element
@@ -519,9 +627,8 @@ public:
    * DataComponentInterpretation::component_is_scalar, indicating that all
    * output components are independent scalar fields. However, if the given
    * data vector represents logical vectors, you may pass a vector that
-   * contains values
-   * DataComponentInterpretation::component_is_part_of_vector. In the example
-   * above, one would pass in a vector with components
+   * contains values DataComponentInterpretation::component_is_part_of_vector.
+   * In the example above, one would pass in a vector with components
    * (DataComponentInterpretation::component_is_part_of_vector,
    * DataComponentInterpretation::component_is_part_of_vector,
    * DataComponentInterpretation::component_is_scalar) for (u,v,p).
@@ -537,10 +644,10 @@ public:
    * includes all of the usual vector types, but also IndexSet (see step-41
    * for a use of this).
    */
-  template <class VECTOR>
-  void add_data_vector (const VECTOR                   &data,
+  template <class VectorType>
+  void add_data_vector (const VectorType               &data,
                         const std::vector<std::string> &names,
-                        const DataVectorType            type = type_automatic,
+                        const DataVectorType           type = type_automatic,
                         const std::vector<DataComponentInterpretation::DataComponentInterpretation> &data_component_interpretation
                         = std::vector<DataComponentInterpretation::DataComponentInterpretation>());
 
@@ -560,10 +667,10 @@ public:
    * which FEValues can extract values on a cell using the
    * FEValuesBase::get_function_values() function.
    */
-  template <class VECTOR>
-  void add_data_vector (const VECTOR         &data,
+  template <class VectorType>
+  void add_data_vector (const VectorType     &data,
                         const std::string    &name,
-                        const DataVectorType  type = type_automatic,
+                        const DataVectorType type = type_automatic,
                         const std::vector<DataComponentInterpretation::DataComponentInterpretation> &data_component_interpretation
                         = std::vector<DataComponentInterpretation::DataComponentInterpretation>());
 
@@ -581,9 +688,9 @@ public:
    * represents dof data, the data vector type argument present in the other
    * methods above is skipped.
    */
-  template <class VECTOR>
-  void add_data_vector (const DH                       &dof_handler,
-                        const VECTOR                   &data,
+  template <class VectorType>
+  void add_data_vector (const DoFHandlerType           &dof_handler,
+                        const VectorType               &data,
                         const std::vector<std::string> &names,
                         const std::vector<DataComponentInterpretation::DataComponentInterpretation> &data_component_interpretation
                         = std::vector<DataComponentInterpretation::DataComponentInterpretation>());
@@ -593,17 +700,18 @@ public:
    * This function is an abbreviation of the function above with only a scalar
    * @p dof_handler given and a single data name.
    */
-  template <class VECTOR>
-  void add_data_vector (const DH                       &dof_handler,
-                        const VECTOR                   &data,
-                        const std::string              &name,
+  template <class VectorType>
+  void add_data_vector (const DoFHandlerType          &dof_handler,
+                        const VectorType  &data,
+                        const std::string &name,
                         const std::vector<DataComponentInterpretation::DataComponentInterpretation> &data_component_interpretation
                         = std::vector<DataComponentInterpretation::DataComponentInterpretation>());
 
   /**
    * This function is an alternative to the above ones, allowing the output of
-   * derived quantities instead of the given data. This converison has to be
-   * done in a class derived from DataPostprocessor.
+   * derived quantities instead of the given data. This conversion has to be
+   * done in a class derived from DataPostprocessor. This function is used in
+   * step-29. Other uses are shown in step-32 and step-33.
    *
    * The names for these derived quantities are provided by the @p
    * data_postprocessor argument. Likewise, the data_component_interpretation
@@ -617,10 +725,19 @@ public:
    * FEValuesBase::get_function_values() function. In particular, this
    * includes all of the usual vector types, but also IndexSet (see step-41
    * for a use of this).
+   *
+   * @note The DataPostprocessor object (i.e., in reality the object of your
+   * derived class) has to live until the DataOut object is destroyed as the
+   * latter keeps a pointer to the former and will complain if the object
+   * pointed to is destroyed while the latter still has a pointer to it. If
+   * both the data postprocessor and DataOut objects are local variables of a
+   * function (as they are, for example, in step-29), then you can avoid this
+   * error by declaring the data postprocessor variable before the DataOut
+   * variable as objects are destroyed in reverse order of declaration.
    */
-  template <class VECTOR>
-  void add_data_vector (const VECTOR                           &data,
-                        const DataPostprocessor<DH::space_dimension> &data_postprocessor);
+  template <class VectorType>
+  void add_data_vector (const VectorType                             &data,
+                        const DataPostprocessor<DoFHandlerType::space_dimension> &data_postprocessor);
 
   /**
    * Same function as above, but with a DoFHandler object that does not need
@@ -628,10 +745,10 @@ public:
    * postprocessor can only read data from the given DoFHandler and solution
    * vector, not other solution vectors or DoFHandlers.
    */
-  template <class VECTOR>
-  void add_data_vector (const DH                               &dof_handler,
-                        const VECTOR                           &data,
-                        const DataPostprocessor<DH::space_dimension> &data_postprocessor);
+  template <class VectorType>
+  void add_data_vector (const DoFHandlerType                         &dof_handler,
+                        const VectorType                             &data,
+                        const DataPostprocessor<DoFHandlerType::space_dimension> &data_postprocessor);
 
   /**
    * Release the pointers to the data vectors. This allows output of a new set
@@ -676,15 +793,15 @@ public:
    * This function will fail if either this or the other object did not yet
    * set up any patches.
    */
-  template <class DH2>
-  void merge_patches (const DataOut_DoFData<DH2,patch_dim,patch_space_dim> &source,
+  template <typename DoFHandlerType2>
+  void merge_patches (const DataOut_DoFData<DoFHandlerType2,patch_dim,patch_space_dim> &source,
                       const Point<patch_space_dim> &shift = Point<patch_space_dim>());
 
   /**
    * Release the pointers to the data vectors and the DoF handler. You have to
    * set all data entries again using the add_data_vector() function. The
-   * pointer to the dof handler is cleared as well, along with all other
-   * data. In effect, this function resets everything to a virgin state.
+   * pointer to the dof handler is cleared as well, along with all other data.
+   * In effect, this function resets everything to a virgin state.
    */
   virtual void clear ();
 
@@ -693,77 +810,6 @@ public:
    * object.
    */
   std::size_t memory_consumption () const;
-
-  /**
-   * Exception
-   */
-  DeclException0 (ExcNoTriangulationSelected);
-
-  /**
-   * Exception
-   */
-  DeclException0 (ExcNoDoFHandlerSelected);
-
-  /**
-   * Exception
-   */
-  DeclException0 (ExcDataPostprocessingIsNotPossibleForCellData);
-
-  /**
-   * Exception
-   */
-  DeclException3 (ExcInvalidVectorSize,
-                  int, int, int,
-                  << "The vector has size " << arg1
-                  << " but the DoFHandler objects says there are " << arg2
-                  << " degrees of freedom and there are " << arg3
-                  << " active cells.");
-  /**
-   * Exception
-   */
-  DeclException2 (ExcInvalidCharacter,
-                  std::string, size_t,
-                  << "Please use only the characters [a-zA-Z0-9_<>()] for" << std::endl
-                  << "description strings since some graphics formats will only accept these."
-                  << std::endl
-                  << "The string you gave was <" << arg1
-                  << ">, the invalid character is <" << arg1[arg2]
-                  << ">." << std::endl);
-  /**
-   * Exception
-   */
-  DeclException0 (ExcOldDataStillPresent);
-  /**
-   * Exception
-   */
-  DeclException2 (ExcInvalidNumberOfNames,
-                  int, int,
-                  << "You have to give one name per component in your "
-                  << "data vector. The number you gave was " << arg1
-                  << ", but the number of components is " << arg2);
-  /**
-   * Exception
-   */
-  DeclException0 (ExcNoPatches);
-  /**
-   * Exception
-   */
-  DeclException0 (ExcIncompatibleDatasetNames);
-  /**
-   * Exception
-   */
-  DeclException0 (ExcIncompatiblePatchLists);
-
-  DeclException2 (ExcInvalidVectorDeclaration,
-                  int, std::string,
-                  << "When declaring that a number of components in a data\n"
-                  << "set to be output logically form a vector instead of\n"
-                  << "simply a set of scalar fields, you need to specify\n"
-                  << "this for all relevant components. Furthermore,\n"
-                  << "vectors must always consist of exactly <dim>\n"
-                  << "components. However, the vector component at\n"
-                  << "position " << arg1 << " with name <" << arg2
-                  << "> does not satisfy these conditions.");
 
 protected:
   /**
@@ -774,22 +820,22 @@ protected:
   /**
    * Pointer to the triangulation object.
    */
-  SmartPointer<const Triangulation<DH::dimension,DH::space_dimension> > triangulation;
+  SmartPointer<const Triangulation<DoFHandlerType::dimension,DoFHandlerType::space_dimension> > triangulation;
 
   /**
    * Pointer to the optional handler object.
    */
-  SmartPointer<const DH> dofs;
+  SmartPointer<const DoFHandlerType> dofs;
 
   /**
    * List of data elements with vectors of values for each degree of freedom.
    */
-  std::vector<std_cxx11::shared_ptr<internal::DataOut::DataEntryBase<DH> > >  dof_data;
+  std::vector<std_cxx11::shared_ptr<internal::DataOut::DataEntryBase<DoFHandlerType> > >  dof_data;
 
   /**
    * List of data elements with vectors of values for each cell.
    */
-  std::vector<std_cxx11::shared_ptr<internal::DataOut::DataEntryBase<DH> > >  cell_data;
+  std::vector<std_cxx11::shared_ptr<internal::DataOut::DataEntryBase<DoFHandlerType> > >  cell_data;
 
   /**
    * This is a list of patches that is created each time build_patches() is
@@ -816,7 +862,7 @@ protected:
    * Extracts the finite elements stored in the dof_data object, including a
    * dummy object of FE_DGQ<dim>(0) in case only the triangulation is used.
    */
-  std::vector<std_cxx11::shared_ptr<dealii::hp::FECollection<DH::dimension,DH::space_dimension> > >
+  std::vector<std_cxx11::shared_ptr<dealii::hp::FECollection<DoFHandlerType::dimension,DoFHandlerType::space_dimension> > >
   get_finite_elements() const;
 
   /**
@@ -840,30 +886,36 @@ protected:
 // -------------------- template and inline functions ------------------------
 
 
-template <class DH, int patch_dim, int patch_space_dim>
-template <class DH2>
+template <typename DoFHandlerType, int patch_dim, int patch_space_dim>
+template <typename DoFHandlerType2>
 void
-DataOut_DoFData<DH,patch_dim,patch_space_dim>::
-merge_patches (const DataOut_DoFData<DH2,patch_dim,patch_space_dim> &source,
+DataOut_DoFData<DoFHandlerType,patch_dim,patch_space_dim>::
+merge_patches (const DataOut_DoFData<DoFHandlerType2,patch_dim,patch_space_dim> &source,
                const Point<patch_space_dim> &shift)
 {
   const std::vector<Patch> source_patches = source.get_patches ();
-  Assert (patches.size () != 0,        ExcNoPatches ());
-  Assert (source_patches.size () != 0, ExcNoPatches ());
+  Assert ((patches.size () != 0) &&
+          (source_patches.size () != 0),
+          ExcMessage ("When calling this function, both the current "
+                      "object and the one being merged need to have a "
+                      "nonzero number of patches associated with it. "
+                      "Either you called this function on objects that "
+                      "are empty, or you may have forgotten to call "
+                      "the 'build_patches()' function."));
   // check equality of component
   // names
   Assert (get_dataset_names() == source.get_dataset_names(),
-          ExcIncompatibleDatasetNames());
+          Exceptions::DataOut::ExcIncompatibleDatasetNames());
   // make sure patches are compatible. we'll
   // assume that if the first respective
   // patches are ok that all the other ones
   // are ok as well
   Assert (patches[0].n_subdivisions == source_patches[0].n_subdivisions,
-          ExcIncompatiblePatchLists());
+          Exceptions::DataOut::ExcIncompatiblePatchLists());
   Assert (patches[0].data.n_rows() == source_patches[0].data.n_rows(),
-          ExcIncompatiblePatchLists());
+          Exceptions::DataOut::ExcIncompatiblePatchLists());
   Assert (patches[0].data.n_cols() == source_patches[0].data.n_cols(),
-          ExcIncompatiblePatchLists());
+          Exceptions::DataOut::ExcIncompatiblePatchLists());
 
   // check equality of the vector data
   // specifications

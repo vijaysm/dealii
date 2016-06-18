@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2014 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -191,7 +191,7 @@ namespace internal
               current_data.n_q_points.push_back (n_q_points);
 
               current_data.n_q_points_face.push_back
-              (Utilities::fixed_power<dim-1>(n_q_points_1d[q]));
+              (dim>1 ? Utilities::fixed_power<dim-1>(n_q_points_1d[q]) : 1);
               current_data.quadrature.push_back
               (Quadrature<dim>(quad[my_q][q]));
               current_data.face_quadrature.push_back
@@ -240,7 +240,7 @@ namespace internal
           // hp::DoFHandler<dim>::active_cell_iterator, we need to manually
           // select the correct finite element, so just hold a vector of
           // FEValues
-          std::vector<std_cxx11::shared_ptr<FEValues<dim> > >
+          std::vector<std_cxx11::shared_ptr<dealii::FEValues<dim> > >
           fe_values (current_data.quadrature.size());
           UpdateFlags update_flags_feval =
             (update_flags & update_inverse_jacobians ? update_jacobians : update_default) |
@@ -290,10 +290,10 @@ namespace internal
               const unsigned int n_q_points = current_data.n_q_points[fe_index];
               if (fe_values[fe_index].get() == 0)
                 fe_values[fe_index].reset
-                (new FEValues<dim> (mapping, dummy_fe,
-                                    current_data.quadrature[fe_index],
-                                    update_flags_feval));
-              FEValues<dim> &fe_val = *fe_values[fe_index];
+                (new dealii::FEValues<dim> (mapping, dummy_fe,
+                                            current_data.quadrature[fe_index],
+                                            update_flags_feval));
+              dealii::FEValues<dim> &fe_val = *fe_values[fe_index];
               data.resize (n_q_points);
 
               // if the fe index has changed from the previous cell, set the
@@ -608,7 +608,7 @@ namespace internal
                                                const unsigned int  my_q,
                                                CellType (&cell_t_prev)[n_vector_elements],
                                                CellType (&cell_t)[n_vector_elements],
-                                               FEValues<dim,dim> &fe_val,
+                                               dealii::FEValues<dim,dim> &fe_val,
                                                CellData          &data) const
     {
       const unsigned int n_q_points = fe_val.n_quadrature_points;
@@ -856,9 +856,9 @@ namespace internal
 
 
     template <int dim, typename Number>
-    template <typename STREAM>
+    template <typename StreamType>
     void MappingInfo<dim,Number>::MappingInfoDependent::print_memory_consumption
-    (STREAM         &out,
+    (StreamType     &out,
      const SizeInfo &size_info) const
     {
       // print_memory_statistics involves global communication, so we can
@@ -901,8 +901,8 @@ namespace internal
 
 
     template <int dim, typename Number>
-    template <typename STREAM>
-    void MappingInfo<dim,Number>::print_memory_consumption(STREAM &out,
+    template <typename StreamType>
+    void MappingInfo<dim,Number>::print_memory_consumption(StreamType     &out,
                                                            const SizeInfo &size_info) const
     {
       out << "    Cell types:                      ";

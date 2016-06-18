@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2014 by the deal.II authors
+## Copyright (C) 2014 - 2016 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -41,6 +41,7 @@ IF(NOT BUILD_SHARED_LIBS)
   SET(Boost_USE_STATIC_LIBS TRUE)
 ENDIF()
 
+# temporarily disable ${CMAKE_SOURCE_DIR}/cmake/modules for module lookup
 LIST(REMOVE_ITEM CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules/)
 FIND_PACKAGE(Boost 1.48 COMPONENTS iostreams serialization system thread)
 LIST(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules/)
@@ -50,8 +51,14 @@ LIST(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules/)
 #
 IF(NOT Boost_FOUND AND Boost_USE_STATIC_LIBS)
   SET(Boost_USE_STATIC_LIBS FALSE)
+
+  # temporarily disable ${CMAKE_SOURCE_DIR}/cmake/modules for module lookup
+  LIST(REMOVE_ITEM CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules/)
   FIND_PACKAGE(Boost 1.48 COMPONENTS iostreams serialization system thread)
+  LIST(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules/)
 ENDIF()
+
+
 
 IF(Boost_FOUND)
   #
@@ -73,11 +80,12 @@ DEAL_II_PACKAGE_HANDLE(BOOST
   INCLUDE_DIRS REQUIRED Boost_INCLUDE_DIRS
   USER_INCLUDE_DIRS Boost_INCLUDE_DIRS
   CLEAR
-    Boost_INCLUDE_DIR Boost_IOSTREAMS_LIBRARY_DEBUG
+    Boost_DIR Boost_INCLUDE_DIR Boost_IOSTREAMS_LIBRARY_DEBUG
     Boost_IOSTREAMS_LIBRARY_RELEASE Boost_LIBRARY_DIR
     Boost_SERIALIZATION_LIBRARY_DEBUG Boost_SERIALIZATION_LIBRARY_RELEASE
     Boost_SYSTEM_LIBRARY_DEBUG Boost_SYSTEM_LIBRARY_RELEASE
     Boost_THREAD_LIBRARY_DEBUG Boost_THREAD_LIBRARY_RELEASE
+    Boost_LIBRARY_DIR_DEBUG Boost_LIBRARY_DIR_RELEASE
     _Boost_COMPONENTS_SEARCHED _Boost_INCLUDE_DIR_LAST
     _Boost_LIBRARY_DIR_LAST _Boost_USE_MULTITHREADED_LAST
   )

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__std_cxx11_shared_ptr_h
-#define __deal2__std_cxx11_shared_ptr_h
+#ifndef dealii__std_cxx11_shared_ptr_h
+#define dealii__std_cxx11_shared_ptr_h
 
 
 #include <deal.II/base/config.h>
@@ -27,6 +27,8 @@ namespace std_cxx11
 {
   using std::shared_ptr;
   using std::enable_shared_from_this;
+  using std::make_shared;
+  using std::dynamic_pointer_cast;
 }
 DEAL_II_NAMESPACE_CLOSE
 
@@ -34,14 +36,22 @@ DEAL_II_NAMESPACE_CLOSE
 
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/make_shared.hpp>
 DEAL_II_NAMESPACE_OPEN
 namespace std_cxx11
 {
   using boost::shared_ptr;
   using boost::enable_shared_from_this;
+  using boost::make_shared;
+  using boost::dynamic_pointer_cast;
 }
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
+
+// then allow using the old namespace name instead of the new one
+DEAL_II_NAMESPACE_OPEN
+namespace std_cxx1x = std_cxx11;
+DEAL_II_NAMESPACE_CLOSE
 
 #endif

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2013 by the deal.II authors
+// Copyright (C) 2010 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -41,9 +41,9 @@ public:
 
 
 
-template <class MATRIX, class VECTOR>
+template <typename MatrixType, typename VectorType>
 void
-check(const MATRIX &A, const VECTOR &f)
+check(const MatrixType &A, const VectorType &f)
 {
   std::vector<std::string> names;
   names.push_back("cg");
@@ -52,11 +52,11 @@ check(const MATRIX &A, const VECTOR &f)
   names.push_back("fgmres");
 
   MySolverControl mycont;
-  SolverSelector<VECTOR> solver;
+  SolverSelector<VectorType> solver;
   PreconditionSSOR<SparseMatrix<double> > pre;
   pre.initialize(A);
 
-  VECTOR u;
+  VectorType u;
   u.reinit(f);
 
   std::vector<std::string>::const_iterator name;
@@ -68,12 +68,6 @@ check(const MATRIX &A, const VECTOR &f)
       u = 0.;
       solver.solve(A, u, f, pre);
     }
-
-  //test deprecated constructor too:
-  GrowingVectorMemory<VECTOR> mem;
-  SolverSelector<VECTOR> solver2("gmres", mycont, mem);
-  u = 0.;
-  solver2.solve(A, u, f, pre);
 }
 
 
@@ -82,7 +76,6 @@ int main()
   std::ofstream logfile("output");
   deallog << std::setprecision(4);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   unsigned int size=37;

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2014 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -119,6 +119,7 @@ template <typename number>
 LAPACKFullMatrix<number> &
 LAPACKFullMatrix<number>::operator = (const double d)
 {
+  (void)d;
   Assert (d==0, ExcScalarAssignmentOnlyForZeroValue());
 
   if (this->n_elements() != 0)
@@ -244,6 +245,24 @@ LAPACKFullMatrix<number>::Tvmult (
     default:
       Assert (false, ExcState(state));
     }
+}
+
+
+template <typename number>
+void
+LAPACKFullMatrix<number>::vmult_add (Vector<number>       &w,
+                                     const Vector<number> &v) const
+{
+  vmult(w, v, true);
+}
+
+
+template <typename number>
+void
+LAPACKFullMatrix<number>::Tvmult_add (Vector<number>       &w,
+                                      const Vector<number> &v) const
+{
+  Tvmult(w, v, true);
 }
 
 
@@ -476,9 +495,6 @@ LAPACKFullMatrix<number>::compute_svd()
   number *mvt = const_cast<number *> (&svd_vt->values[0]);
   int info = 0;
 
-  // see comment on this #if below. Another reason to love Petsc
-#ifndef DEAL_II_LIBLAPACK_NOQUERYMODE
-
   // First determine optimal workspace size
   work.resize(1);
   int lwork = -1;
@@ -486,12 +502,10 @@ LAPACKFullMatrix<number>::compute_svd()
         &wr[0], mu, &mm, mvt, &nn,
         &work[0], &lwork, &ipiv[0], &info);
   AssertThrow (info==0, LAPACKSupport::ExcErrorCode("gesdd", info));
-  // Now resize work array and
-  lwork = static_cast<int>(work[0] + .5);
-#else
-  int lwork = 3*std::min(mm,nn) +
-              std::max(std::max(mm,nn),4*std::min(mm,nn)*std::min(mm,nn)+4*std::min(mm,nn));
-#endif
+  // Resize the work array. Add one to the size computed by LAPACK to be on
+  // the safe side.
+  lwork = static_cast<int>(work[0] + 1);
+
   work.resize(lwork);
   // Do the actual SVD.
   gesdd(&LAPACKSupport::A, &mm, &nn, values, &mm,
@@ -622,23 +636,15 @@ LAPACKFullMatrix<number>::compute_eigenvalues(const bool right,
   const char *const jobvr = (right) ? (&V) : (&N);
   const char *const jobvl = (left)  ? (&V) : (&N);
 
-  // Optimal workspace query:
-
-  // The LAPACK routine DGEEV requires a sufficient large workspace variable,
-  // minimum requirement is
-  //    work.size>=4*nn.
-  // However, to improve performance, a somewhat larger workspace may be
-  // needed.
-
-  // SOME implementations of the LAPACK routine provide a workspace query
-  // call,
-  //   info:=0, lwork:=-1
-  // which returns an optimal value for the size of the workspace array (the
-  // PETSc 2.3.0 implementation does NOT provide this functionality!).
-
-  // define the DEAL_II_LIBLAPACK_NOQUERYMODE flag to disable the workspace
-  // query.
-#ifndef DEAL_II_LIBLAPACK_NOQUERYMODE
+  /*
+   * The LAPACK routine xGEEV requires a sufficiently large work array; the
+   * minimum requirement is
+   *
+   * work.size >= 4*nn.
+   *
+   * However, for better performance, a larger work array may be needed. The
+   * first call determines the optimal work size and the second does the work.
+   */
   lwork = -1;
   work.resize(1);
 
@@ -649,11 +655,10 @@ LAPACKFullMatrix<number>::compute_eigenvalues(const bool right,
   // geev returns info=0 on success. Since we only queried the optimal size
   // for work, everything else would not be acceptable.
   Assert (info == 0, ExcInternalError());
-  // Allocate working array according to suggestion.
-  lwork = (int) (work[0]+.1);
-#else
-  lwork = 4*nn;                    // no query mode
-#endif
+  // Allocate working array according to suggestion (same strategy as was
+  // noted in compute_svd).
+  lwork = static_cast<int>(work[0] + 1);
+
   // resize workspace array
   work.resize((size_type ) lwork);
 
@@ -692,7 +697,7 @@ LAPACKFullMatrix<number>::compute_eigenvalues_symmetric(const number        lowe
   number *values_eigenvectors = const_cast<number *> (&matrix_eigenvectors.values[0]);
 
   int info(0),
-      lwork(1),
+      lwork(-1),
       n_eigenpairs(0);
   const char *const jobz(&V);
   const char *const uplo(&U);
@@ -702,24 +707,15 @@ LAPACKFullMatrix<number>::compute_eigenvalues_symmetric(const number        lowe
   std::vector<int> ifail(static_cast<size_type> (nn));
 
 
-  // Optimal workspace query:
-
-  // The LAPACK routine ?SYEVX requires a sufficient large workspace variable,
-  // minimum requirement is
-  //    work.size>=3*nn-1.
-  // However, to improve performance, a somewhat larger workspace may be
-  // needed.
-
-  // SOME implementations of the LAPACK routine provide a workspace query
-  // call,
-  //   info:=0, lwork:=-1
-  // which returns an optimal value for the size of the workspace array (the
-  // PETSc 2.3.0 implementation does NOT provide this functionality!).
-
-  // define the DEAL_II_LIBLAPACK_NOQUERYMODE flag to
-  // disable the workspace query.
-#ifndef DEAL_II_LIBLAPACK_NOQUERYMODE
-  lwork = -1;
+  /*
+   * The LAPACK routine xSYEVX requires a sufficiently large work array; the
+   * minimum requirement is
+   *
+   * work.size >= 8*nn.
+   *
+   * However, for better performance, a larger work array may be needed. The
+   * first call determines the optimal work size and the second does the work.
+   */
   work.resize(1);
 
   syevx (jobz, range,
@@ -732,12 +728,9 @@ LAPACKFullMatrix<number>::compute_eigenvalues_symmetric(const number        lowe
   // syevx returns info=0 on success. Since we only queried the optimal size
   // for work, everything else would not be acceptable.
   Assert (info == 0, ExcInternalError());
-  // Allocate working array according to suggestion.
-  lwork = (int) (work[0]+.1);
-#else
-  lwork = 8*nn > 1 ? 8*nn : 1; // no query mode
-#endif
-  // resize workspace arrays
+  // Allocate working array according to suggestion (same strategy as was noted in
+  // compute_svd).
+  lwork = static_cast<int>(work[0] + 1);
   work.resize(static_cast<size_type> (lwork));
 
   // Finally compute the eigenvalues.
@@ -797,7 +790,7 @@ LAPACKFullMatrix<number>::compute_generalized_eigenvalues_symmetric(
   number *values_eigenvectors = const_cast<number *> (&matrix_eigenvectors.values[0]);
 
   int info(0),
-      lwork(1),
+      lwork(-1),
       n_eigenpairs(0);
   const char *const jobz(&V);
   const char *const uplo(&U);
@@ -807,24 +800,15 @@ LAPACKFullMatrix<number>::compute_generalized_eigenvalues_symmetric(
   std::vector<int> ifail(static_cast<size_type> (nn));
 
 
-  // Optimal workspace query:
-
-  // The LAPACK routine ?SYGVX requires a sufficient large workspace variable,
-  // minimum requirement is
-  //    work.size>=3*nn-1.
-  // However, to improve performance, a somewhat larger workspace may be
-  // needed.
-
-  // SOME implementations of the LAPACK routine provide a workspace query
-  // call,
-  //   info:=0, lwork:=-1
-  // which returns an optimal value for the size of the workspace array (the
-  // PETSc 2.3.0 implementation does NOT provide this functionality!).
-
-  // define the DEAL_II_LIBLAPACK_NOQUERYMODE flag to disable the workspace
-  // query.
-#ifndef DEAL_II_LIBLAPACK_NOQUERYMODE
-  lwork = -1;
+  /*
+   * The LAPACK routine xSYGVX requires a sufficiently large work array; the
+   * minimum requirement is
+   *
+   * work.size >= 8*nn.
+   *
+   * However, for better performance, a larger work array may be needed. The
+   * first call determines the optimal work size and the second does the work.
+   */
   work.resize(1);
 
   sygvx (&itype, jobz, range, uplo, &nn, values_A, &nn,
@@ -835,11 +819,10 @@ LAPACKFullMatrix<number>::compute_generalized_eigenvalues_symmetric(
   // sygvx returns info=0 on success. Since we only queried the optimal size
   // for work, everything else would not be acceptable.
   Assert (info == 0, ExcInternalError());
-  // Allocate working array according to suggestion.
-  lwork = (int) (work[0]+.1);
-#else
-  lwork = 8*nn > 1 ? 8*nn : 1; // no query mode
-#endif
+  // Allocate working array according to suggestion (same strategy as was
+  // noted in compute_svd).
+  lwork = static_cast<int>(work[0] + 1);
+
   // resize workspace arrays
   work.resize(static_cast<size_type> (lwork));
 
@@ -890,35 +873,26 @@ LAPACKFullMatrix<number>::compute_generalized_eigenvalues_symmetric (
          ExcMessage ("eigenvectors.size() > matrix.n_cols()"));
 
   wr.resize(nn);
-  wi.resize(nn); //This is set purley for consistency reasons with the
+  wi.resize(nn); //This is set purely for consistency reasons with the
   //eigenvalues() function.
 
   number *values_A = const_cast<number *> (&this->values[0]);
   number *values_B = const_cast<number *> (&B.values[0]);
 
   int info  = 0;
-  int lwork = 1;
+  int lwork = -1;
   const char *const jobz = (eigenvectors.size() > 0) ? (&V) : (&N);
   const char *const uplo = (&U);
 
-  // Optimal workspace query:
-
-  // The LAPACK routine DSYGV requires a sufficient large workspace variable,
-  // minimum requirement is
-  //    work.size>=3*nn-1.
-  // However, to improve performance, a somewhat larger workspace may be
-  // needed.
-
-  // SOME implementations of the LAPACK routine provide a workspace query
-  // call,
-  //   info:=0, lwork:=-1
-  // which returns an optimal value for the size of the workspace array (the
-  // PETSc 2.3.0 implementation does NOT provide this functionality!).
-
-  // define the DEAL_II_LIBLAPACK_NOQUERYMODE flag to disable the workspace
-  // query.
-#ifndef DEAL_II_LIBLAPACK_NOQUERYMODE
-  lwork = -1;
+  /*
+   * The LAPACK routine xSYGV requires a sufficiently large work array; the
+   * minimum requirement is
+   *
+   * work.size >= 3*nn - 1.
+   *
+   * However, for better performance, a larger work array may be needed. The
+   * first call determines the optimal work size and the second does the work.
+   */
   work.resize(1);
 
   sygv (&itype, jobz, uplo, &nn, values_A, &nn,
@@ -927,13 +901,12 @@ LAPACKFullMatrix<number>::compute_generalized_eigenvalues_symmetric (
   // sygv returns info=0 on success. Since we only queried the optimal size
   // for work, everything else would not be acceptable.
   Assert (info == 0, ExcInternalError());
-  // Allocate working array according to suggestion.
-  lwork = (int) (work[0]+.1);
-#else
-  lwork = 3*nn-1 > 1 ? 3*nn-1 : 1; // no query mode
-#endif
+  // Allocate working array according to suggestion (same strategy as was
+  // noted in compute_svd).
+  lwork = static_cast<int>(work[0] + 1);
+
   // resize workspace array
-  work.resize((size_type) lwork);
+  work.resize(static_cast<size_type>(lwork));
 
   // Finally compute the generalized eigenvalues.
   sygv (&itype, jobz, uplo, &nn, values_A, &nn,
@@ -955,31 +928,6 @@ LAPACKFullMatrix<number>::compute_generalized_eigenvalues_symmetric (
         }
     }
   state = LAPACKSupport::State(eigenvalues | unusable);
-}
-
-
-// template <typename number>
-// LAPACKFullMatrix<number>::()
-// {}
-
-
-template <typename number>
-void
-LAPACKFullMatrix<number>::vmult_add (
-  Vector<number>       &w,
-  const Vector<number> &v) const
-{
-  vmult(w, v, true);
-}
-
-
-template <typename number>
-void
-LAPACKFullMatrix<number>::Tvmult_add (
-  Vector<number>       &w,
-  const Vector<number> &v) const
-{
-  Tvmult(w, v, true);
 }
 
 

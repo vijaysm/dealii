@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 1999 - 2014 by the deal.II authors
+ * Copyright (C) 1999 - 2015 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -66,7 +66,7 @@
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/sparse_matrix.h>
-#include <deal.II/lac/compressed_sparsity_pattern.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
 
@@ -208,9 +208,9 @@ void Step3::setup_system ()
   // first creating a temporary structure, tagging those entries that might be
   // nonzero, and then copying the data over to the SparsityPattern object
   // that can then be used by the system matrix.
-  CompressedSparsityPattern c_sparsity(dof_handler.n_dofs());
-  DoFTools::make_sparsity_pattern (dof_handler, c_sparsity);
-  sparsity_pattern.copy_from(c_sparsity);
+  DynamicSparsityPattern dsp(dof_handler.n_dofs());
+  DoFTools::make_sparsity_pattern (dof_handler, dsp);
+  sparsity_pattern.copy_from(dsp);
 
   // Note that the SparsityPattern object does not hold the values of the
   // matrix, it only stores the places where entries are. The entries
@@ -307,6 +307,39 @@ void Step3::assemble_system ()
   // compared to approaches where everything, including second derivatives,
   // normal vectors to cells, etc are computed on each cell, regardless of
   // whether they are needed or not.
+  //
+  // @note The syntax <code>update_values | update_gradients |
+  // update_JxW_values</code> is not immediately obvious to anyone not
+  // used to programming bit operations in C for years already. First,
+  // <code>operator|</code> is the <i>bitwise or operator</i>, i.e.,
+  // it takes two integer arguments that are interpreted as bit
+  // patterns and returns an integer in which every bit is set for
+  // which the corresponding bit is set in at least one of the two
+  // arguments. For example, consider the operation
+  // <code>9|10</code>. In binary, <code>9=0b1001</code> (where the
+  // prefix <code>0b</code> indicates that the number is to be
+  // interpreted as a binary number) and <code>10=0b1010</code>. Going
+  // through each bit and seeing whether it is set in one of the
+  // argument, we arrive at <code>0b1001|0b1010=0b1011</code> or, in
+  // decimal notation, <code>9|10=11</code>. The second piece of
+  // information you need to know is that the various
+  // <code>update_*</code> flags are all integers that have <i>exactly
+  // one bit set</i>. For example, assume that
+  // <code>update_values=0b00001=1</code>,
+  // <code>update_gradients=0b00010=2</code>,
+  // <code>update_JxW_values=0b10000=16</code>. Then
+  // <code>update_values | update_gradients | update_JxW_values =
+  // 0b10011 = 19</code>. In other words, we obtain a number that
+  // <i>encodes a binary mask representing all of the operations you
+  // want to happen</i>, where each operation corresponds to exactly
+  // one bit in the integer that, if equal to one, means that a
+  // particular piece should be updated on each cell and, if it is
+  // zero, means that we need not compute it. In other words, even
+  // though <code>operator|</code> is the <i>bitwise OR operation</i>,
+  // what it really represents is <i>I want this AND that AND the
+  // other</i>. Such binary masks are quite common in C programming,
+  // but maybe not so in higher level languages like C++, but serve
+  // the current purpose quite well.
 
   // For use further down below, we define two shortcuts for values that will
   // be used very frequently. First, an abbreviation for the number of degrees
@@ -516,10 +549,9 @@ void Step3::solve ()
   // is below $10^{-12}$. In practice, the latter criterion will be the one
   // which stops the iteration:
   SolverControl           solver_control (1000, 1e-12);
-  // Then we need the solver itself. The template parameters to the SolverCG
-  // class are the matrix type and the type of the vectors, but the empty
-  // angle brackets indicate that we simply take the default arguments (which
-  // are <code>SparseMatrix@<double@></code> and
+  // Then we need the solver itself. The template parameter to the SolverCG
+  // class is the type of the vectors, but the empty angle brackets indicate
+  // that we simply take the default argument (which is
   // <code>Vector@<double@></code>):
   SolverCG<>              solver (solver_control);
 
@@ -594,9 +626,33 @@ void Step3::run ()
 // This is the main function of the program. Since the concept of a main
 // function is mostly a remnant from the pre-object era in C/C++ programming,
 // it often does not much more than creating an object of the top-level class
-// and calling its principle function. This is what is done here as well:
+// and calling its principle function.
+//
+// Finally, the first line of the function is used to enable output of the
+// deal.II logstream to the screen.  The deallog (which stands for deal-log,
+// not de-allog) variable represents a stream to which some parts of the
+// library write output. For example, iterative solvers will generate
+// diagnostics (starting residual, number of solver steps, final residual) as
+// can be seen when running this tutorial program.
+//
+// The output of deallog can be redirected to the console, to a file, or
+// both. But both are disabled by default. The output is nested in a way so
+// that each function can use a prefix string (separated by colons) for each
+// line of output; if it calls another function, that may also use its prefix
+// which is then printed after the one of the calling function. By running
+// this example (or looking at the "Results" section), you will see the solver
+// statistics prefixed with "DEAL:CG", which is two prefixes.  Since output
+// from functions which are nested deep below is usually not as important as
+// top-level output, you can give the deallog variable a maximal depth of
+// nested output for output to console and file. A depth of 0 (the default)
+// will disable output to the screen, while a value of 2 or higher will cause
+// the solver info in this example to be printed. Imagine that different
+// solvers can be nested, which we will see in step-22 for example, and you
+// might not want to see all this information.
 int main ()
 {
+  deallog.depth_console (2);
+
   Step3 laplace_problem;
   laplace_problem.run ();
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,7 +30,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   const unsigned int N=10000;
@@ -52,7 +51,7 @@ int main()
                        (boost::lambda::_1 + boost::lambda::_2 - boost::lambda::_3),
                        10);
 
-  Assert (a.l2_norm() == 0, ExcInternalError());
+  AssertThrow (a.l2_norm() == 0, ExcInternalError());
 
   deallog << "OK" << std::endl;
 }

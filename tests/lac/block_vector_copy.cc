@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2013 by the deal.II authors
+// Copyright (C) 2008 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,27 +35,27 @@ void test ()
     partition[i] = 3;
 
   dealii::BlockVector<double> b(partition);
-  Assert (b.n_blocks() == partition.size(),
-          ExcInternalError());
+  AssertThrow (b.n_blocks() == partition.size(),
+               ExcInternalError());
 
   unsigned int      size = 0;
   for (unsigned int i = 0; i < b.n_blocks(); ++i)
     {
-      Assert (b.block(i).size() == partition[i], ExcInternalError());
+      AssertThrow (b.block(i).size() == partition[i], ExcInternalError());
       size += b.block(i).size();
     }
-  Assert (b.size() == size, ExcInternalError());
+  AssertThrow (b.size() == size, ExcInternalError());
 
   for (unsigned int i = 0; i < b.size(); ++i)
     {
       b(i) = v[i];
-      Assert (b(i) == v[i], ExcInternalError());
+      AssertThrow (b(i) == v[i], ExcInternalError());
     }
 
   dealii::BlockVector<double> c;
   c = b;
-  Assert (c == b, ExcInternalError());
-  Assert (c.n_blocks() == b.n_blocks(), ExcInternalError());
+  AssertThrow (c == b, ExcInternalError());
+  AssertThrow (c.n_blocks() == b.n_blocks(), ExcInternalError());
 
   deallog << "OK" << std::endl;
 }
@@ -69,7 +69,6 @@ int main ()
   deallog << std::fixed;
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   // do the same weird stuff as in

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2014 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -90,9 +90,9 @@ namespace internal
 
 
 
-template <int dim, class DH>
+template <int dim, typename DoFHandlerType>
 void
-DataOutRotation<dim,DH>::
+DataOutRotation<dim,DoFHandlerType>::
 build_one_patch (const cell_iterator *cell,
                  internal::DataOutRotation::ParallelData<dimension, space_dimension> &data,
                  std::vector<DataOutBase::Patch<dimension+1,space_dimension+1> > &patches)
@@ -398,22 +398,21 @@ build_one_patch (const cell_iterator *cell,
 
 
 
-template <int dim, class DH>
-void DataOutRotation<dim,DH>::build_patches (const unsigned int n_patches_per_circle,
-                                             const unsigned int nnnn_subdivisions)
+template <int dim, typename DoFHandlerType>
+void DataOutRotation<dim,DoFHandlerType>::build_patches (const unsigned int n_patches_per_circle,
+                                                         const unsigned int nnnn_subdivisions)
 {
   // Check consistency of redundant
   // template parameter
   Assert (dim==dimension, ExcDimensionMismatch(dim, dimension));
-  typedef DataOut_DoFData<DH,dimension+1> BaseClass;
   Assert (this->triangulation != 0,
-          typename BaseClass::ExcNoTriangulationSelected());
+          Exceptions::DataOut::ExcNoTriangulationSelected());
 
   const unsigned int n_subdivisions = (nnnn_subdivisions != 0)
                                       ? nnnn_subdivisions
                                       : this->default_subdivisions;
   Assert (n_subdivisions >= 1,
-          ExcInvalidNumberOfSubdivisions(n_subdivisions));
+          Exceptions::DataOut::ExcInvalidNumberOfSubdivisions(n_subdivisions));
 
   unsigned int n_datasets=this->cell_data.size();
   for (unsigned int i=0; i<this->dof_data.size(); ++i)
@@ -454,11 +453,12 @@ void DataOutRotation<dim,DH>::build_patches (const unsigned int n_patches_per_ci
     else
       n_postprocessor_outputs[dataset] = 0;
 
-  const MappingQ1<dimension, space_dimension> mapping;
   internal::DataOutRotation::ParallelData<dimension, space_dimension>
   thread_data (n_datasets,
                n_subdivisions, n_patches_per_circle,
-               n_postprocessor_outputs, mapping, this->get_finite_elements(),
+               n_postprocessor_outputs,
+               StaticMappingQ1<dimension,space_dimension>::mapping,
+               this->get_finite_elements(),
                update_flags);
   std::vector<DataOutBase::Patch<dimension+1,space_dimension+1> >
   new_patches (n_patches_per_circle);
@@ -472,7 +472,7 @@ void DataOutRotation<dim,DH>::build_patches (const unsigned int n_patches_per_ci
   // now build the patches in parallel
   WorkStream::run (&all_cells[0],
                    &all_cells[0]+all_cells.size(),
-                   std_cxx11::bind(&DataOutRotation<dim,DH>::build_one_patch,
+                   std_cxx11::bind(&DataOutRotation<dim,DoFHandlerType>::build_one_patch,
                                    this, std_cxx11::_1, std_cxx11::_2, std_cxx11::_3),
                    std_cxx11::bind(&internal::DataOutRotation
                                    ::append_patch_to_list<dim,space_dimension>,
@@ -483,17 +483,17 @@ void DataOutRotation<dim,DH>::build_patches (const unsigned int n_patches_per_ci
 
 
 
-template <int dim, class DH>
-typename DataOutRotation<dim,DH>::cell_iterator
-DataOutRotation<dim,DH>::first_cell ()
+template <int dim, typename DoFHandlerType>
+typename DataOutRotation<dim,DoFHandlerType>::cell_iterator
+DataOutRotation<dim,DoFHandlerType>::first_cell ()
 {
   return this->triangulation->begin_active ();
 }
 
 
-template <int dim, class DH>
-typename DataOutRotation<dim,DH>::cell_iterator
-DataOutRotation<dim,DH>::next_cell (const cell_iterator &cell)
+template <int dim, typename DoFHandlerType>
+typename DataOutRotation<dim,DoFHandlerType>::cell_iterator
+DataOutRotation<dim,DoFHandlerType>::next_cell (const cell_iterator &cell)
 {
   // convert the iterator to an
   // active_iterator and advance

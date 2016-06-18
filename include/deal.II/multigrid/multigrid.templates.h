@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2013 by the deal.II authors
+// Copyright (C) 1999 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__multigrid_templates_h
-#define __deal2__multigrid_templates_h
+#ifndef dealii__multigrid_templates_h
+#define dealii__multigrid_templates_h
 #include <deal.II/multigrid/multigrid.h>
 
 #include <deal.II/base/logstream.h>
@@ -24,15 +24,15 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-template <class VECTOR>
-Multigrid<VECTOR>::Multigrid (const unsigned int minlevel,
-                              const unsigned int maxlevel,
-                              const MGMatrixBase<VECTOR> &matrix,
-                              const MGCoarseGridBase<VECTOR> &coarse,
-                              const MGTransferBase<VECTOR> &transfer,
-                              const MGSmootherBase<VECTOR> &pre_smooth,
-                              const MGSmootherBase<VECTOR> &post_smooth,
-                              typename Multigrid<VECTOR>::Cycle cycle)
+template <typename VectorType>
+Multigrid<VectorType>::Multigrid (const unsigned int                    minlevel,
+                                  const unsigned int                    maxlevel,
+                                  const MGMatrixBase<VectorType>        &matrix,
+                                  const MGCoarseGridBase<VectorType>    &coarse,
+                                  const MGTransferBase<VectorType>      &transfer,
+                                  const MGSmootherBase<VectorType>      &pre_smooth,
+                                  const MGSmootherBase<VectorType>      &post_smooth,
+                                  typename Multigrid<VectorType>::Cycle cycle)
   :
   cycle_type(cycle),
   minlevel(minlevel),
@@ -54,10 +54,10 @@ Multigrid<VECTOR>::Multigrid (const unsigned int minlevel,
 
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::reinit(const unsigned int min_level,
-                          const unsigned int max_level)
+Multigrid<VectorType>::reinit (const unsigned int min_level,
+                               const unsigned int max_level)
 {
   minlevel=min_level;
   maxlevel=max_level;
@@ -65,9 +65,9 @@ Multigrid<VECTOR>::reinit(const unsigned int min_level,
 }
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::set_maxlevel (const unsigned int l)
+Multigrid<VectorType>::set_maxlevel (const unsigned int l)
 {
   Assert (l <= maxlevel, ExcIndexRange(l,minlevel,maxlevel+1));
   Assert (l >= minlevel, ExcIndexRange(l,minlevel,maxlevel+1));
@@ -75,10 +75,10 @@ Multigrid<VECTOR>::set_maxlevel (const unsigned int l)
 }
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::set_minlevel (const unsigned int l,
-                                 const bool relative)
+Multigrid<VectorType>::set_minlevel (const unsigned int l,
+                                     const bool relative)
 {
   Assert (l <= maxlevel, ExcIndexRange(l,minlevel,maxlevel+1));
   minlevel = (relative)
@@ -87,45 +87,45 @@ Multigrid<VECTOR>::set_minlevel (const unsigned int l,
 }
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::set_cycle(typename Multigrid<VECTOR>::Cycle c)
+Multigrid<VectorType>::set_cycle(typename Multigrid<VectorType>::Cycle c)
 {
   cycle_type = c;
 }
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::set_debug (const unsigned int d)
+Multigrid<VectorType>::set_debug (const unsigned int d)
 {
   debug = d;
 }
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::set_edge_matrices (const MGMatrixBase<VECTOR> &down,
-                                      const MGMatrixBase<VECTOR> &up)
+Multigrid<VectorType>::set_edge_matrices (const MGMatrixBase<VectorType> &down,
+                                          const MGMatrixBase<VectorType> &up)
 {
   edge_out = &down;
   edge_in = &up;
 }
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::set_edge_flux_matrices (const MGMatrixBase<VECTOR> &down,
-                                           const MGMatrixBase<VECTOR> &up)
+Multigrid<VectorType>::set_edge_flux_matrices (const MGMatrixBase<VectorType> &down,
+                                               const MGMatrixBase<VectorType> &up)
 {
   edge_down = &down;
   edge_up = &up;
 }
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::level_v_step(const unsigned int level)
+Multigrid<VectorType>::level_v_step (const unsigned int level)
 {
   if (debug>0)
     deallog << "V-cycle entering level " << level << std::endl;
@@ -243,10 +243,10 @@ Multigrid<VECTOR>::level_v_step(const unsigned int level)
 
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::level_step(const unsigned int level,
-                              Cycle cycle)
+Multigrid<VectorType>::level_step(const unsigned int level,
+                                  Cycle cycle)
 {
   char cychar = '?';
   switch (cycle)
@@ -373,9 +373,9 @@ Multigrid<VECTOR>::level_step(const unsigned int level,
 }
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::cycle()
+Multigrid<VectorType>::cycle()
 {
   // The defect vector has been
   // initialized by copy_to_mg. Now
@@ -400,9 +400,9 @@ Multigrid<VECTOR>::cycle()
 }
 
 
-template <class VECTOR>
+template <typename VectorType>
 void
-Multigrid<VECTOR>::vcycle()
+Multigrid<VectorType>::vcycle()
 {
   // The defect vector has been
   // initialized by copy_to_mg. Now
@@ -418,51 +418,6 @@ Multigrid<VECTOR>::vcycle()
   level_v_step (maxlevel);
 }
 
-
-template <class VECTOR>
-void
-Multigrid<VECTOR>::vmult(VECTOR &dst, const VECTOR &src) const
-{
-  Multigrid<VECTOR> &mg = const_cast<Multigrid<VECTOR>&>(*this);
-  mg.defect[maxlevel] = src;
-  for (unsigned int level=maxlevel; level>minlevel; --level)
-    {
-      mg.defect[level-1] = 0.;
-      mg.transfer->restrict_and_add (level,
-                                     mg.defect[level-1],
-                                     mg.defect[level]);
-    }
-
-  mg.cycle();
-  dst = mg.solution[maxlevel];
-}
-
-
-template <class VECTOR>
-void
-Multigrid<VECTOR>::vmult_add(VECTOR &dst, const VECTOR &src) const
-{
-  Multigrid<VECTOR> &mg = const_cast<Multigrid<VECTOR>&>(*this);
-  mg.defect[maxlevel] = src;
-  mg.cycle();
-  dst += mg.solution[maxlevel];
-}
-
-
-template <class VECTOR>
-void
-Multigrid<VECTOR>::Tvmult(VECTOR &, const VECTOR &) const
-{
-  Assert(false, ExcNotImplemented());
-}
-
-
-template <class VECTOR>
-void
-Multigrid<VECTOR>::Tvmult_add(VECTOR &, const VECTOR &) const
-{
-  Assert(false, ExcNotImplemented());
-}
 
 DEAL_II_NAMESPACE_CLOSE
 

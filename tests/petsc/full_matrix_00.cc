@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 by the deal.II authors
+// Copyright (C) 2014 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,18 +34,18 @@ void test (PETScWrappers::FullMatrix &m)
     for (unsigned int j=0; j<m.n(); ++j)
       m.set (i, j, i+2*j);
 
-  m.compress (VectorOperation::add);
+  m.compress (VectorOperation::insert);
 
   // things we know
-  Assert (m.m() == 3, ExcInternalError());
-  Assert (m.n() == 3, ExcInternalError());
-  
+  AssertThrow (m.m() == 3, ExcInternalError());
+  AssertThrow (m.n() == 3, ExcInternalError());
+
   // Generate some output
   deallog << "initial matrix: " << std::endl;
   for (unsigned int i=0; i<m.m(); ++i)
     {
       for (unsigned int j=0; j<m.n(); ++j)
-	deallog << m(i,j) << " ";
+        deallog << m(i,j) << " ";
       deallog << std::endl;
     }
   deallog << std::endl;
@@ -57,22 +57,22 @@ void test (PETScWrappers::FullMatrix &m)
   for (unsigned int i=0; i<m.m(); ++i)
     for (unsigned int j=0; j<m.n(); ++j)
       m.set (i, j, j+2*i);
-  m.compress (VectorOperation::add);
-  
+  m.compress (VectorOperation::insert);
+
   // things we know
-  Assert (m.m() == 5, ExcInternalError());
-  Assert (m.n() == 5, ExcInternalError());
+  AssertThrow (m.m() == 5, ExcInternalError());
+  AssertThrow (m.n() == 5, ExcInternalError());
 
   // Generate some output
   deallog << "after reinit: " << std::endl;
   for (unsigned int i=0; i<m.m(); ++i)
     {
       for (unsigned int j=0; j<m.n(); ++j)
-	deallog << m(i,j) << " ";
+        deallog << m(i,j) << " ";
       deallog << std::endl;
     }
   deallog << std::endl;
-  
+
   // done
   deallog << "OK" << std::endl;
 }
@@ -81,14 +81,13 @@ int main (int argc,char **argv)
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   try
     {
-      Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+      Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
       {
-	// Standard intialiser...
+        // Standard intialiser...
         PETScWrappers::FullMatrix m (3,3);
         test (m);
       }

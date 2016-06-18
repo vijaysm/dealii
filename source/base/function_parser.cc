@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,12 +16,22 @@
 
 #include <deal.II/base/function_parser.h>
 #include <deal.II/base/utilities.h>
+#include <deal.II/base/thread_management.h>
 #include <deal.II/lac/vector.h>
+#include <cmath>
+#include <map>
 
+DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
+#include <boost/random.hpp>
+DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 
 #ifdef DEAL_II_WITH_MUPARSER
+DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #include <muParser.h>
+DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
 #else
+
+
 
 namespace fparser
 {
@@ -36,9 +46,10 @@ DEAL_II_NAMESPACE_OPEN
 
 template <int dim>
 FunctionParser<dim>::FunctionParser(const unsigned int n_components,
-                                    const double       initial_time)
+                                    const double       initial_time,
+                                    const double       h)
   :
-  Function<dim>(n_components, initial_time)
+  AutoDerivativeFunction<dim>(h, n_components, initial_time)
 {}
 
 
@@ -48,29 +59,57 @@ FunctionParser<dim>::~FunctionParser()
 {}
 
 #ifdef DEAL_II_WITH_MUPARSER
-template <int dim>
-void FunctionParser<dim>::initialize (const std::string                   &variables,
-                                      const std::vector<std::string>      &expressions,
-                                      const std::map<std::string, double> &constants,
-                                      const bool time_dependent,
-                                      const bool use_degrees)
-{
-  initialize (variables,
-              expressions,
-              constants,
-              std::map< std::string, double >(),
-              time_dependent,
-              use_degrees);
-}
-
 
 template <int dim>
-void FunctionParser<dim>::initialize (const std::string              &vars,
+void FunctionParser<dim>::initialize (const std::string              &variables,
                                       const std::vector<std::string> &expressions,
                                       const std::map<std::string, double> &constants,
                                       const bool time_dependent)
 {
-  initialize(vars, expressions, constants, time_dependent, false);
+  this->fp.clear(); // this will reset all thread-local objects
+
+  this->constants = constants;
+  this->var_names = Utilities::split_string_list(variables, ',');
+  this->expressions = expressions;
+  AssertThrow(((time_dependent)?dim+1:dim) == var_names.size(),
+              ExcMessage("Wrong number of variables"));
+
+  // We check that the number of
+  // components of this function
+  // matches the number of components
+  // passed in as a vector of
+  // strings.
+  AssertThrow(this->n_components == expressions.size(),
+              ExcInvalidExpressionSize(this->n_components,
+                                       expressions.size()) );
+
+  // Now we define how many variables
+  // we expect to read in.  We
+  // distinguish between two cases:
+  // Time dependent problems, and not
+  // time dependent problems. In the
+  // first case the number of
+  // variables is given by the
+  // dimension plus one. In the other
+  // case, the number of variables is
+  // equal to the dimension. Once we
+  // parsed the variables string, if
+  // none of this is the case, then
+  // an exception is thrown.
+  if (time_dependent)
+    n_vars = dim+1;
+  else
+    n_vars = dim;
+
+  // create a parser object for the current thread we can then query
+  // in value() and vector_value(). this is not strictly necessary
+  // because a user may never call these functions on the current
+  // thread, but it gets us error messages about wrong formulas right
+  // away
+  init_muparser ();
+
+  // finally set the initialization bit
+  initialized = true;
 }
 
 
@@ -135,15 +174,59 @@ namespace internal
   {
     return log(value);
   }
+
+  double mu_pow(double a, double b)
+  {
+    return std::pow(a, b);
+  }
+
+  double mu_erfc(double value)
+  {
+    return erfc(value);
+  }
+
+  // returns a random value in the range [0,1] initializing the generator
+  // with the given seed
+  double mu_rand_seed(double seed)
+  {
+    static Threads::Mutex rand_mutex;
+    Threads::Mutex::ScopedLock lock(rand_mutex);
+
+    static boost::random::uniform_real_distribution<> uniform_distribution(0,1);
+
+    // for each seed an unique random number generator is created,
+    // which is initialized with the seed itself
+    static std::map<double, boost::random::mt19937> rng_map;
+
+    if (rng_map.find(seed) == rng_map.end())
+      rng_map[seed] = boost::random::mt19937(static_cast<unsigned int>(seed));
+
+    return uniform_distribution(rng_map[seed]);
+  }
+
+  // returns a random value in the range [0,1]
+  double mu_rand()
+  {
+    static Threads::Mutex rand_mutex;
+    Threads::Mutex::ScopedLock lock(rand_mutex);
+    static boost::random::uniform_real_distribution<> uniform_distribution(0,1);
+    static boost::random::mt19937 rng(static_cast<unsigned long>(std::time(0)));
+    return uniform_distribution(rng);
+  }
+
 }
 
 
 template <int dim>
 void FunctionParser<dim>:: init_muparser() const
 {
-  if (fp.get().size()>0)
-    return;
+  // check that we have not already initialized the parser on the
+  // current thread, i.e., that the current function is only called
+  // once per thread
+  Assert (fp.get().size()==0, ExcInternalError());
 
+  // initialize the objects for the current thread (fp.get() and
+  // vars.get())
   fp.get().resize(this->n_components);
   vars.get().resize(var_names.size());
   for (unsigned int component=0; component<this->n_components; ++component)
@@ -168,6 +251,10 @@ void FunctionParser<dim>:: init_muparser() const
       fp.get()[component].DefineFun("floor", internal::mu_floor, true);
       fp.get()[component].DefineFun("sec", internal::mu_sec, true);
       fp.get()[component].DefineFun("log", internal::mu_log, true);
+      fp.get()[component].DefineFun("pow", internal::mu_pow, true);
+      fp.get()[component].DefineFun("erfc", internal::mu_erfc, true);
+      fp.get()[component].DefineFun("rand_seed", internal::mu_rand_seed, true);
+      fp.get()[component].DefineFun("rand", internal::mu_rand, true);
 
       try
         {
@@ -216,7 +303,11 @@ void FunctionParser<dim>:: init_muparser() const
             "cot",
             "csc",
             "floor",
-            "sec"
+            "sec",
+            "pow",
+            "erfc",
+            "rand",
+            "rand_seed"
           };
           for (unsigned int f=0; f<sizeof(function_names)/sizeof(function_names[0]); ++f)
             {
@@ -250,68 +341,14 @@ void FunctionParser<dim>:: init_muparser() const
         }
       catch (mu::ParserError &e)
         {
-          std::cerr << "Message:  " << e.GetMsg() << "\n";
-          std::cerr << "Formula:  " << e.GetExpr() << "\n";
-          std::cerr << "Token:    " << e.GetToken() << "\n";
-          std::cerr << "Position: " << e.GetPos() << "\n";
-          std::cerr << "Errc:     " << e.GetCode() << std::endl;
+          std::cerr << "Message:  <" << e.GetMsg() << ">\n";
+          std::cerr << "Formula:  <" << e.GetExpr() << ">\n";
+          std::cerr << "Token:    <" << e.GetToken() << ">\n";
+          std::cerr << "Position: <" << e.GetPos() << ">\n";
+          std::cerr << "Errc:     <" << e.GetCode() << ">" << std::endl;
           AssertThrow(false, ExcParseError(e.GetCode(), e.GetMsg().c_str()));
         }
     }
-}
-
-
-template <int dim>
-void FunctionParser<dim>::initialize (const std::string   &variables,
-                                      const std::vector<std::string>      &expressions,
-                                      const std::map<std::string, double> &constants,
-                                      const std::map<std::string, double> &units,
-                                      const bool time_dependent,
-                                      const bool use_degrees)
-{
-  this->fp.clear(); // this will reset all thread-local objects
-
-  this->constants = constants;
-  this->var_names = Utilities::split_string_list(variables, ',');
-  this->expressions = expressions;
-  AssertThrow(((time_dependent)?dim+1:dim) == var_names.size(),
-              ExcMessage("wrong number of variables"));
-  AssertThrow(!use_degrees, ExcNotImplemented());
-
-  // We check that the number of
-  // components of this function
-  // matches the number of components
-  // passed in as a vector of
-  // strings.
-  AssertThrow(this->n_components == expressions.size(),
-              ExcInvalidExpressionSize(this->n_components,
-                                       expressions.size()) );
-
-  // we no longer support units:
-  AssertThrow(units.size()==0, ExcNotImplemented());
-
-  // Now we define how many variables
-  // we expect to read in.  We
-  // distinguish between two cases:
-  // Time dependent problems, and not
-  // time dependent problems. In the
-  // first case the number of
-  // variables is given by the
-  // dimension plus one. In the other
-  // case, the number of variables is
-  // equal to the dimension. Once we
-  // parsed the variables string, if
-  // none of this is the case, then
-  // an exception is thrown.
-  if (time_dependent)
-    n_vars = dim+1;
-  else
-    n_vars = dim;
-
-  init_muparser();
-
-  // Now set the initialization bit.
-  initialized = true;
 }
 
 
@@ -322,45 +359,8 @@ void FunctionParser<dim>::initialize (const std::string &vars,
                                       const std::map<std::string, double> &constants,
                                       const bool time_dependent)
 {
-  initialize(vars, expression, constants, time_dependent, false);
-}
-
-
-
-template <int dim>
-void FunctionParser<dim>::initialize (const std::string &variables,
-                                      const std::string &expression,
-                                      const std::map<std::string, double> &constants,
-                                      const bool time_dependent,
-                                      const bool use_degrees)
-{
-  // initialize with the things
-  // we got.
-  initialize (variables,
-              Utilities::split_string_list (expression, ';'),
-              constants,
-              time_dependent,
-              use_degrees);
-}
-
-
-
-template <int dim>
-void FunctionParser<dim>::initialize (const std::string &variables,
-                                      const std::string &expression,
-                                      const std::map<std::string, double> &constants,
-                                      const std::map<std::string, double> &units,
-                                      const bool time_dependent,
-                                      const bool use_degrees)
-{
-  // initialize with the things
-  // we got.
-  initialize (variables,
-              Utilities::split_string_list (expression, ';'),
-              constants,
-              units,
-              time_dependent,
-              use_degrees);
+  initialize(vars, Utilities::split_string_list(expression, ';'),
+             constants, time_dependent);
 }
 
 
@@ -373,8 +373,9 @@ double FunctionParser<dim>::value (const Point<dim>  &p,
   Assert (component < this->n_components,
           ExcIndexRange(component, 0, this->n_components));
 
-  // initialize if not done so on this thread yet:
-  init_muparser();
+  // initialize the parser if that hasn't happened yet on the current thread
+  if (fp.get().size() == 0)
+    init_muparser();
 
   for (unsigned int i=0; i<dim; ++i)
     vars.get()[i] = p(i);
@@ -387,11 +388,11 @@ double FunctionParser<dim>::value (const Point<dim>  &p,
     }
   catch (mu::ParserError &e)
     {
-      std::cerr << "Message:  " << e.GetMsg() << "\n";
-      std::cerr << "Formula:  " << e.GetExpr() << "\n";
-      std::cerr << "Token:    " << e.GetToken() << "\n";
-      std::cerr << "Position: " << e.GetPos() << "\n";
-      std::cerr << "Errc:     " << e.GetCode() << std::endl;
+      std::cerr << "Message:  <" << e.GetMsg() << ">\n";
+      std::cerr << "Formula:  <" << e.GetExpr() << ">\n";
+      std::cerr << "Token:    <" << e.GetToken() << ">\n";
+      std::cerr << "Position: <" << e.GetPos() << ">\n";
+      std::cerr << "Errc:     <" << e.GetCode() << ">" << std::endl;
       AssertThrow(false, ExcParseError(e.GetCode(), e.GetMsg().c_str()));
       return 0.0;
     }
@@ -408,8 +409,9 @@ void FunctionParser<dim>::vector_value (const Point<dim> &p,
           ExcDimensionMismatch (values.size(), this->n_components));
 
 
-  // initialize if not done so on this thread yet:
-  init_muparser();
+  // initialize the parser if that hasn't happened yet on the current thread
+  if (fp.get().size() == 0)
+    init_muparser();
 
   for (unsigned int i=0; i<dim; ++i)
     vars.get()[i] = p(i);
@@ -423,55 +425,6 @@ void FunctionParser<dim>::vector_value (const Point<dim> &p,
 
 #else
 
-
-template <int dim>
-void
-FunctionParser<dim>::initialize(const std::string &,
-                                const std::vector<std::string> &,
-                                const std::map<std::string, double> &,
-                                const bool,
-                                const bool)
-{
-  Assert(false, ExcNeedsFunctionparser());
-}
-
-
-template <int dim>
-void
-FunctionParser<dim>::initialize(const std::string &,
-                                const std::vector<std::string> &,
-                                const std::map<std::string, double> &,
-                                const std::map<std::string, double> &,
-                                const bool,
-                                const bool)
-{
-  Assert(false, ExcNeedsFunctionparser());
-}
-
-
-template <int dim>
-void
-FunctionParser<dim>::initialize(const std::string &,
-                                const std::string &,
-                                const std::map<std::string, double> &,
-                                const bool,
-                                const bool)
-{
-  Assert(false, ExcNeedsFunctionparser());
-}
-
-
-template <int dim>
-void
-FunctionParser<dim>::initialize(const std::string &,
-                                const std::string &,
-                                const std::map<std::string, double> &,
-                                const std::map<std::string, double> &,
-                                const bool,
-                                const bool)
-{
-  Assert(false, ExcNeedsFunctionparser());
-}
 
 template <int dim>
 void

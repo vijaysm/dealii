@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2014 by the deal.II authors
+// Copyright (C) 2000 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -72,20 +72,20 @@ namespace internal
 
 
 
-template <int dim, class DH>
-DataOutFaces<dim,DH>::DataOutFaces(const bool so)
+template <int dim, typename DoFHandlerType>
+DataOutFaces<dim,DoFHandlerType>::DataOutFaces(const bool so)
   :
   surface_only(so)
 {
-  Assert (dim == DH::dimension,
+  Assert (dim == DoFHandlerType::dimension,
           ExcNotImplemented());
 }
 
 
 
-template <int dim, class DH>
+template <int dim, typename DoFHandlerType>
 void
-DataOutFaces<dim,DH>::
+DataOutFaces<dim,DoFHandlerType>::
 build_one_patch (const FaceDescriptor *cell_and_face,
                  internal::DataOutFaces::ParallelData<dimension, dimension> &data,
                  DataOutBase::Patch<dimension-1,space_dimension>  &patch)
@@ -153,7 +153,12 @@ build_one_patch (const FaceDescriptor *cell_and_face,
               // thus does not depend on the number of components of the data
               // vector
               if (update_flags & update_normal_vectors)
-                data.patch_normals=this_fe_patch_values.get_normal_vectors();
+                {
+//TODO: undo this copying when we can change the data type of
+//  data.patch_normals to Tensor<1,spacedim> as well
+                  for (unsigned int q=0; q<this_fe_patch_values.n_quadrature_points; ++q)
+                    data.patch_normals[q] = Point<dim>(this_fe_patch_values.get_all_normal_vectors()[q]);
+                }
 
               if (n_components == 1)
                 {
@@ -245,7 +250,10 @@ build_one_patch (const FaceDescriptor *cell_and_face,
           // we need to get at the number of the cell to which this face
           // belongs in order to access the cell data. this is not readily
           // available, so choose the following rather inefficient way:
-          Assert (cell_and_face->first->active(), ExcCellNotActiveForCellData());
+          Assert (cell_and_face->first->active(),
+                  ExcMessage("The current function is trying to generate cell-data output "
+                             "for a face that does not belong to an active cell. This is "
+                             "not supported."));
           const unsigned int cell_number
             = std::distance (this->triangulation->begin_active(),
                              typename Triangulation<dimension,space_dimension>::active_cell_iterator(cell_and_face->first));
@@ -261,17 +269,17 @@ build_one_patch (const FaceDescriptor *cell_and_face,
 
 
 
-template <int dim, class DH>
-void DataOutFaces<dim,DH>::build_patches (const unsigned int n_subdivisions_)
+template <int dim, typename DoFHandlerType>
+void DataOutFaces<dim,DoFHandlerType>::build_patches (const unsigned int n_subdivisions_)
 {
   build_patches (StaticMappingQ1<dimension>::mapping, n_subdivisions_);
 }
 
 
 
-template <int dim, class DH>
-void DataOutFaces<dim,DH>::build_patches (const Mapping<dimension> &mapping,
-                                          const unsigned int n_subdivisions_)
+template <int dim, typename DoFHandlerType>
+void DataOutFaces<dim,DoFHandlerType>::build_patches (const Mapping<dimension> &mapping,
+                                                      const unsigned int n_subdivisions_)
 {
   // Check consistency of redundant template parameter
   Assert (dim==dimension, ExcDimensionMismatch(dim, dimension));
@@ -281,11 +289,10 @@ void DataOutFaces<dim,DH>::build_patches (const Mapping<dimension> &mapping,
                                       : this->default_subdivisions;
 
   Assert (n_subdivisions >= 1,
-          ExcInvalidNumberOfSubdivisions(n_subdivisions));
+          Exceptions::DataOut::ExcInvalidNumberOfSubdivisions(n_subdivisions));
 
-  typedef DataOut_DoFData<DH,dimension+1> BaseClass;
   Assert (this->triangulation != 0,
-          typename BaseClass::ExcNoTriangulationSelected());
+          Exceptions::DataOut::ExcNoTriangulationSelected());
 
   unsigned int n_datasets     = this->cell_data.size();
   for (unsigned int i=0; i<this->dof_data.size(); ++i)
@@ -333,7 +340,7 @@ void DataOutFaces<dim,DH>::build_patches (const Mapping<dimension> &mapping,
   // now build the patches in parallel
   WorkStream::run (&all_faces[0],
                    &all_faces[0]+all_faces.size(),
-                   std_cxx11::bind(&DataOutFaces<dim,DH>::build_one_patch,
+                   std_cxx11::bind(&DataOutFaces<dim,DoFHandlerType>::build_one_patch,
                                    this, std_cxx11::_1, std_cxx11::_2, std_cxx11::_3),
                    std_cxx11::bind(&internal::DataOutFaces::
                                    append_patch_to_list<dim,space_dimension>,
@@ -344,41 +351,42 @@ void DataOutFaces<dim,DH>::build_patches (const Mapping<dimension> &mapping,
 
 
 
-template <int dim, class DH>
-typename DataOutFaces<dim,DH>::FaceDescriptor
-DataOutFaces<dim,DH>::first_face ()
+template <int dim, typename DoFHandlerType>
+typename DataOutFaces<dim,DoFHandlerType>::FaceDescriptor
+DataOutFaces<dim,DoFHandlerType>::first_face ()
 {
-  // simply find first active cell
-  // with a face on the boundary
+  // simply find first active cell with a face on the boundary
   typename Triangulation<dimension,space_dimension>::active_cell_iterator cell = this->triangulation->begin_active();
   for (; cell != this->triangulation->end(); ++cell)
-    for (unsigned int f=0; f<GeometryInfo<dimension>::faces_per_cell; ++f)
-      if (!surface_only || cell->face(f)->at_boundary())
-        return FaceDescriptor(cell, f);
+    if (cell->is_locally_owned())
+      for (unsigned int f=0; f<GeometryInfo<dimension>::faces_per_cell; ++f)
+        if (!surface_only || cell->face(f)->at_boundary())
+          return FaceDescriptor(cell, f);
 
-  // ups, triangulation has no
-  // boundary? impossible!
-  Assert (false, ExcInternalError());
-
+  // just return an invalid descriptor if we haven't found a locally
+  // owned face. this can happen in parallel where all boundary
+  // faces are owned by other processors
   return FaceDescriptor();
 }
 
 
 
-template <int dim, class DH>
-typename DataOutFaces<dim,DH>::FaceDescriptor
-DataOutFaces<dim,DH>::next_face (const FaceDescriptor &old_face)
+template <int dim, typename DoFHandlerType>
+typename DataOutFaces<dim,DoFHandlerType>::FaceDescriptor
+DataOutFaces<dim,DoFHandlerType>::next_face (const FaceDescriptor &old_face)
 {
   FaceDescriptor face = old_face;
 
-  // first check whether the present cell has more faces on the boundary
+  // first check whether the present cell has more faces on the boundary. since
+  // we started with this face, its cell must clearly be locally owned
+  Assert (face.first->is_locally_owned(), ExcInternalError());
   for (unsigned int f=face.second+1; f<GeometryInfo<dimension>::faces_per_cell; ++f)
     if (!surface_only || face.first->face(f)->at_boundary())
       // yup, that is so, so return it
       {
         face.second = f;
         return face;
-      };
+      }
 
   // otherwise find the next active cell that has a face on the boundary
 
@@ -392,17 +400,21 @@ DataOutFaces<dim,DH>::next_face (const FaceDescriptor &old_face)
   // while there are active cells
   while (active_cell != this->triangulation->end())
     {
-      // check all the faces of this active cell
-      for (unsigned int f=0; f<GeometryInfo<dimension>::faces_per_cell; ++f)
-        if (!surface_only || active_cell->face(f)->at_boundary())
-          {
-            face.first  = active_cell;
-            face.second = f;
-            return face;
-          };
-      // the present cell had no faces on the boundary, so check next cell
+      // check all the faces of this active cell. but skip it altogether
+      // if it isn't locally owned
+      if (active_cell->is_locally_owned())
+        for (unsigned int f=0; f<GeometryInfo<dimension>::faces_per_cell; ++f)
+          if (!surface_only || active_cell->face(f)->at_boundary())
+            {
+              face.first  = active_cell;
+              face.second = f;
+              return face;
+            }
+
+      // the present cell had no faces on the boundary (or was not locally
+      // owned), so check next cell
       ++active_cell;
-    };
+    }
 
   // we fell off the edge, so return with invalid pointer
   face.first  = this->triangulation->end();

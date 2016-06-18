@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -41,14 +41,10 @@ make_masks (const unsigned int n,
 }
 
 
-void
-my_check_this (const DoFHandler<1> &)
-{}
-
 
 template <int dim>
 void
-my_check_this (const DoFHandler<dim> &dof_handler)
+check_this (const DoFHandler<dim> &dof_handler)
 {
   // we split up the matrix into
   // blocks according to the number
@@ -116,21 +112,4 @@ my_check_this (const DoFHandler<dim> &dof_handler)
           hash += l*x.row_length(l);
         deallog << hash << std::endl;
       }
-}
-
-
-
-template <int dim>
-void
-check_this (const DoFHandler<dim> &dof_handler)
-{
-  // since we can't forward declare
-  // check_this in this file (it is forward
-  // declared in dof_tools_common.h), we
-  // also can't make the driver file aware of
-  // the overload for 1d. to avoid linker
-  // errors, we can consequently not overload
-  // check_this, and need this forwarder
-  // function
-  my_check_this (dof_handler);
 }

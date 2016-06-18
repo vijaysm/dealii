@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2013 by the deal.II authors
+// Copyright (C) 2012 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -86,8 +86,8 @@ void test ()
   d = std::sqrt(c);
   for (unsigned int i=0; i<n_vectors; ++i)
     AssertThrow (std::fabs(d[i]-std::sqrt(Number(i)))<
-            std::numeric_limits<Number>::epsilon(),
-            ExcInternalError());
+                 std::numeric_limits<Number>::epsilon(),
+                 ExcInternalError());
 
   deallog << "OK" << std::endl
           << "Absolute value: ";
@@ -152,7 +152,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   deallog.push("double");

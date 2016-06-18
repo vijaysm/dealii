@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -50,10 +50,10 @@ void test (Vector<std::complex<double> > &v,
   deallog << v *w << ' ' << w *v << ' '
           << product << ' ' << std::conj(product) << std::endl;
 
-  Assert (v*w == product, ExcInternalError());
+  AssertThrow (v*w == product, ExcInternalError());
 
   // also make sure that v*w=conj(w*v)
-  Assert (w*v == std::conj(product), ExcInternalError());
+  AssertThrow (w*v == std::conj(product), ExcInternalError());
 
   deallog << "OK" << std::endl;
 }
@@ -64,7 +64,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   try

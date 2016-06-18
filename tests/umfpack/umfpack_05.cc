@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2013 by the deal.II authors
+// Copyright (C) 2002 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -59,8 +59,8 @@ void test ()
   umfpackb.solve(ubb);
 
   for (unsigned int i=0; i<4; ++i)
-    Assert (std::fabs (ubb(i) - i) < 1e-12,
-            ExcInternalError());
+    AssertThrow (std::fabs (ubb(i) - i) < 1e-12,
+                 ExcInternalError());
 
   deallog << "OK" << std::endl;
 }
@@ -70,7 +70,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test ();

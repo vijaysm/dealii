@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,10 +17,10 @@
 
 #ifdef DEAL_II_WITH_PETSC
 
+#  include <deal.II/base/mpi.h>
 #  include <deal.II/lac/petsc_vector.h>
 #  include <deal.II/lac/sparsity_pattern.h>
-#  include <deal.II/lac/compressed_sparsity_pattern.h>
-#  include <deal.II/lac/compressed_simple_sparsity_pattern.h>
+#  include <deal.II/lac/dynamic_sparsity_pattern.h>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -89,10 +89,10 @@ namespace PETScWrappers
 
 
 
-    template <typename SparsityType>
+    template <typename SparsityPatternType>
     SparseMatrix::
     SparseMatrix (const MPI_Comm               &communicator,
-                  const SparsityType           &sparsity_pattern,
+                  const SparsityPatternType    &sparsity_pattern,
                   const std::vector<size_type> &local_rows_per_process,
                   const std::vector<size_type> &local_columns_per_process,
                   const unsigned int            this_process,
@@ -105,6 +105,27 @@ namespace PETScWrappers
                  preset_nonzero_locations);
     }
 
+
+    void
+    SparseMatrix::
+    reinit (const SparseMatrix &other)
+    {
+      if (&other == this)
+        return;
+
+      this->communicator = other.communicator;
+
+      int ierr;
+#if DEAL_II_PETSC_VERSION_LT(3,2,0)
+      ierr = MatDestroy (matrix);
+#else
+      ierr = MatDestroy (&matrix);
+#endif
+      AssertThrow (ierr == 0, ExcPETScError(ierr));
+
+      ierr = MatDuplicate(other.matrix, MAT_DO_NOT_COPY_VALUES, &matrix);
+      AssertThrow (ierr == 0, ExcPETScError(ierr));
+    }
 
 
     SparseMatrix &
@@ -181,11 +202,11 @@ namespace PETScWrappers
 
 
 
-    template <typename SparsityType>
+    template <typename SparsityPatternType>
     void
     SparseMatrix::
     reinit (const MPI_Comm               &communicator,
-            const SparsityType           &sparsity_pattern,
+            const SparsityPatternType    &sparsity_pattern,
             const std::vector<size_type> &local_rows_per_process,
             const std::vector<size_type> &local_columns_per_process,
             const unsigned int            this_process,
@@ -207,13 +228,13 @@ namespace PETScWrappers
                  preset_nonzero_locations);
     }
 
-    template <typename SparsityType>
+    template <typename SparsityPatternType>
     void
     SparseMatrix::
-    reinit (const IndexSet &local_rows,
-            const IndexSet &local_columns,
-            const SparsityType &sparsity_pattern,
-            const MPI_Comm &communicator)
+    reinit (const IndexSet            &local_rows,
+            const IndexSet            &local_columns,
+            const SparsityPatternType &sparsity_pattern,
+            const MPI_Comm            &communicator)
     {
       this->communicator = communicator;
 
@@ -365,12 +386,12 @@ namespace PETScWrappers
     }
 
 
-    template <typename SparsityType>
+    template <typename SparsityPatternType>
     void
     SparseMatrix::
-    do_reinit (const IndexSet &local_rows,
-               const IndexSet &local_columns,
-               const SparsityType         &sparsity_pattern)
+    do_reinit (const IndexSet            &local_rows,
+               const IndexSet            &local_columns,
+               const SparsityPatternType &sparsity_pattern)
     {
       Assert(sparsity_pattern.n_rows()==local_rows.size(),
              ExcMessage("SparsityPattern and IndexSet have different number of rows"));
@@ -379,7 +400,25 @@ namespace PETScWrappers
       Assert(local_rows.is_contiguous() && local_columns.is_contiguous(),
              ExcMessage("PETSc only supports contiguous row/column ranges"));
 
-
+#ifdef DEBUG
+      {
+        // check indexsets
+        types::global_dof_index row_owners = Utilities::MPI::sum(local_rows.n_elements(), communicator);
+        types::global_dof_index col_owners = Utilities::MPI::sum(local_columns.n_elements(), communicator);
+        Assert(row_owners == sparsity_pattern.n_rows(),
+               ExcMessage(std::string("Each row has to be owned by exactly one owner (n_rows()=")
+                          + Utilities::to_string(sparsity_pattern.n_rows())
+                          + " but sum(local_rows.n_elements())="
+                          + Utilities::to_string(row_owners)
+                          + ")"));
+        Assert(col_owners == sparsity_pattern.n_cols(),
+               ExcMessage(std::string("Each column has to be owned by exactly one owner (n_cols()=")
+                          + Utilities::to_string(sparsity_pattern.n_cols())
+                          + " but sum(local_columns.n_elements())="
+                          + Utilities::to_string(col_owners)
+                          + ")"));
+      }
+#endif
 
 
       // create the matrix. We do not set row length but set the
@@ -451,16 +490,10 @@ namespace PETScWrappers
           // from the sparsity pattern.
           {
             PetscInt *ptr = & colnums_in_window[0];
-
             for (PetscInt i=local_row_start; i<local_row_end; ++i)
-              {
-                typename SparsityType::row_iterator
-                row_start = sparsity_pattern.row_begin(i),
-                row_end = sparsity_pattern.row_end(i);
-
-                std::copy(row_start, row_end, ptr);
-                ptr += row_end - row_start;
-              }
+              for (typename SparsityPatternType::iterator p=sparsity_pattern.begin(i);
+                   p != sparsity_pattern.end(i); ++p, ++ptr)
+                *ptr = p->column();
           }
 
 
@@ -532,10 +565,10 @@ namespace PETScWrappers
     }
 
 
-    template <typename SparsityType>
+    template <typename SparsityPatternType>
     void
     SparseMatrix::
-    do_reinit (const SparsityType           &sparsity_pattern,
+    do_reinit (const SparsityPatternType    &sparsity_pattern,
                const std::vector<size_type> &local_rows_per_process,
                const std::vector<size_type> &local_columns_per_process,
                const unsigned int            this_process,
@@ -546,6 +579,8 @@ namespace PETScWrappers
                                     local_columns_per_process.size()));
       Assert (this_process < local_rows_per_process.size(),
               ExcInternalError());
+      assert_is_compressed ();
+
       // for each row that we own locally, we
       // have to count how many of the
       // entries in the sparsity pattern lie
@@ -676,16 +711,10 @@ namespace PETScWrappers
           // from the sparsity pattern.
           {
             PetscInt *ptr = & colnums_in_window[0];
-
             for (size_type i=local_row_start; i<local_row_end; ++i)
-              {
-                typename SparsityType::row_iterator
-                row_start = sparsity_pattern.row_begin(i),
-                row_end = sparsity_pattern.row_end(i);
-
-                std::copy(row_start, row_end, ptr);
-                ptr += row_end - row_start;
-              }
+              for (typename SparsityPatternType::iterator p=sparsity_pattern.begin(i);
+                   p != sparsity_pattern.end(i); ++p, ++ptr)
+                *ptr = p->column();
           }
 
 
@@ -732,13 +761,12 @@ namespace PETScWrappers
               }
           }
 
-          compress ();
+          compress (VectorOperation::insert);
 
           // set the dummy entries set above
           // back to zero
           *this = 0;
 #endif // version <=2.3.3
-          compress ();
 
 
           // Tell PETSc that we are not
@@ -796,14 +824,7 @@ namespace PETScWrappers
                                 const bool);
     template
     SparseMatrix::SparseMatrix (const MPI_Comm &,
-                                const CompressedSparsityPattern &,
-                                const std::vector<size_type> &,
-                                const std::vector<size_type> &,
-                                const unsigned int,
-                                const bool);
-    template
-    SparseMatrix::SparseMatrix (const MPI_Comm &,
-                                const CompressedSimpleSparsityPattern &,
+                                const DynamicSparsityPattern &,
                                 const std::vector<size_type> &,
                                 const std::vector<size_type> &,
                                 const unsigned int,
@@ -818,14 +839,7 @@ namespace PETScWrappers
                           const bool);
     template void
     SparseMatrix::reinit (const MPI_Comm &,
-                          const CompressedSparsityPattern &,
-                          const std::vector<size_type> &,
-                          const std::vector<size_type> &,
-                          const unsigned int,
-                          const bool);
-    template void
-    SparseMatrix::reinit (const MPI_Comm &,
-                          const CompressedSimpleSparsityPattern &,
+                          const DynamicSparsityPattern &,
                           const std::vector<size_type> &,
                           const std::vector<size_type> &,
                           const unsigned int,
@@ -835,7 +849,7 @@ namespace PETScWrappers
     SparseMatrix::
     reinit (const IndexSet &,
             const IndexSet &,
-            const CompressedSimpleSparsityPattern &,
+            const DynamicSparsityPattern &,
             const MPI_Comm &);
 
     template void
@@ -845,13 +859,7 @@ namespace PETScWrappers
                              const unsigned int ,
                              const bool);
     template void
-    SparseMatrix::do_reinit (const CompressedSparsityPattern &,
-                             const std::vector<size_type> &,
-                             const std::vector<size_type> &,
-                             const unsigned int ,
-                             const bool);
-    template void
-    SparseMatrix::do_reinit (const CompressedSimpleSparsityPattern &,
+    SparseMatrix::do_reinit (const DynamicSparsityPattern &,
                              const std::vector<size_type> &,
                              const std::vector<size_type> &,
                              const unsigned int ,
@@ -861,7 +869,7 @@ namespace PETScWrappers
     SparseMatrix::
     do_reinit (const IndexSet &,
                const IndexSet &,
-               const CompressedSimpleSparsityPattern &);
+               const DynamicSparsityPattern &);
 
 
     PetscScalar
@@ -869,7 +877,8 @@ namespace PETScWrappers
     {
       Vector tmp (v);
       vmult (tmp, v);
-      return tmp*v;
+      // note, that v*tmp returns  sum_i conjugate(v)_i * tmp_i
+      return v*tmp;
     }
 
     PetscScalar
@@ -878,7 +887,64 @@ namespace PETScWrappers
     {
       Vector tmp (v);
       vmult (tmp, v);
+      // note, that v*tmp returns  sum_i conjugate(v)_i * tmp_i
       return u*tmp;
+    }
+
+    IndexSet
+    SparseMatrix::locally_owned_domain_indices () const
+    {
+#if DEAL_II_PETSC_VERSION_LT(3,3,0)
+      Assert(false,ExcNotImplemented());
+#else
+      PetscInt n_rows, n_cols, n_loc_rows, n_loc_cols, min, max;
+      PetscErrorCode ierr;
+
+      ierr = MatGetSize (matrix, &n_rows, &n_cols);
+      AssertThrow (ierr == 0, ExcPETScError(ierr));
+
+      ierr = MatGetLocalSize(matrix, &n_loc_rows, &n_loc_cols);
+      AssertThrow (ierr == 0, ExcPETScError(ierr));
+
+      ierr = MatGetOwnershipRangeColumn(matrix, &min, &max);
+      AssertThrow (ierr == 0, ExcPETScError(ierr));
+
+      Assert(n_loc_cols==max-min, ExcMessage("PETSc is requiring non contiguous memory allocation."));
+
+      IndexSet indices(n_cols);
+      indices.add_range(min, max);
+      indices.compress();
+
+      return indices;
+#endif
+    }
+
+    IndexSet
+    SparseMatrix::locally_owned_range_indices () const
+    {
+#if DEAL_II_PETSC_VERSION_LT(3,3,0)
+      Assert(false,ExcNotImplemented());
+#else
+      PetscInt n_rows, n_cols, n_loc_rows, n_loc_cols, min, max;
+      PetscErrorCode ierr;
+
+      ierr = MatGetSize (matrix, &n_rows, &n_cols);
+      AssertThrow (ierr == 0, ExcPETScError(ierr));
+
+      ierr = MatGetLocalSize(matrix, &n_loc_rows, &n_loc_cols);
+      AssertThrow (ierr == 0, ExcPETScError(ierr));
+
+      ierr = MatGetOwnershipRange(matrix, &min, &max);
+      AssertThrow (ierr == 0, ExcPETScError(ierr));
+
+      Assert(n_loc_rows==max-min, ExcMessage("PETSc is requiring non contiguous memory allocation."));
+
+      IndexSet indices(n_rows);
+      indices.add_range(min, max);
+      indices.compress();
+
+      return indices;
+#endif
     }
 
   }

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__dof_iterators_h
-#define __deal2__dof_iterators_h
+#ifndef dealii__dof_iterators_h
+#define dealii__dof_iterators_h
 
 #include <deal.II/base/config.h>
 
@@ -23,22 +23,18 @@ DEAL_II_NAMESPACE_OPEN
 
 template <int, int, int> class InvalidAccessor;
 
-template <int structdim, class DH, bool lda> class DoFAccessor;
-template <class DH, bool lda> class DoFCellAccessor;
+template <int structdim, typename DoFHandlerType, bool lda> class DoFAccessor;
+template <typename DoFHandlerType, bool lda> class DoFCellAccessor;
 
-template <int dim, int spacedim> class FiniteElement;
 template <typename Accessor> class TriaRawIterator;
 template <typename Accessor> class TriaIterator;
 template <typename Accessor> class TriaActiveIterator;
-template <int dim, int spacedim> class Triangulation;
-template <int dim, int spacedim> class DoFHandler;
-
 
 namespace internal
 {
   namespace DoFHandler
   {
-    template <class DH, bool lda=false>
+    template <typename DoFHandlerType, bool lda=false>
     struct Iterators;
 
 
@@ -47,15 +43,17 @@ namespace internal
      *
      * The types have the same meaning as those declared in
      * internal::Triangulation::Iterators<1,spacedim>, only the treatment of
-     * templates is a little more complicated. See the @ref Iterators module
-     * for more information.
+     * templates is a little more complicated. See the
+     * @ref Iterators
+     * module for more information.
      *
-     * @author Wolfgang Bangerth, Oliver Kayser-Herold, Guido Kanschat, 1998, 2003, 2008, 2010
+     * @author Wolfgang Bangerth, Oliver Kayser-Herold, Guido Kanschat, 1998,
+     * 2003, 2008, 2010
      */
-    template <template <int, int> class DH, int spacedim, bool lda>
-    struct Iterators<DH<1, spacedim>, lda>
+    template <template <int, int> class DoFHandlerType, int spacedim, bool lda>
+    struct Iterators<DoFHandlerType<1, spacedim>, lda>
     {
-      typedef DH<1,spacedim> DoFHandler_type;
+      typedef DoFHandlerType<1,spacedim> DoFHandler_type;
       typedef dealii::DoFCellAccessor<DoFHandler_type, lda> CellAccessor;
       typedef dealii::DoFAccessor<0,DoFHandler_type, lda> FaceAccessor;
 
@@ -88,15 +86,17 @@ namespace internal
      *
      * The types have the same meaning as those declared in
      * internal::Triangulation::Iterators<2,spacedim>, only the treatment of
-     * templates is a little more complicated. See the @ref Iterators module
-     * for more information.
+     * templates is a little more complicated. See the
+     * @ref Iterators
+     * module for more information.
      *
-     * @author Wolfgang Bangerth, Oliver Kayser-Herold, Guido Kanschat, 1998, 2003, 2008, 2010
+     * @author Wolfgang Bangerth, Oliver Kayser-Herold, Guido Kanschat, 1998,
+     * 2003, 2008, 2010
      */
-    template <template <int, int> class DH, int spacedim, bool lda>
-    struct Iterators<DH<2, spacedim>, lda>
+    template <template <int, int> class DoFHandlerType, int spacedim, bool lda>
+    struct Iterators<DoFHandlerType<2, spacedim>, lda>
     {
-      typedef DH<2,spacedim> DoFHandler_type;
+      typedef DoFHandlerType<2,spacedim> DoFHandler_type;
       typedef dealii::DoFCellAccessor<DoFHandler_type, lda> CellAccessor;
       typedef dealii::DoFAccessor<1, DoFHandler_type, lda> FaceAccessor;
 
@@ -129,15 +129,17 @@ namespace internal
      *
      * The types have the same meaning as those declared in
      * internal::Triangulation::Iterators<3,spacedim>, only the treatment of
-     * templates is a little more complicated. See the @ref Iterators module
-     * for more information.
+     * templates is a little more complicated. See the
+     * @ref Iterators
+     * module for more information.
      *
-     * @author Wolfgang Bangerth, Oliver Kayser-Herold, Guido Kanschat, 1998, 2003, 2008, 2010
+     * @author Wolfgang Bangerth, Oliver Kayser-Herold, Guido Kanschat, 1998,
+     * 2003, 2008, 2010
      */
-    template <template <int, int> class DH, int spacedim, bool lda>
-    struct Iterators<DH<3, spacedim>, lda>
+    template <template <int, int> class DoFHandlerType, int spacedim, bool lda>
+    struct Iterators<DoFHandlerType<3, spacedim>, lda>
     {
-      typedef DH<3, spacedim> DoFHandler_type;
+      typedef DoFHandlerType<3, spacedim> DoFHandler_type;
       typedef dealii::DoFCellAccessor<DoFHandler_type, lda> CellAccessor;
       typedef dealii::DoFAccessor<2, DoFHandler_type, lda> FaceAccessor;
 
@@ -166,4 +168,4 @@ namespace internal
 
 DEAL_II_NAMESPACE_CLOSE
 
-#endif // __deal2__dof_iterator_selector_h
+#endif // dealii__dof_iterator_selector_h

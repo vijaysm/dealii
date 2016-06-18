@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 by the deal.II authors
+// Copyright (C) 2014 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,7 +20,6 @@
 
 #include "../tests.h"
 #include <deal.II/base/function.h>
-#include <deal.II/matrix_free/matrix_free.h>
 #include <deal.II/matrix_free/fe_evaluation.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
@@ -42,32 +41,31 @@ std::ofstream logfile("output");
 
 
 
-template <int dim, int fe_degree, typename Number, typename VECTOR=Vector<Number> >
+template <int dim, int fe_degree, typename Number, typename VectorType=Vector<Number> >
 class MatrixFreeTest
 {
 public:
-  MatrixFreeTest(const DoFHandler<dim> &dof_handler,
-                 const ConstraintMatrix &constraints)
+  MatrixFreeTest (const DoFHandler<dim>  &dof_handler,
+                  const ConstraintMatrix &constraints)
     :
     dof_handler (dof_handler),
     constraints (constraints)
   {}
 
-  void vmult (VECTOR       &dst,
-              const VECTOR &src) const
+  void vmult (VectorType       &dst,
+              const VectorType &src) const
   {
-    MappingFEEvaluation<dim,Number> mapping(QGauss<1>(fe_degree+1),
-                                            update_gradients | update_values |
-                                            update_JxW_values);
-    VECTOR src_cpy = src;
+    VectorType src_cpy = src;
     constraints.distribute(src_cpy);
-    FEEvaluation<dim,fe_degree,fe_degree+1,dim,Number> fe_eval(mapping, dof_handler);
+    FEEvaluation<dim,fe_degree,fe_degree+1,dim,Number> fe_eval
+    (dof_handler.get_fe(), QGauss<1>(fe_degree+1),
+     update_values | update_gradients | update_JxW_values);
     dst = 0;
     typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
-      endc = dof_handler.end();
+                                                   endc = dof_handler.end();
     for ( ; cell != endc; ++cell)
       {
-        mapping.reinit(cell);
+        fe_eval.reinit(cell);
         fe_eval.read_dof_values (src_cpy);
         fe_eval.evaluate (true, true, false);
         for (unsigned int q=0; q<fe_eval.n_q_points; ++q)
@@ -98,7 +96,7 @@ void do_test (const DoFHandler<dim>  &dof,
   deallog << "Testing " << dof.get_fe().get_name() << std::endl;
   if (parallel_option > 0)
     deallog << "Parallel option: " << parallel_option << std::endl;
-  //std::cout << "Number of cells: " << dof.get_tria().n_active_cells() << std::endl;
+  //std::cout << "Number of cells: " << dof.get_triangulation().n_active_cells() << std::endl;
   //std::cout << "Number of degrees of freedom: " << dof.n_dofs() << std::endl;
   //std::cout << "Number of constraints: " << constraints.n_constraints() << std::endl;
 
@@ -218,7 +216,6 @@ void test ()
 int main ()
 {
   deallog.attach(logfile);
-  deallog.depth_console(0);
 
   deallog << std::setprecision (3);
 

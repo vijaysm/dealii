@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,28 +31,6 @@
 #include <deal.II/lac/vector_memory.h>
 #include <typeinfo>
 
-template<class SOLVER, class MATRIX, class VECTOR, class PRECONDITION>
-void
-check_solve( SOLVER &solver, const MATRIX &A,
-             VECTOR &u, VECTOR &f, const PRECONDITION &P)
-{
-  deallog << "Solver type: " << typeid(solver).name() << std::endl;
-
-  u = 0.;
-  f = 1.;
-  try
-    {
-      solver.solve(A,u,f,P);
-    }
-  catch (std::exception &e)
-    {
-      deallog << e.what() << std::endl;
-      abort ();
-    }
-
-  deallog << "Solver stopped after " << solver.control().last_step()
-          << " iterations" << std::endl;
-}
 
 
 int main(int argc, char **argv)
@@ -60,10 +38,9 @@ int main(int argc, char **argv)
   std::ofstream logfile("output");
   deallog.attach(logfile);
   deallog << std::setprecision(4);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
   {
     const unsigned int size = 32;
     unsigned int dim = (size-1)*(size-1);
@@ -79,9 +56,7 @@ int main(int argc, char **argv)
     PETScWrappers::Vector  u(dim);
     u = 0.;
     f = 1.;
-    A.compress (VectorOperation::add);
-    f.compress (VectorOperation::add);
-    u.compress (VectorOperation::add);
+    A.compress (VectorOperation::insert);
 
     SolverControl cn;
     PETScWrappers::SparseDirectMUMPS solver(cn);

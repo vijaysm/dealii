@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -66,23 +66,23 @@ int main ()
   std::ofstream logfile("output");
   deallog.attach(logfile);
 
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   Test gen;
   // Some of the finite element types are commented out, since their
   // implementation or instantiation for codimension != 0 is still
   // missing. This was opened as issue #92.
-  
+
   // gen.generate("FE_Q_Hierarchical(1)");
   // gen.generate("FE_DGPNonparametric(1)");
-  gen.generate("FE_DGQ(1)");
+  gen.generate("FE_DGQ     (1)");
   gen.generate("FE_Q(1)");
-
+  gen.generate("FE_DGQArbitraryNodes(QGauss(2))");
   // gen.generate("FE_Q_Hierarchical(2)");
   // gen.generate("FE_DGPNonparametric(2)");
   gen.generate("FE_DGQ(2)");
   gen.generate("FE_Q(2)");
+  gen.generate("FE_DGQArbitraryNodes(QGauss(3))");
 
   // gen.generate("FESystem[FE_Q_Hierarchical(1)^2-FE_Q_Hierarchical(1)]");
   // gen.generate("FESystem[FE_DGPNonparametric(1)^2-FE_Q_Hierarchical(1)]");
@@ -96,8 +96,10 @@ int main ()
 
   // gen.generate("FESystem[FE_Q_Hierarchical(1)^2-FE_DGQ(1)]");
   // gen.generate("FESystem[FE_DGPNonparametric(1)^2-FE_DGQ(1)]");
-  gen.generate("FESystem[FE_DGQ(1)^2-FE_DGQ(1)]");
+  gen.generate("      FESystem[FE_DGQ(1)^2     -FE_DGQ(1)]");
   gen.generate("FESystem[FE_Q(1)^2-FE_DGQ(1)]");
+  gen.generate("FESystem[FE_Q(1)^2-FE_DGQArbitraryNodes(QGauss(2))]");
+  gen.generate("FESystem[FE_DGQArbitraryNodes(QGauss(2))^2-FE_Q(1)]");
 
 
   // gen.generate("FESystem[FE_Q_Hierarchical(1)^2-FE_Q(1)]");
@@ -108,4 +110,3 @@ int main ()
 
   return 0;
 }
-

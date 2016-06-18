@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,6 +24,7 @@
 #include <deal.II/hp/fe_collection.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
+#include <deal.II/base/quadrature_lib.h>
 
 #include <fstream>
 
@@ -37,11 +38,11 @@ void test ()
       // add the system three times, with
       // different numbers of base elements
       // and multiplicities
-      fe_collection.push_back (FESystem<dim>(FE_Q<dim>(i),3));
-      fe_collection.push_back (FESystem<dim>(FE_Q<dim>(i),2,
-                                             FE_Q<dim>(i),1));
-      fe_collection.push_back (FESystem<dim>(FE_Q<dim>(i),1,
-                                             FE_Q<dim>(i),2));
+      fe_collection.push_back (FESystem<dim>(FE_Q<dim>(QIterated<1>(QTrapez<1>(),i)),3));
+      fe_collection.push_back (FESystem<dim>(FE_Q<dim>(QIterated<1>(QTrapez<1>(),i)),2,
+                                             FE_Q<dim>(QIterated<1>(QTrapez<1>(),i)),1));
+      fe_collection.push_back (FESystem<dim>(FE_Q<dim>(QIterated<1>(QTrapez<1>(),i)),1,
+                                             FE_Q<dim>(QIterated<1>(QTrapez<1>(),i)),2));
     }
 
   for (unsigned int i=0; i<fe_collection.size(); ++i)
@@ -89,7 +90,6 @@ int main ()
   logfile.precision(2);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();

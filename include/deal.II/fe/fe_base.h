@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__fe_base_h
-#define __deal2__fe_base_h
+#ifndef dealii__fe_base_h
+#define dealii__fe_base_h
 
 #include <deal.II/base/config.h>
 #include <deal.II/base/exceptions.h>
@@ -32,9 +32,6 @@
 #include <vector>
 
 DEAL_II_NAMESPACE_OPEN
-
-template<int dim, int spacedim> class FESystem;
-
 
 /**
  * A namespace solely for the purpose of defining the Domination enum as well
@@ -55,23 +52,26 @@ namespace FiniteElementDomination
    * This enum is used in the FiniteElement::compare_for_face_domination()
    * function that is used in the context of hp finite element methods when
    * determining what to do at faces where two different finite elements meet
-   * (see the @ref hp_paper "hp paper" for a more detailed description of the
-   * following). In that case, the degrees of freedom of one side need to be
-   * constrained to those on the other side. The determination which side is
-   * which is based on the outcome of a comparison for mutual domination: the
-   * dominated side is constrained to the dominating one.
+   * (see the
+   * @ref hp_paper "hp paper"
+   * for a more detailed description of the following). In that case, the
+   * degrees of freedom of one side need to be constrained to those on the
+   * other side. The determination which side is which is based on the outcome
+   * of a comparison for mutual domination: the dominated side is constrained
+   * to the dominating one.
    *
    * A similar situation happens in 3d, where we have to consider different
    * elements meeting at only an edge, not an entire face. Such comparisons
    * are then implemented in the FiniteElement::compare_for_line_domination()
    * function.
    *
-   * Note that there are situations where neither side dominates. The @ref
-   * hp_paper "hp paper" lists two case, with the simpler one being that a
-   * $Q_2\times Q_1$ vector-valued element (i.e. a
-   * <code>FESystem(FE_Q(2),1,FE_Q(1),1)</code>) meets a $Q_1\times Q_2$
-   * element: here, for each of the two vector-components, we can define a
-   * domination relationship, but it is different for the two components.
+   * Note that there are situations where neither side dominates. The
+   * @ref hp_paper "hp paper"
+   * lists two case, with the simpler one being that a $Q_2\times Q_1$ vector-
+   * valued element (i.e. a <code>FESystem(FE_Q(2),1,FE_Q(1),1)</code>) meets
+   * a $Q_1\times Q_2$ element: here, for each of the two vector-components,
+   * we can define a domination relationship, but it is different for the two
+   * components.
    *
    * It is clear that the concept of domination doesn't matter for
    * discontinuous elements. However, discontinuous elements may be part of
@@ -89,7 +89,8 @@ namespace FiniteElementDomination
    * which is an element that has no degrees of freedom in a subdomain. It
    * could also be used by discontinuous elements, for example.
    *
-   * More details on domination can be found in the @ref hp_paper "hp paper".
+   * More details on domination can be found in the
+   * @ref hp_paper "hp paper".
    */
   enum Domination
   {
@@ -125,12 +126,20 @@ namespace FiniteElementDomination
 
 
 /**
- * Dimension independent data for finite elements. See the derived class
- * FiniteElement class for information on its use. All its data are available
- * to the implementation in a concrete finite element class.
+ * A class that declares a number of scalar constant variables that describe
+ * basic properties of a finite element implementation. This includes, for
+ * example, the number of degrees of freedom per vertex, line, or cell; the
+ * number of vector components; etc.
+ *
+ * The kind of information stored here is computed during initialization of a
+ * finite element object and is passed down to this class via its constructor.
+ * The data stored by this class is part of the public interface of the
+ * FiniteElement class (which derives from the current class). See there for
+ * more information.
  *
  * @ingroup febase
- * @author Wolfgang Bangerth, Guido Kanschat, 1998, 1999, 2000, 2001, 2003, 2005
+ * @author Wolfgang Bangerth, Guido Kanschat, 1998, 1999, 2000, 2001, 2003,
+ * 2005
  */
 template <int dim>
 class FiniteElementData
@@ -156,11 +165,12 @@ public:
    * <li> <i>H<sup>2</sup></i> implies that the function is continuously
    * differentiable over cell boundaries.
    *
-   * <li> <i>L<sup>2</sup></i> indicates that the element is
-   * discontinuous. Since discontinuous elements have no topological couplings
-   * between grid cells and code may actually depend on this property,
-   * <i>L<sup>2</sup></i> conformity is handled in a special way in the sense
-   * that it is <b>not</b> implied by any higher conformity.  </ol>
+   * <li> <i>L<sup>2</sup></i> indicates that the element is discontinuous.
+   * Since discontinuous elements have no topological couplings between grid
+   * cells and code may actually depend on this property, <i>L<sup>2</sup></i>
+   * conformity is handled in a special way in the sense that it is <b>not</b>
+   * implied by any higher conformity.
+   * </ol>
    *
    * In order to test if a finite element conforms to a certain space, use
    * FiniteElementData<dim>::conforms().
@@ -226,7 +236,7 @@ public:
 
   /**
    * Number of degrees of freedom in a hexahedron; not including the degrees
-   * of freedom on the quadrilaterals, lines and vertices of the hecahedron.
+   * of freedom on the quadrilaterals, lines and vertices of the hexahedron.
    */
   const unsigned int dofs_per_hex;
 
@@ -295,37 +305,51 @@ public:
    * element. For an element which is not an FESystem, this contains only a
    * single block with length #dofs_per_cell.
    */
-  BlockIndices block_indices_data;
-
-  /**
-   * Default constructor. Constructs an element with no dofs. Checking
-   * n_dofs_per_cell() is therefore a good way to check if something went
-   * wrong.
-   */
-  FiniteElementData ();
+  const BlockIndices block_indices_data;
 
   /**
    * Constructor, computing all necessary values from the distribution of dofs
    * to geometrical objects.
    *
-   * @param dofs_per_object Number of dofs on geometrical objects for each
-   * dimension. In this vector, entry 0 refers to dofs on vertices, entry 1 on
-   * lines and so on. Its length must be <i>dim+1</i>.
+   * @param[in] dofs_per_object A vector that describes the number of degrees
+   * of freedom on geometrical objects for each dimension. This vector must
+   * have size dim+1, and entry 0 describes the number of degrees of freedom
+   * per vertex, entry 1 the number of degrees of freedom per line, etc. As an
+   * example, for the common $Q_1$ Lagrange element in 2d, this vector would
+   * have elements <code>(1,0,0)</code>. On the other hand, for a $Q_3$
+   * element in 3d, it would have entries <code>(1,2,4,8)</code>.
    *
-   * @param n_components Number of vector components of the element.
+   * @param[in] n_components Number of vector components of the element.
    *
-   * @param degree Maximal polynomial degree in a single direction.
+   * @param[in] degree The maximal polynomial degree of any of the shape
+   * functions of this element in any variable on the reference element. For
+   * example, for the $Q_1$ element (in any space dimension), this would be
+   * one; this is so despite the fact that the element has a shape function of
+   * the form $\hat x\hat y$ (in 2d) and $\hat x\hat y\hat z$ (in 3d), which,
+   * although quadratic and cubic polynomials, are still only linear in each
+   * reference variable separately. The information provided by this variable
+   * is typically used in determining what an appropriate quadrature formula
+   * is.
    *
-   * @param conformity The finite element space has continuity of this Sobolev
-   * space.
+   * @param[in] conformity A variable describing which Sobolev space this
+   * element conforms to. For example, the $Q_p$ Lagrange elements
+   * (implemented by the FE_Q class) are $H^1$ conforming, whereas the
+   * Raviart-Thomas element (implemented by the FE_RaviartThomas class) is
+   * $H_\text{div}$ conforming; finally, completely discontinuous elements
+   * (implemented by the FE_DGQ class) are only $L_2$ conforming.
    *
-   * @param n_blocks obsolete and ignored.
+   * @param[in] block_indices An argument that describes how the base elements
+   * of a finite element are grouped. The default value constructs a single
+   * block that consists of all @p dofs_per_cell degrees of freedom. This is
+   * appropriate for all "atomic" elements (including non-primitive ones) and
+   * these can therefore omit this argument. On the other hand, composed
+   * elements such as FESystem will want to pass a different value here.
    */
   FiniteElementData (const std::vector<unsigned int> &dofs_per_object,
-                     const unsigned int n_components,
-                     const unsigned int degree,
-                     const Conformity conformity = unknown,
-                     const unsigned int n_blocks = numbers::invalid_unsigned_int);
+                     const unsigned int               n_components,
+                     const unsigned int               degree,
+                     const Conformity                 conformity = unknown,
+                     const BlockIndices              &block_indices = BlockIndices());
 
   /**
    * Number of dofs per vertex.
@@ -371,14 +395,16 @@ public:
   unsigned int n_dofs_per_object () const;
 
   /**
-   * Number of components. See @ref GlossComponent "the glossary" for more
-   * information.
+   * Number of components. See
+   * @ref GlossComponent "the glossary"
+   * for more information.
    */
   unsigned int n_components () const;
 
   /**
-   * Number of blocks. See @ref GlossBlock "the glossary" for more
-   * information.
+   * Number of blocks. See
+   * @ref GlossBlock "the glossary"
+   * for more information.
    */
   unsigned int n_blocks () const;
 
@@ -422,8 +448,9 @@ protected:
 
   /**
    * Set the primitivity of the element. This is usually done by the
-   * constructor of a derived class.  See @ref GlossPrimitive "primitive" for
-   * details.
+   * constructor of a derived class.  See
+   * @ref GlossPrimitive "primitive"
+   * for details.
    */
   void set_primitivity(const bool value);
 

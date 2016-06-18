@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,8 +17,10 @@
 
 char logname[] = "output";
 
+#include <deal.II/base/quadrature_lib.h>
 
 #include "injection_common.h"
+
 
 template <int dim>
 void test ()
@@ -28,6 +30,7 @@ void test ()
     for (unsigned int j=i; j<4; ++j)
       {
         deallog << "inj " << i << " " << j << ":" << std::endl;
-        do_check (FE_Q_DG0<dim>(i), FE_Q_DG0<dim>(j));
+        do_check (FE_Q_DG0<dim>(QIterated<1>(QTrapez<1>(),i)),
+                  FE_Q_DG0<dim>(QIterated<1>(QTrapez<1>(),j)));
       }
 }

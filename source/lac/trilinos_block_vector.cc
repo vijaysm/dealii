@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2013 by the deal.II authors
+// Copyright (C) 2008 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -76,6 +76,17 @@ namespace TrilinosWrappers
 
 
 
+#ifdef DEAL_II_WITH_CXX11
+    BlockVector &
+    BlockVector::operator= (BlockVector &&v)
+    {
+      swap(v);
+      return *this;
+    }
+#endif
+
+
+
     BlockVector &
     BlockVector::operator = (const ::dealii::TrilinosWrappers::BlockVector &v)
     {
@@ -97,7 +108,7 @@ namespace TrilinosWrappers
 
     void
     BlockVector::reinit (const std::vector<Epetra_Map> &input_maps,
-                         const bool                     fast)
+                         const bool                     omit_zeroing_entries)
     {
       const size_type no_blocks = input_maps.size();
       std::vector<size_type> block_sizes (no_blocks);
@@ -112,7 +123,7 @@ namespace TrilinosWrappers
         components.resize(n_blocks());
 
       for (size_type i=0; i<n_blocks(); ++i)
-        components[i].reinit(input_maps[i], fast);
+        components[i].reinit(input_maps[i], omit_zeroing_entries);
 
       collect_sizes();
     }
@@ -122,7 +133,7 @@ namespace TrilinosWrappers
     void
     BlockVector::reinit (const std::vector<IndexSet> &parallel_partitioning,
                          const MPI_Comm              &communicator,
-                         const bool                   fast)
+                         const bool                   omit_zeroing_entries)
     {
       const size_type no_blocks = parallel_partitioning.size();
       std::vector<size_type> block_sizes (no_blocks);
@@ -137,7 +148,7 @@ namespace TrilinosWrappers
         components.resize(n_blocks());
 
       for (size_type i=0; i<n_blocks(); ++i)
-        components[i].reinit(parallel_partitioning[i], communicator, fast);
+        components[i].reinit(parallel_partitioning[i], communicator, omit_zeroing_entries);
 
       collect_sizes();
     }
@@ -170,14 +181,14 @@ namespace TrilinosWrappers
 
     void
     BlockVector::reinit (const BlockVector &v,
-                         const bool fast)
+                         const bool omit_zeroing_entries)
     {
       block_indices = v.get_block_indices();
       if (components.size() != n_blocks())
         components.resize(n_blocks());
 
       for (size_type i=0; i<n_blocks(); ++i)
-        components[i].reinit(v.block(i), fast, false);
+        components[i].reinit(v.block(i), omit_zeroing_entries, false);
 
       collect_sizes();
     }
@@ -257,7 +268,7 @@ namespace TrilinosWrappers
 
   void
   BlockVector::reinit (const std::vector<Epetra_Map> &input_maps,
-                       const bool                     fast)
+                       const bool                     omit_zeroing_entries)
   {
     size_type no_blocks = input_maps.size();
     std::vector<size_type> block_sizes (no_blocks);
@@ -271,7 +282,7 @@ namespace TrilinosWrappers
       components.resize(n_blocks());
 
     for (size_type i=0; i<n_blocks(); ++i)
-      components[i].reinit(input_maps[i], fast);
+      components[i].reinit(input_maps[i], omit_zeroing_entries);
 
     collect_sizes();
   }
@@ -281,7 +292,7 @@ namespace TrilinosWrappers
   void
   BlockVector::reinit (const std::vector<IndexSet> &partitioning,
                        const MPI_Comm              &communicator,
-                       const bool                   fast)
+                       const bool                   omit_zeroing_entries)
   {
     size_type no_blocks = partitioning.size();
     std::vector<size_type> block_sizes (no_blocks);
@@ -295,7 +306,7 @@ namespace TrilinosWrappers
       components.resize(n_blocks());
 
     for (size_type i=0; i<n_blocks(); ++i)
-      components[i].reinit(partitioning[i], communicator, fast);
+      components[i].reinit(partitioning[i], communicator, omit_zeroing_entries);
 
     collect_sizes();
   }
@@ -304,14 +315,14 @@ namespace TrilinosWrappers
 
   void
   BlockVector::reinit (const std::vector<size_type> &block_sizes,
-                       const bool                    fast)
+                       const bool                    omit_zeroing_entries)
   {
     this->block_indices.reinit (block_sizes);
     if (components.size() != n_blocks())
       components.resize(n_blocks());
 
     for (size_type i=0; i<n_blocks(); ++i)
-      components[i].reinit(block_sizes[i], fast);
+      components[i].reinit(block_sizes[i], omit_zeroing_entries);
 
     collect_sizes();
   }
@@ -349,14 +360,14 @@ namespace TrilinosWrappers
 
   void
   BlockVector::reinit (const BlockVector &v,
-                       const bool         fast)
+                       const bool         omit_zeroing_entries)
   {
     block_indices = v.get_block_indices();
     if (components.size() != n_blocks())
       components.resize(n_blocks());
 
     for (size_type i=0; i<n_blocks(); ++i)
-      components[i].reinit(v.block(i), fast);
+      components[i].reinit(v.block(i), omit_zeroing_entries);
 
     collect_sizes();
   }

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2013 by the deal.II authors
+// Copyright (C) 2012 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -62,8 +62,8 @@ void test ()
       // element corresponds to a
       // block)
       for (unsigned int c=0; c<fe.n_components(); ++c)
-        Assert (component_mask[c] == fe.block_mask(component_mask)[c],
-                ExcInternalError());
+        AssertThrow (component_mask[c] == fe.block_mask(component_mask)[c],
+                     ExcInternalError());
     }
 
   deallog << "OK" << std::endl;
@@ -76,7 +76,6 @@ int main()
   deallog << std::setprecision (4);
 
   deallog.attach(logfile);
-  deallog.depth_console (0);
   deallog.threshold_double(1.e-7);
 
   test();

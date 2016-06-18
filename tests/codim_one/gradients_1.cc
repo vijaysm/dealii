@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,8 +34,7 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/lac/constraint_matrix.h>
-#include <deal.II/fe/mapping.h>
-#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/fe/mapping_q.h>
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
@@ -64,7 +63,7 @@ void test(std::string filename, unsigned int degree = 1)
 
   // finite elements used for the
   // projection
-  const FE_Q<dim,spacedim> fe (degree);
+  const FE_Q<dim,spacedim> fe (QIterated<1>(QTrapez<1>(),degree));
   const MappingQ<dim, spacedim> mapping(degree);
 
   DoFHandler<dim,spacedim> dof_handler (triangulation);
@@ -117,7 +116,6 @@ int main ()
 {
   logfile.precision (4);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-12);
 
   deallog<<"Test <1,2>, Q1, Q2, Q3"<<std::endl;
@@ -135,4 +133,3 @@ int main ()
 
   return 0;
 }
-

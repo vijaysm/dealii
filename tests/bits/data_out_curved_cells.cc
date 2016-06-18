@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -136,7 +136,7 @@ void curved_grid (std::ofstream &out)
   // now provide everything that is
   // needed for solving a Laplace
   // equation.
-  MappingQ1<2> mapping_q1;
+  MappingQGeneric<2> mapping_q1(1);
   FE_Q<2> fe(2);
   DoFHandler<2> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
@@ -195,7 +195,7 @@ void curved_grid (std::ofstream &out)
   // solve linear systems in parallel
   Threads::ThreadGroup<> threads;
   for (unsigned int i=0; i<2; ++i)
-    threads += Threads::spawn (&laplace_solve)(S, m[i], us[i]);
+    threads += Threads::new_thread (&laplace_solve, S, m[i], us[i]);
   threads.join_all ();
   // create a new DoFHandler for the combined
   // system
@@ -252,7 +252,6 @@ int main ()
   deallog.attach(logfile);
   deallog << std::setprecision (4);
   logfile << std::setprecision (4);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   curved_grid (logfile);

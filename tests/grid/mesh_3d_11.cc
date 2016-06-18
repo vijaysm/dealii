@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -53,17 +53,17 @@ void check_this (Triangulation<3> &tria)
           for (unsigned int ff=0; ff<GeometryInfo<3>::faces_per_cell; ++ff)
             if (neighbor->neighbor(ff) == cell)
               {
-                Assert (found == false, ExcInternalError());
-                Assert (ff == nb_nb, ExcInternalError());
+                AssertThrow (found == false, ExcInternalError());
+                AssertThrow (ff == nb_nb, ExcInternalError());
 
-                Assert (cell->face(f) == neighbor->face(ff),
-                        ExcInternalError());
+                AssertThrow (cell->face(f) == neighbor->face(ff),
+                             ExcInternalError());
 
                 found = true;
 
                 break;
               }
-          Assert (found == true, ExcInternalError());
+          AssertThrow (found == true, ExcInternalError());
         }
   deallog << "    ok." << std::endl;
 }
@@ -95,7 +95,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   {

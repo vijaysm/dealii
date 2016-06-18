@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2013 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -146,7 +146,7 @@ void mapping_test()
   std::vector<Mapping<dim> *> mapping_ptr;
   std::vector<std::string> mapping_strings;
 
-  MappingQ1<dim> mapping;
+  MappingQGeneric<dim> mapping(1);
   std::string mapping_name = "MappingQ1";
 
   Triangulation<dim> tria;
@@ -181,7 +181,6 @@ int main()
   std::ofstream logfile ("output");
   deallog << std::setprecision(PRECISION);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   // -----------------------

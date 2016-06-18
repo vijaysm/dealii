@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2013 by the deal.II authors
+## Copyright (C) 2012 - 2016 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -22,11 +22,10 @@
 #
 #     DEAL_II_ALLOW_AUTODETECTION
 #     DEAL_II_ALLOW_BUNDLED
-#     DEAL_II_COMPONENT_COMPAT_FILES
 #     DEAL_II_COMPONENT_DOCUMENTATION
 #     DEAL_II_COMPONENT_EXAMPLES
-#     DEAL_II_COMPONENT_MESH_CONVERTER
 #     DEAL_II_COMPONENT_PARAMETER_GUI
+#     DEAL_II_COMPONENT_PACKAGE
 #     DEAL_II_FORCE_AUTODETECTION
 #
 # Options regarding compilation and linking:
@@ -46,19 +45,17 @@
 #     DEAL_II_LINKER_FLAGS_DEBUG
 #     DEAL_II_LINKER_FLAGS_RELEASE
 #
+# Components and miscellaneous options:
+#
 #     DEAL_II_WITH_64BIT_INDICES
-#
-# Miscellaneous options:
 #     DEAL_II_DOXYGEN_USE_MATHJAX
-#
+#     DEAL_II_CPACK_BUNDLE_NAME
+#     DEAL_II_CPACK_EXTERNAL_LIBS
 #
 # *)  May also be set via environment variable (CXXFLAGS, LDFLAGS)
 #     (a nonempty cached variable has precedence and will not be
 #     overwritten by environment)
 #
-
-MESSAGE(STATUS "")
-MESSAGE(STATUS "Setting up cached variables.")
 
 
 ########################################################################
@@ -74,32 +71,32 @@ If(DEAL_II_HAVE_BUNDLED_DIRECTORY)
     )
 ENDIF()
 
-OPTION(DEAL_II_COMPONENT_COMPAT_FILES
-  "Enable installation of the example steps. This adds a COMPONENT \"compat_files\" to the build system."
-  ON
-  )
-
 If(DEAL_II_HAVE_DOC_DIRECTORY)
   OPTION(DEAL_II_COMPONENT_DOCUMENTATION
     "Enable configuration, build and installation of the documentation. This adds a COMPONENT \"documentation\" to the build system."
     OFF
     )
+  LIST(APPEND DEAL_II_COMPONENTS DOCUMENTATION)
+
 ENDIF()
 
 OPTION(DEAL_II_COMPONENT_EXAMPLES
   "Enable configuration and installation of the example steps. This adds a COMPONENT \"examples\" to the build system."
   ON
   )
+LIST(APPEND DEAL_II_COMPONENTS EXAMPLES)
 
-OPTION(DEAL_II_COMPONENT_MESH_CONVERTER
-  "Build and install the mesh_converter. This adds a COMPONENT \"mesh_converter\" to the build system."
-  ON
+OPTION(DEAL_II_COMPONENT_PACKAGE
+  "Generates additional targets for packaging deal.II"
+  OFF
   )
+LIST(APPEND DEAL_II_COMPONENTS PACKAGE)
 
 OPTION(DEAL_II_COMPONENT_PARAMETER_GUI
   "Build and install the parameter_gui. This adds a COMPONENT \"parameter_gui\" to the build system."
   OFF
   )
+LIST(APPEND DEAL_II_COMPONENTS PARAMETER_GUI)
 
 OPTION(DEAL_II_ALLOW_AUTODETECTION
   "Allow to automatically set up features by setting all undefined DEAL_II_WITH_* variables to ON or OFF"
@@ -110,7 +107,6 @@ OPTION(DEAL_II_FORCE_AUTODETECTION
   "Force feature autodetection by undefining all DEAL_II_WITH_* variables prior to configure"
   OFF
   )
-
 
 
 ########################################################################
@@ -189,7 +185,7 @@ IF(DEAL_II_STATIC_EXECUTABLE)
 ENDIF()
 
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH "ON" CACHE BOOL
-  "Set the rpath of the library to the external link pathes on installation"
+  "Set the rpath of the library to the external link paths on installation"
   )
 MARK_AS_ADVANCED(CMAKE_INSTALL_RPATH_USE_LINK_PATH)
 
@@ -314,35 +310,40 @@ UNSET(ENV{CXXFLAGS})
 UNSET(ENV{LDFLAGS})
 
 
-
 ########################################################################
 #                                                                      #
-#                             Components:                              #
+#                Components and miscellaneous setup:                   #
 #                                                                      #
 ########################################################################
-
-#
-# Configuration option for the 64 bit indices component:
-#
 
 OPTION(DEAL_II_WITH_64BIT_INDICES
   "If set to ON, then use 64-bit data types to represent global degree of freedom indices. The default is to OFF. You only want to set this to ON if you will solve problems with more than 2^31 (approximately 2 billion) unknowns. If set to ON, you also need to ensure that both Trilinos and/or PETSc support 64-bit indices."
   OFF
   )
-
-
-
-########################################################################
-#                                                                      #
-#                         Miscellaneous setup:                         #
-#                                                                      #
-########################################################################
+LIST(APPEND DEAL_II_FEATURES 64BIT_INDICES)
 
 OPTION(DEAL_II_DOXYGEN_USE_MATHJAX
   "If set to ON, doxygen documentation is generated using mathjax"
   OFF
   )
 MARK_AS_ADVANCED(DEAL_II_DOXYGEN_USE_MATHJAX)
+
+SET(DEAL_II_CPACK_EXTERNAL_LIBS "opt" CACHE STRING
+    "A relative path to tree of external libraries that will be installed in bundle package. The path is relative to the /Applications/${DEAL_II_CPACK_BUNDLE_NAME}.app/Contents/Resources directory. It defaults to opt, but you may want to use a different value, for example if you want to distribute a brew based package."
+  )
+MARK_AS_ADVANCED(DEAL_II_CPACK_EXTERNAL_LIBS)
+
+SET(DEAL_II_CPACK_BUNDLE_NAME "${DEAL_II_PACKAGE_NAME}" CACHE STRING
+    "Name of the application bundle to generate."
+  )
+MARK_AS_ADVANCED(DEAL_II_CPACK_BUNDLE_NAME)
+
+
+########################################################################
+#                                                                      #
+#                               Finalize:                              #
+#                                                                      #
+########################################################################
 
 #
 # We do not support installation into the binary directory any more ("too
@@ -388,7 +389,7 @@ FOREACH(_var ${_res})
   #
   # Same for components:
   #
-  IF(_var MATCHES "^(COMPAT_FILES|DOCUMENTATION|EXAMPLES|MESH_CONVERTER|PARAMETER_GUI)")
+  IF(_var MATCHES "^(DOCUMENTATION|EXAMPLES|PACKAGE|PARAMETER_GUI)")
     SET(DEAL_II_COMPONENT_${_var} ${${_var}} CACHE BOOL "" FORCE)
     UNSET(${_var} CACHE)
   ENDIF()

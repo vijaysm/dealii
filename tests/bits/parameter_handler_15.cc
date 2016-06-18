@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2013 by the deal.II authors
+// Copyright (C) 2002 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,7 +24,7 @@
 #include <deal.II/base/parameter_handler.h>
 #include <fstream>
 
-void check (const char * content, double &v1, double &v2)
+void check (const char *content, double &v1, double &v2)
 {
   ParameterHandler foo;
   foo.enter_subsection("bar");
@@ -61,7 +61,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test ("subsection bar\nend");

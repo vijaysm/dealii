@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -56,7 +56,7 @@ void test ()
   hp::QCollection<dim> q_collection;
   for (unsigned int i=1; i<=4; ++i)
     {
-      fe_collection.push_back(FE_Q<dim> (i));
+      fe_collection.push_back(FE_Q<dim> (QIterated<1>(QTrapez<1>(),i)));
       q_collection.push_back (QGauss<dim> (i+2));
     }
 
@@ -105,7 +105,6 @@ int main ()
   deallog << std::setprecision(2);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();

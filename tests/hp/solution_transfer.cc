@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -80,7 +80,7 @@ void transfer(std::ostream &out)
   hp::DoFHandler<dim> dgq_dof_handler(tria);
   Vector<double> q_solution;
   Vector<double> dgq_solution;
-  MappingQ1<dim> mapping;
+  MappingQGeneric<dim> mapping(1);
 
   // refine a few cells
   typename Triangulation<dim>::active_cell_iterator cell=tria.begin_active(),
@@ -232,7 +232,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   deallog << "   1D solution transfer" << std::endl;

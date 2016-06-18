@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -59,7 +59,7 @@ void test ()
   IndexSet local_active_big(numproc*3);
   local_active_big.add_range(myid*3,myid*3+3);
   typename LA::MPI::Vector big(local_active_big, MPI_COMM_WORLD);
-  
+
   typename LA::MPI::Vector x;
   Assert(!x.has_ghost_elements(), ExcInternalError());
   Assert(x.size()==0, ExcInternalError());
@@ -78,12 +78,12 @@ void test ()
   x.reinit(g);
   Assert(x.has_ghost_elements(), ExcInternalError());
   Assert(x.size()==g.size(), ExcInternalError());
-  deallog << x(1) << std::endl;
+  deallog << get_real_assert_zero_imag(x(1)) << std::endl;
 
   x.reinit(v);
   Assert(!x.has_ghost_elements(), ExcInternalError());
   Assert(x.size()==v.size(), ExcInternalError());
-  
+
   // done
   if (myid==0)
     deallog << "OK" << std::endl;
@@ -93,7 +93,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
   MPILogInitAll log;
   {
     deallog.push("PETSc");

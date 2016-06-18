@@ -12,7 +12,7 @@ set Potential                            = 0
 @endcode
 
 Here, the potential is zero inside the domain, and we know that the
-eigenvalues are given by $\lambda_{(mn)}=\frac{\pi}{4}(m^2+n^2)$ where
+eigenvalues are given by $\lambda_{(mn)}=\frac{\pi^2}{4}(m^2+n^2)$ where
 $m,n\in{\mathbb N^+}$. Eigenfunctions are sines and cosines with $m$ and $n$
 periods in $x$ and $y$ directions. This matches the output our program
 generates:
@@ -34,31 +34,17 @@ correspond to pairs $(m,n)=(1,1)$, $(1,2)$ and $(2,1)$, $(2,2)$, and
 $(3,1)$. A visualization of the corresponding eigenfunctions would
 look like this:
 
-<TABLE WIDTH="100%">
+<table width="80%">
 <tr>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.0.png" alt="">
-</td>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.1.png" alt="">
-</td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.0.png" alt=""></td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.1.png" alt=""></td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.2.png" alt=""></td>
 </tr>
 
 <tr>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.2.png" alt="">
-</td>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.3.png" alt="">
-</td>
-</tr>
-
-<tr>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.4.png" alt="">
-</td>
-<td>
-</td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.3.png" alt=""></td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.default.eigenfunction.4.png" alt=""></td>
+<td></td>
 </tr>
 </table>
 
@@ -116,35 +102,21 @@ probability densities $|\Psi(\mathbf x)|^2$ that are significant only where the
 potential is the lowest, i.e. in the top right and bottom left sector of inner
 circle of the potential):
 
-<img src="http://www.dealii.org/images/steps/developer/step-36.mod.potential.png" alt="">
+<img src="https://www.dealii.org/images/steps/developer/step-36.mod.potential.png" alt="">
 
 The first five eigenfunctions are now like this:
 
-<TABLE WIDTH="100%">
+<table width="80%">
 <tr>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.0.png" alt="">
-</td>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.1.png" alt="">
-</td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.0.png" alt=""></td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.1.png" alt=""></td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.2.png" alt=""></td>
 </tr>
 
 <tr>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.2.png" alt="">
-</td>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.3.png" alt="">
-</td>
-</tr>
-
-<tr>
-<td>
-  <img src="http://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.4.png" alt="">
-</td>
-<td>
-</td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.3.png" alt=""></td>
+<td><img src="https://www.dealii.org/images/steps/developer/step-36.mod.eigenfunction.4.png" alt=""></td>
+<td></td>
 </tr>
 </table>
 
@@ -231,7 +203,7 @@ main class:
     SparsityPattern                     sparsity_pattern;
     SparseMatrix<double>                stiffness_matrix, mass_matrix;
     std::vector<Vector<double> >        eigenfunctions;
-    std::vector<complex<double>>      eigenvalues;
+    std::vector<std::complex<double>>   eigenvalues;
 @endcode
 and initialize them as usual in <code>make_grid_and_dofs()</code>:
 @code
@@ -253,24 +225,21 @@ For solving the eigenvalue problem with ARPACK, we finally need to modify
   template <int dim>
   unsigned int EigenvalueProblem<dim>::solve ()
   {
-    const unsigned int num_eigs =
-      parameters.get_integer ("Number of eigenvalues/eigenfunctions");
-
     SolverControl solver_control (dof_handler.n_dofs(), 1e-9);
 
     SparseDirectUMFPACK inverse;
     inverse.initialize (stiffness_matrix);
 
-    const unsigned int num_arnoldi_vectors = 2*num_eigs + 2
+    const unsigned int num_arnoldi_vectors = 2*eigenvalues.size() + 2;
     ArpackSolver::AdditionalData additional_data(num_arnoldi_vectors);
 
     ArpackSolver eigensolver (solver_control, additional_data);
     eigensolver.solve (stiffness_matrix,
                        mass_matrix,
-                       preconditioner,
+                       inverse,
                        eigenvalues,
                        eigenfunctions,
-                       num_eigs);
+                       eigenvalues.size());
 
     for (unsigned int i=0; i<eigenfunctions.size(); ++i)
       eigenfunctions[i] /= eigenfunctions[i].linfty_norm ();

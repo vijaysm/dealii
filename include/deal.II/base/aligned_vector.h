@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2014 by the deal.II authors
+// Copyright (C) 2011 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -14,22 +14,19 @@
 // ---------------------------------------------------------------------
 
 
-#ifndef __deal2__aligned_vector_h
-#define __deal2__aligned_vector_h
+#ifndef dealii__aligned_vector_h
+#define dealii__aligned_vector_h
 
 #include <deal.II/base/config.h>
 #include <deal.II/base/std_cxx11/type_traits.h>
 #include <deal.II/base/exceptions.h>
 #include <deal.II/base/memory_consumption.h>
+#include <deal.II/base/utilities.h>
 #include <deal.II/base/parallel.h>
 #include <boost/serialization/array.hpp>
 #include <boost/serialization/split_member.hpp>
 
 #include <cstring>
-
-#if DEAL_II_COMPILER_VECTORIZATION_LEVEL > 0
-#include <emmintrin.h>
-#endif
 
 
 
@@ -41,13 +38,13 @@ DEAL_II_NAMESPACE_OPEN
  * VectorizedArray and derived data types. It allocates memory aligned to
  * addresses of a vectorized data type (in order to avoid segmentation faults
  * when a variable of type VectorizedArray which the compiler assumes to be
- * aligned to certain memory addresses does not actually follow these
- * rules). This could also be achieved by proving std::vector with a
- * user-defined allocator. On the other hand, writing an own small vector
- * class lets us implement parallel copy and move operations with TBB, insert
- * deal.II-style assertions, and cut some unnecessary functionality. Note that
- * this vector is a bit more memory-consuming than std::vector because of
- * alignment, so it is recommended to only use this vector on long vectors.
+ * aligned to certain memory addresses does not actually follow these rules).
+ * This could also be achieved by proving std::vector with a user-defined
+ * allocator. On the other hand, writing an own small vector class lets us
+ * implement parallel copy and move operations with TBB, insert deal.II-style
+ * assertions, and cut some unnecessary functionality. Note that this vector
+ * is a bit more memory-consuming than std::vector because of alignment, so it
+ * is recommended to only use this vector on long vectors.
  *
  * @p author Katharina Kormann, Martin Kronbichler, 2011
  */
@@ -94,6 +91,16 @@ public:
    */
   AlignedVector (const AlignedVector<T> &vec);
 
+#ifdef DEAL_II_WITH_CXX11
+  /**
+   * Move constructor. Create a new aligned vector by stealing the contents of
+   * @p vec.
+   *
+   * @note This constructor is only available if deal.II is built with C++11.
+   */
+  AlignedVector (AlignedVector<T> &&vec);
+#endif
+
   /**
    * Assignment to the input vector @p vec.
    *
@@ -102,10 +109,23 @@ public:
   AlignedVector &
   operator = (const AlignedVector<T> &vec);
 
+#ifdef DEAL_II_WITH_CXX11
+  /**
+   * Move assignment operator.
+   *
+   * @note This operator is only available if deal.II is built with C++11.
+   */
+  AlignedVector &
+  operator = (AlignedVector<T> &&vec);
+#endif
+
   /**
    * Change the size of the vector. It keeps old elements previously available
    * but does not initialize the newly allocated memory, leaving it in an
    * undefined state.
+   *
+   * @note This method can only be invoked for classes @p T that define a
+   * default constructor, @p T(). Otherwise, compilation will fail.
    */
   void resize_fast (const size_type size);
 
@@ -163,6 +183,9 @@ public:
 
   /**
    * Fills the vector with size() copies of the given input.
+   *
+   * @note This method can only be invoked for classes that define the copy
+   * assignment operator. Otherwise, compilation will fail.
    *
    * @dealiiOperationIsMultithreaded
    */
@@ -228,15 +251,15 @@ public:
   size_type memory_consumption () const;
 
   /**
-   * Write the data of this object to
-   * a stream for the purpose of serialization.
+   * Write the data of this object to a stream for the purpose of
+   * serialization.
    */
   template <class Archive>
   void save (Archive &ar, const unsigned int version) const;
 
   /**
-   * Read the data of this object
-   * from a stream for the purpose of serialization.
+   * Read the data of this object from a stream for the purpose of
+   * serialization.
    */
   template <class Archive>
   void load (Archive &ar, const unsigned int version);
@@ -265,15 +288,15 @@ private:
 // ------------------------------- inline functions --------------------------
 
 /**
- * This namespace defines the copy and set functions used in
- * AlignedVector. These functions operate in parallel when there are enough
- * elements in the vector.
+ * This namespace defines the copy and set functions used in AlignedVector.
+ * These functions operate in parallel when there are enough elements in the
+ * vector.
  */
 namespace internal
 {
   /**
-   * Move and class that actually issues the copy commands in
-   * AlignedVector. This class is based on the specialized for loop base class
+   * Move and class that actually issues the copy commands in AlignedVector.
+   * This class is based on the specialized for loop base class
    * ParallelForLoop in parallel.h whose purpose is the following: When
    * calling a parallel for loop on AlignedVector with apply_to_subranges, it
    * generates different code for every different argument we might choose (as
@@ -293,18 +316,22 @@ namespace internal
   public:
     /**
      * Constructor. Issues a parallel call if there are sufficiently many
-     * elements, otherwise work in serial. Copies the data from source to
-     * destination and then calls destructor on the source. If the optional
-     * argument is set to true, the source is left untouched instead.
+     * elements, otherwise works in serial. Copies the data from the half-open
+     * interval between @p source_begin and @p source_end to array starting at
+     * @p destination (by calling the copy constructor with placement new). If
+     * the flag copy_source is set to @p true, the elements from the source
+     * array are simply copied. If it is set to @p false, the data is moved
+     * between the two arrays by invoking the destructor on the source range
+     * (preparing for a subsequent call to free).
      */
     AlignedVectorMove (T *source_begin,
                        T *source_end,
                        T *destination,
-                       bool copy_only = false)
+                       const bool copy_source)
       :
       source_ (source_begin),
       destination_ (destination),
-      copy_only_ (copy_only)
+      copy_source_ (copy_source)
     {
       Assert (source_end >= source_begin, ExcInternalError());
       const std::size_t size = source_end - source_begin;
@@ -328,32 +355,37 @@ namespace internal
       if (std_cxx11::is_trivial<T>::value == true)
         std::memcpy ((void *)(destination_+begin), source_+begin,
                      (end-begin)*sizeof(T));
-      else if (copy_only_ == false)
+      else if (copy_source_ == false)
         for (std::size_t i=begin; i<end; ++i)
           {
-            // initialize memory (copy construct), and destruct
+            // initialize memory (copy construct by placement new), and
+            // destruct the source
             new (&destination_[i]) T(source_[i]);
             source_[i].~T();
           }
       else
         for (std::size_t i=begin; i<end; ++i)
-          {
-            new (&destination_[i]) T(source_[i]);
-          }
+          new (&destination_[i]) T(source_[i]);
     }
 
   private:
     T *source_;
     T *destination_;
-    const bool copy_only_;
+    const bool copy_source_;
   };
 
   /**
    * Class that issues the set commands for AlignedVector.
    *
+   * @tparam initialize_memory Sets whether the the set command should
+   * initialize memory (with a call to the copy constructor) or rather use the
+   * copy assignment operator. A template is necessary to select the
+   * appropriate operation since some classes might define only one of those
+   * two operations.
+   *
    * @relates AlignedVector
    */
-  template <typename T>
+  template <typename T, bool initialize_memory>
   class AlignedVectorSet : private parallel::ParallelForInteger
   {
     static const std::size_t minimum_parallel_grain_size = 160000/sizeof(T)+1;
@@ -392,8 +424,6 @@ namespace internal
         apply_parallel (0, size, minimum_parallel_grain_size);
     }
 
-  private:
-
     /**
      * This sets elements on a subrange given by two integers.
      */
@@ -407,14 +437,32 @@ namespace internal
       if (std_cxx11::is_trivial<T>::value == true && trivial_element)
         std::memset ((void *)(destination_+begin), 0, (end-begin)*sizeof(T));
       else
-        // initialize memory and set
-        for (std::size_t i=begin; i<end; ++i)
-          new (&destination_[i]) T(element_);
+        copy_construct_or_assign(begin, end,
+                                 ::dealii::internal::bool2type<initialize_memory>());
     }
 
+  private:
     const T &element_;
     mutable T *destination_;
     bool trivial_element;
+
+    // copy assignment operation
+    void copy_construct_or_assign(const std::size_t begin,
+                                  const std::size_t end,
+                                  ::dealii::internal::bool2type<false>) const
+    {
+      for (std::size_t i=begin; i<end; ++i)
+        destination_[i] = element_;
+    }
+
+    // copy constructor (memory initialization)
+    void copy_construct_or_assign(const std::size_t begin,
+                                  const std::size_t end,
+                                  ::dealii::internal::bool2type<true>) const
+    {
+      for (std::size_t i=begin; i<end; ++i)
+        new (&destination_[i]) T(element_);
+    }
   };
 
 } // end of namespace internal
@@ -466,10 +514,28 @@ AlignedVector<T>::AlignedVector (const AlignedVector<T> &vec)
   _end_data (0),
   _end_allocated (0)
 {
-  // do not invalidate old data
-  resize_fast (vec._end_data - vec._data);
+  // copy the data from vec
+  reserve (vec._end_data - vec._data);
+  _end_data = _end_allocated;
   internal::AlignedVectorMove<T> (vec._data, vec._end_data, _data, true);
 }
+
+
+
+#ifdef DEAL_II_WITH_CXX11
+template < class T >
+inline
+AlignedVector<T>::AlignedVector (AlignedVector<T> &&vec)
+  :
+  _data (vec._data),
+  _end_data (vec._end_data),
+  _end_allocated (vec._end_allocated)
+{
+  vec._data = nullptr;
+  vec._end_data = nullptr;
+  vec._end_allocated = nullptr;
+}
+#endif
 
 
 
@@ -486,13 +552,49 @@ AlignedVector<T>::operator = (const AlignedVector<T> &vec)
 
 
 
+#ifdef DEAL_II_WITH_CXX11
+template < class T >
+inline
+AlignedVector<T> &
+AlignedVector<T>::operator = (AlignedVector<T> &&vec)
+{
+  clear();
+
+  _data = vec._data;
+  _end_data = vec._end_data;
+  _end_allocated = vec._end_allocated;
+
+  vec._data = nullptr;
+  vec._end_data = nullptr;
+  vec._end_allocated = nullptr;
+
+  return *this;
+}
+#endif
+
+
+
 template < class T >
 inline
 void
-AlignedVector<T>::resize_fast (const size_type size)
+AlignedVector<T>::resize_fast (const size_type size_in)
 {
-  reserve (size);
-  _end_data = _data + size;
+  const size_type old_size = size();
+  if (std_cxx11::is_trivial<T>::value == false && size_in < old_size)
+    {
+      // call destructor on fields that are released. doing it backward
+      // releases the elements in reverse order as compared to how they were
+      // created
+      while (_end_data != _data+size_in)
+        (--_end_data)->~T();
+    }
+  reserve (size_in);
+  _end_data = _data + size_in;
+
+  // need to still set the values in case the class is non-trivial because
+  // virtual classes etc. need to run their (default) constructor
+  if (std_cxx11::is_trivial<T>::value == false && size_in > old_size)
+    dealii::internal::AlignedVectorSet<T,true> (size_in-old_size, T(), _data+old_size);
 }
 
 
@@ -506,16 +608,18 @@ AlignedVector<T>::resize (const size_type size_in,
   const size_type old_size = size();
   if (std_cxx11::is_trivial<T>::value == false && size_in < old_size)
     {
-      // call destructor on fields that are released
+      // call destructor on fields that are released. doing it backward
+      // releases the elements in reverse order as compared to how they were
+      // created
       while (_end_data != _data+size_in)
         (--_end_data)->~T();
     }
+  reserve (size_in);
+  _end_data = _data + size_in;
 
-  resize_fast (size_in);
-  // now _size is set correctly, need to set the
-  // values
+  // finally set the desired init values
   if (size_in > old_size)
-    dealii::internal::AlignedVectorSet<T> (size_in-old_size, init, _data+old_size);
+    dealii::internal::AlignedVectorSet<T,true> (size_in-old_size, init, _data+old_size);
 }
 
 
@@ -538,16 +642,10 @@ AlignedVector<T>::reserve (const size_type size_alloc)
 
       const size_type size_actual_allocate = new_size * sizeof(T);
 
-#if DEAL_II_COMPILER_VECTORIZATION_LEVEL > 0
-
       // allocate and align along 64-byte boundaries (this is enough for all
       // levels of vectorization currently supported by deal.II)
-      T *new_data = static_cast<T *>(_mm_malloc (size_actual_allocate, 64));
-#else
-      T *new_data = static_cast<T *>(malloc (size_actual_allocate));
-#endif
-      if (new_data == 0)
-        throw std::bad_alloc();
+      T *new_data;
+      Utilities::System::posix_memalign ((void **)&new_data, 64, size_actual_allocate);
 
       // copy data in case there was some content before and release the old
       // memory with the function corresponding to the one used for allocating
@@ -557,13 +655,11 @@ AlignedVector<T>::reserve (const size_type size_alloc)
       if (_end_data != _data)
         {
           dealii::internal::AlignedVectorMove<T>(new_data, new_data + old_size,
-                                                 _data);
-#if DEAL_II_COMPILER_VECTORIZATION_LEVEL > 0
-          _mm_free(new_data);
-#else
+                                                 _data, false);
           free(new_data);
-#endif
         }
+      else
+        Assert(new_data == 0, ExcInternalError());
     }
   else if (size_alloc == 0)
     clear();
@@ -582,11 +678,7 @@ AlignedVector<T>::clear ()
         while (_end_data != _data)
           (--_end_data)->~T();
 
-#if DEAL_II_COMPILER_VECTORIZATION_LEVEL > 0
-      _mm_free(_data);
-#else
       free(_data);
-#endif
     }
   _data = 0;
   _end_data = 0;
@@ -658,7 +750,7 @@ inline
 void
 AlignedVector<T>::fill (const T &value)
 {
-  dealii::internal::AlignedVectorSet<T> (size(), value, _data);
+  dealii::internal::AlignedVectorSet<T,false> (size(), value, _data);
 }
 
 

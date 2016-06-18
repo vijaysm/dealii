@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,7 +30,6 @@
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_raviart_thomas.h>
 #include <deal.II/fe/fe_system.h>
-#include <deal.II/multigrid/mg_dof_handler.h>
 #include <deal.II/multigrid/mg_transfer.h>
 #include <deal.II/multigrid/mg_transfer_block.h>
 #include <deal.II/multigrid/mg_tools.h>
@@ -47,7 +46,7 @@ using namespace std;
 template <int dim, typename number, int spacedim>
 void
 reinit_vector_by_blocks (
-  const dealii::MGDoFHandler<dim,spacedim> &mg_dof,
+  const dealii::DoFHandler<dim,spacedim> &mg_dof,
   MGLevelObject<dealii::Vector<number> > &v,
   const unsigned int selected_block,
   std::vector<std::vector<types::global_dof_index> > &ndofs)
@@ -61,7 +60,7 @@ reinit_vector_by_blocks (
   if (ndofs.size() == 0)
     {
       std::vector<std::vector<types::global_dof_index> >
-      new_dofs(mg_dof.get_tria().n_levels(),
+      new_dofs(mg_dof.get_triangulation().n_levels(),
                std::vector<types::global_dof_index>(selected.size()));
       std::swap(ndofs, new_dofs);
       MGTools::count_dofs_per_block (mg_dof, ndofs);
@@ -78,7 +77,7 @@ reinit_vector_by_blocks (
 template <int dim, typename number, int spacedim>
 void
 reinit_vector_by_blocks (
-  const dealii::MGDoFHandler<dim,spacedim> &mg_dof,
+  const dealii::DoFHandler<dim,spacedim> &mg_dof,
   MGLevelObject<BlockVector<number> > &v,
   const std::vector<bool> &sel,
   std::vector<std::vector<types::global_dof_index> > &ndofs)
@@ -93,7 +92,7 @@ reinit_vector_by_blocks (
   if (ndofs.size() == 0)
     {
       std::vector<std::vector<types::global_dof_index> >
-      new_dofs(mg_dof.get_tria().n_levels(),
+      new_dofs(mg_dof.get_triangulation().n_levels(),
                std::vector<types::global_dof_index>(selected.size()));
       std::swap(ndofs, new_dofs);
       MGTools::count_dofs_per_block (mg_dof, ndofs);
@@ -128,9 +127,10 @@ void check_block(const FiniteElement<dim> &fe)
   GridGenerator::hyper_cube(tr);
   tr.refine_global(2);
 
-  MGDoFHandler<dim> mgdof(tr);
+  DoFHandler<dim> mgdof(tr);
   DoFHandler<dim> &dof=mgdof;
   mgdof.distribute_dofs(fe);
+  mgdof.distribute_mg_dofs(fe);
 
   // Make sure all orderings are the
   // same
@@ -148,7 +148,7 @@ void check_block(const FiniteElement<dim> &fe)
   // Store sizes
   vector<types::global_dof_index> ndofs(fe.n_blocks());
   DoFTools::count_dofs_per_block(mgdof, ndofs);
-  std::vector<std::vector<types::global_dof_index> > mg_ndofs(mgdof.get_tria().n_levels(),
+  std::vector<std::vector<types::global_dof_index> > mg_ndofs(mgdof.get_triangulation().n_levels(),
                                                               std::vector<types::global_dof_index>(fe.n_blocks()));
   MGTools::count_dofs_per_block(mgdof, mg_ndofs);
 
@@ -277,7 +277,6 @@ int main()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   std::vector<double> factors;

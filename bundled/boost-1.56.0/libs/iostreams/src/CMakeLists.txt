@@ -1,7 +1,7 @@
 ## ---------------------------------------------------------------------
 ## $Id$
 ##
-## Copyright (C) 2013 by the deal.II authors
+## Copyright (C) 2013 - 2015 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -14,7 +14,10 @@
 ##
 ## ---------------------------------------------------------------------
 
-INCLUDE_DIRECTORIES(${BOOST_BUNDLED_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(
+  ${BOOST_BUNDLED_INCLUDE_DIRS}
+  ${DEAL_II_INCLUDE_DIRS}
+  )
 
 SET(src_boost_iostreams
     file_descriptor.cpp
@@ -23,7 +26,7 @@ SET(src_boost_iostreams
     zlib.cpp
     )
 
-IF(DEALII_WITH_BZIP2)
+IF(DEAL_II_WITH_BZIP2)
   LIST(APPEND src_boost_iostreams bzip2.cpp)
 ELSE()
   MESSAGE(STATUS "BOOST::Iostreams will not support bz2'ed streams because libbz2 or its header files could not be found")

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,14 +51,14 @@ void test (Vector<double> &v)
 
   // make sure we get the expected result
   for (unsigned int i=0; i<v.size(); ++i)
-    Assert (v(i) == i, ExcInternalError());
+    AssertThrow (v(i) == i, ExcInternalError());
 
   double result = 0;
   for (unsigned int i=0; i<m.m(); ++i)
     for (unsigned int j=0; j<m.n(); ++j)
       result += (i+2*j)*j*i;
 
-  Assert (s == result, ExcInternalError());
+  AssertThrow (s == result, ExcInternalError());
 
   deallog << "OK" << std::endl;
 }
@@ -69,7 +69,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   try

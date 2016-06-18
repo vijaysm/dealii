@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__std_cxx11_tuple_h
-#define __deal2__std_cxx11_tuple_h
+#ifndef dealii__std_cxx11_tuple_h
+#define dealii__std_cxx11_tuple_h
 
 
 #include <deal.II/base/config.h>
@@ -26,6 +26,7 @@ DEAL_II_NAMESPACE_OPEN
 namespace std_cxx11
 {
   using std::tuple;
+  using std::make_tuple;
   using std::get;
   using std::tuple_size;
   using std::tuple_element;
@@ -39,27 +40,33 @@ DEAL_II_NAMESPACE_OPEN
 namespace std_cxx11
 {
   using boost::tuple;
+  using boost::make_tuple;
   using boost::get;
 
-				   // boost::tuples::length has been renamed
-				   // by the standard to std::tuple_size
+  // boost::tuples::length has been renamed
+  // by the standard to std::tuple_size
   template <typename T>
-  struct tuple_size 
+  struct tuple_size
   {
-      static const std::size_t value = boost::tuples::length<T>::value;
+    static const std::size_t value = boost::tuples::length<T>::value;
   };
 
-				   // similarly, boost::tuples::element has
-				   // been renamed by the standard to
-				   // std::tuple_element
+  // similarly, boost::tuples::element has
+  // been renamed by the standard to
+  // std::tuple_element
   template <int N, typename T>
   struct tuple_element
   {
-      typedef typename boost::tuples::element<N,T>::type type;
+    typedef typename boost::tuples::element<N,T>::type type;
   };
 }
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
+
+// then allow using the old namespace name instead of the new one
+DEAL_II_NAMESPACE_OPEN
+namespace std_cxx1x = std_cxx11;
+DEAL_II_NAMESPACE_CLOSE
 
 #endif

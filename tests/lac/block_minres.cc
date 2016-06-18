@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,7 +34,6 @@ int main()
   std::ofstream logfile("output");
   deallog << std::setprecision(2);
   deallog.attach(logfile);
-  deallog.depth_console(0);
 
 
   // assemble a 2x2 block identity
@@ -74,10 +73,10 @@ int main()
 
   // and while at it also check
   // whether the result was correct
-  Assert (b(0) == 2, ExcInternalError());
-  Assert (b(1) == 3, ExcInternalError());
-  Assert (b(2) == 4, ExcInternalError());
-  Assert (b(3) == 5, ExcInternalError());
+  AssertThrow (b(0) == 2, ExcInternalError());
+  AssertThrow (b(1) == 3, ExcInternalError());
+  AssertThrow (b(2) == 4, ExcInternalError());
+  AssertThrow (b(3) == 5, ExcInternalError());
 
   // now solve with MinRes. This
   // didn't work at one point

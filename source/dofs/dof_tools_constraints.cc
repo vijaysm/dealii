@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2014 by the deal.II authors
+// Copyright (C) 1999 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,6 +13,7 @@
 //
 // ---------------------------------------------------------------------
 
+#include <deal.II/base/std_cxx1x/array.h>
 #include <deal.II/base/thread_management.h>
 #include <deal.II/base/table.h>
 #include <deal.II/base/template_constraints.h>
@@ -33,7 +34,9 @@
 #include <deal.II/hp/fe_values.h>
 #include <deal.II/dofs/dof_tools.h>
 
-#include <deal.II/multigrid/mg_dof_handler.h>
+#ifdef DEAL_II_WITH_MPI
+#include <deal.II/lac/la_parallel_vector.h>
+#endif
 
 #include <algorithm>
 #include <numeric>
@@ -61,7 +64,7 @@ namespace DoFTools
 
         // then use the algorithm from FullMatrix::gauss_jordan on this
         // matrix to find out whether it is singular. the algorithm there
-        // does piviting and at the end swaps rows back into their proper
+        // does pivoting and at the end swaps rows back into their proper
         // order -- we omit this step here, since we don't care about the
         // inverse matrix, all we care about is whether the matrix is
         // regular or singular
@@ -457,74 +460,11 @@ namespace DoFTools
       }
 
 
-      template <class DH>
+      template <typename DoFHandlerType>
       unsigned int
-      n_finite_elements (const DH &)
+      n_finite_elements (const DoFHandlerType &)
       {
         return 1;
-      }
-
-
-      /**
-       * For a given face belonging to an active cell that borders to a
-       * more refined cell, return the fe_index of the most dominating
-       * finite element used on any of the face's subfaces.
-       */
-      template <typename face_iterator>
-      unsigned int
-      get_most_dominating_subface_fe_index (const face_iterator &face)
-      {
-        const unsigned int dim
-          = face_iterator::AccessorType::dimension;
-        const unsigned int spacedim
-          = face_iterator::AccessorType::space_dimension;
-
-        unsigned int dominating_subface_no = 0;
-        for (; dominating_subface_no<face->n_children();
-             ++dominating_subface_no)
-          {
-            // each of the subfaces can have only a single fe_index
-            // associated with them, since there is no cell on the other
-            // side
-            Assert (face->child(dominating_subface_no)
-                    ->n_active_fe_indices()
-                    == 1,
-                    ExcInternalError());
-
-            const FiniteElement<dim,spacedim> &
-            this_subface_fe = (face->child(dominating_subface_no)
-                               ->get_fe (face->child(dominating_subface_no)
-                                         ->nth_active_fe_index(0)));
-
-            FiniteElementDomination::Domination
-            domination = FiniteElementDomination::either_element_can_dominate;
-            for (unsigned int sf=0; sf<face->n_children(); ++sf)
-              if (sf != dominating_subface_no)
-                {
-                  const FiniteElement<dim,spacedim> &
-                  that_subface_fe = (face->child(sf)
-                                     ->get_fe (face->child(sf)
-                                               ->nth_active_fe_index(0)));
-
-                  domination = domination &
-                               this_subface_fe.compare_for_face_domination(that_subface_fe);
-                }
-
-            // see if the element on this subface is able to dominate the
-            // ones on all other subfaces, and if so take it
-            if ((domination == FiniteElementDomination::this_element_dominates)
-                ||
-                (domination == FiniteElementDomination::either_element_can_dominate))
-              break;
-          }
-
-        // check that we have found one such subface
-        Assert (dominating_subface_no < face->n_children(),
-                ExcNotImplemented());
-
-        // return the finite element index used on it. note that only a
-        // single fe can be active on such subfaces
-        return face->child (dominating_subface_no)->nth_active_fe_index(0);
       }
 
 
@@ -632,24 +572,6 @@ namespace DoFTools
 
 
     void
-    make_hp_hanging_node_constraints (const dealii::MGDoFHandler<1> &,
-                                      ConstraintMatrix &)
-    {
-      // nothing to do for regular dof handlers in 1d
-    }
-
-
-
-    void
-    make_oldstyle_hanging_node_constraints (const dealii::MGDoFHandler<1> &,
-                                            ConstraintMatrix &,
-                                            dealii::internal::int2type<1>)
-    {
-      // nothing to do for regular dof handlers in 1d
-    }
-
-
-    void
     make_hp_hanging_node_constraints (const dealii::hp::DoFHandler<1> &/*dof_handler*/,
                                       ConstraintMatrix        &/*constraints*/)
     {
@@ -745,15 +667,15 @@ namespace DoFTools
 
 
 
-    template <class DH>
+    template <typename DoFHandlerType>
     void
-    make_oldstyle_hanging_node_constraints (const DH         &dof_handler,
-                                            ConstraintMatrix &constraints,
+    make_oldstyle_hanging_node_constraints (const DoFHandlerType &dof_handler,
+                                            ConstraintMatrix     &constraints,
                                             dealii::internal::int2type<2>)
     {
       const unsigned int dim = 2;
 
-      const unsigned int spacedim = DH::space_dimension;
+      const unsigned int spacedim = DoFHandlerType::space_dimension;
 
       std::vector<types::global_dof_index> dofs_on_mother;
       std::vector<types::global_dof_index> dofs_on_children;
@@ -767,12 +689,15 @@ namespace DoFTools
       // note that even though we may visit a face twice if the neighboring
       // cells are equally refined, we can only visit each face with
       // hanging nodes once
-      typename DH::active_cell_iterator cell = dof_handler.begin_active(),
-                                        endc = dof_handler.end();
+      typename DoFHandlerType::active_cell_iterator cell = dof_handler.begin_active(),
+                                                    endc = dof_handler.end();
       for (; cell!=endc; ++cell)
-        // artificial cells can at best neighbor ghost cells, but we're not
-        // interested in these interfaces
-        if (!cell->is_artificial ())
+        {
+          // artificial cells can at best neighbor ghost cells, but we're not
+          // interested in these interfaces
+          if (cell->is_artificial ())
+            continue;
+
           for (unsigned int face=0; face<GeometryInfo<dim>::faces_per_cell; ++face)
             if (cell->face(face)->has_children())
               {
@@ -819,7 +744,7 @@ namespace DoFTools
                        ExcDimensionMismatch(n_dofs_on_children,
                                             fe.constraints().m()));
 
-                const typename DH::line_iterator this_face = cell->face(face);
+                const typename DoFHandlerType::line_iterator this_face = cell->face(face);
 
                 // fill the dofs indices. Use same enumeration scheme as in
                 // @p{FiniteElement::constraints()}
@@ -875,14 +800,15 @@ namespace DoFTools
                             ExcInternalError());
                   }
               }
+        }
     }
 
 
 
-    template <class DH>
+    template <typename DoFHandlerType>
     void
-    make_oldstyle_hanging_node_constraints (const DH         &dof_handler,
-                                            ConstraintMatrix &constraints,
+    make_oldstyle_hanging_node_constraints (const DoFHandlerType &dof_handler,
+                                            ConstraintMatrix     &constraints,
                                             dealii::internal::int2type<3>)
     {
       const unsigned int dim = 3;
@@ -899,12 +825,15 @@ namespace DoFTools
       // note that even though we may visit a face twice if the neighboring
       // cells are equally refined, we can only visit each face with
       // hanging nodes once
-      typename DH::active_cell_iterator cell = dof_handler.begin_active(),
-                                        endc = dof_handler.end();
+      typename DoFHandlerType::active_cell_iterator cell = dof_handler.begin_active(),
+                                                    endc = dof_handler.end();
       for (; cell!=endc; ++cell)
-        // artificial cells can at best neighbor ghost cells, but we're not
-        // interested in these interfaces
-        if (!cell->is_artificial ())
+        {
+          // artificial cells can at best neighbor ghost cells, but we're not
+          // interested in these interfaces
+          if (cell->is_artificial ())
+            continue;
+
           for (unsigned int face=0; face<GeometryInfo<dim>::faces_per_cell; ++face)
             if (cell->face(face)->has_children())
               {
@@ -982,7 +911,7 @@ namespace DoFTools
                        ExcDimensionMismatch(n_dofs_on_children,
                                             fe.constraints().m()));
 
-                const typename DH::face_iterator this_face = cell->face(face);
+                const typename DoFHandlerType::face_iterator this_face = cell->face(face);
 
                 // fill the dofs indices. Use same enumeration scheme as in
                 // @p{FiniteElement::constraints()}
@@ -1004,7 +933,7 @@ namespace DoFTools
                 //TODO[TL]: think about this in case of anisotropic
                 //refinement
 
-                Assert (dof_handler.get_tria().get_anisotropic_refinement_flag() ||
+                Assert (dof_handler.get_triangulation().get_anisotropic_refinement_flag() ||
                         ((this_face->child(0)->vertex_index(3) ==
                           this_face->child(1)->vertex_index(2)) &&
                          (this_face->child(0)->vertex_index(3) ==
@@ -1091,22 +1020,44 @@ namespace DoFTools
                             ExcInternalError());
                   }
               }
+        }
+    }
+
+    namespace internal
+    {
+      /**
+       * get FECollection
+       */
+      template <int dim, int spacedim>
+      const dealii::hp::FECollection<dim,spacedim> *
+      get_fe_collection (const dealii::hp::DoFHandler<dim,spacedim> &dof_handler)
+      {
+        return &dof_handler.get_fe();
+      }
+
+      template <int dim, int spacedim>
+      const dealii::hp::FECollection<dim,spacedim> *
+      get_fe_collection (const dealii::DoFHandler<dim,spacedim> &)
+      {
+        AssertThrow(false, ExcInternalError());
+        return NULL;
+      }
     }
 
 
-    template <class DH>
+    template <typename DoFHandlerType>
     void
-    make_hp_hanging_node_constraints (const DH         &dof_handler,
-                                      ConstraintMatrix &constraints)
+    make_hp_hanging_node_constraints (const DoFHandlerType &dof_handler,
+                                      ConstraintMatrix     &constraints)
     {
       // note: this function is going to be hard to understand if you
       // haven't read the hp paper. however, we try to follow the notation
       // laid out there, so go read the paper before you try to understand
       // what is going on here
 
-      const unsigned int dim = DH::dimension;
+      const unsigned int dim = DoFHandlerType::dimension;
 
-      const unsigned int spacedim = DH::space_dimension;
+      const unsigned int spacedim = DoFHandlerType::space_dimension;
 
 
       // a matrix to be used for constraints below. declared here and
@@ -1152,12 +1103,15 @@ namespace DoFTools
       // note that even though we may visit a face twice if the neighboring
       // cells are equally refined, we can only visit each face with
       // hanging nodes once
-      typename DH::active_cell_iterator cell = dof_handler.begin_active(),
-                                        endc = dof_handler.end();
+      typename DoFHandlerType::active_cell_iterator cell = dof_handler.begin_active(),
+                                                    endc = dof_handler.end();
       for (; cell!=endc; ++cell)
-        // artificial cells can at best neighbor ghost cells, but we're not
-        // interested in these interfaces
-        if (!cell->is_artificial ())
+        {
+          // artificial cells can at best neighbor ghost cells, but we're not
+          // interested in these interfaces
+          if (cell->is_artificial ())
+            continue;
+
           for (unsigned int face=0; face<GeometryInfo<dim>::faces_per_cell; ++face)
             if (cell->face(face)->has_children())
               {
@@ -1197,12 +1151,21 @@ namespace DoFTools
                 FiniteElementDomination::Domination
                 mother_face_dominates = FiniteElementDomination::either_element_can_dominate;
 
-                if (DoFHandlerSupportsDifferentFEs<DH>::value == true)
+                // auxiliary variable which holds FE indices of the mother face
+                // and its subfaces. This knowledge will be needed in hp-case
+                // with neither_element_dominates.
+                std::set<unsigned int> fe_ind_face_subface;
+                fe_ind_face_subface.insert(cell->active_fe_index());
+
+                if (DoFHandlerSupportsDifferentFEs<DoFHandlerType>::value == true)
                   for (unsigned int c=0; c<cell->face(face)->number_of_children(); ++c)
                     if (!cell->neighbor_child_on_subface (face, c)->is_artificial())
-                      mother_face_dominates = mother_face_dominates &
-                                              (cell->get_fe().compare_for_face_domination
-                                               (cell->neighbor_child_on_subface (face, c)->get_fe()));
+                      {
+                        mother_face_dominates = mother_face_dominates &
+                                                (cell->get_fe().compare_for_face_domination
+                                                 (cell->neighbor_child_on_subface (face, c)->get_fe()));
+                        fe_ind_face_subface.insert(cell->neighbor_child_on_subface (face, c)->active_fe_index());
+                      }
 
                 switch (mother_face_dominates)
                   {
@@ -1230,7 +1193,7 @@ namespace DoFTools
                         if (cell->neighbor_child_on_subface (face, c)->is_artificial())
                           continue;
 
-                        const typename DH::active_face_iterator
+                        const typename DoFHandlerType::active_face_iterator
                         subface = cell->face(face)->child(c);
 
                         Assert (subface->n_active_fe_indices() == 1,
@@ -1314,30 +1277,36 @@ namespace DoFTools
                     //
                     // since this is something that can only happen for hp
                     // dof handlers, add a check here...
-                    Assert (DoFHandlerSupportsDifferentFEs<DH>::value == true,
+                    Assert (DoFHandlerSupportsDifferentFEs<DoFHandlerType>::value == true,
                             ExcInternalError());
 
+                    const dealii::hp::FECollection<dim,spacedim> &fe_collection =
+                      *internal::get_fe_collection (dof_handler);
                     // we first have to find the finite element that is
                     // able to generate a space that all the other ones can
-                    // be constrained to
-                    const unsigned int dominating_fe_index
-                      = get_most_dominating_subface_fe_index (cell->face(face));
+                    // be constrained to.
+                    // At this point we potentially have different scenarios:
+                    // 1) sub-faces dominate mother face and there is a
+                    // dominating FE among sub faces. We could loop over sub
+                    // faces to find the needed FE index. However, this will not
+                    // work in the case when
+                    // 2) there is no dominating FE among sub faces (e.g. Q1xQ2 vs Q2xQ1),
+                    // but subfaces still dominate mother face (e.g. Q2xQ2).
+                    // To cover this case we would have to use find_least_face_dominating_fe()
+                    // of FECollection with fe_indices of sub faces.
+                    // 3) Finally, it could happen that we got here because
+                    // neither_element_dominates (e.g. Q1xQ1xQ2 and Q1xQ2xQ1 for
+                    // subfaces and Q2xQ1xQ1 for mother face).
+                    // This requires usage of find_least_face_dominating_fe()
+                    // with fe_indices of sub-faces and the mother face.
+                    // Note that the last solution covers the first two scenarios,
+                    // thus we stick with it assuming that we won't lose much time/efficiency.
+                    const unsigned int dominating_fe_index = fe_collection.find_least_face_dominating_fe(fe_ind_face_subface);
+                    AssertThrow(dominating_fe_index != numbers::invalid_unsigned_int,
+                                ExcMessage("Could not find a least face dominating FE."));
 
                     const FiniteElement<dim,spacedim> &dominating_fe
                       = dof_handler.get_fe()[dominating_fe_index];
-
-                    // check also that it is able to constrain the mother
-                    // face. it should be, or we wouldn't have gotten into
-                    // the branch for the 'complex' case
-                    Assert ((dominating_fe.compare_for_face_domination
-                             (cell->face(face)->get_fe(cell->face(face)->nth_active_fe_index(0)))
-                             == FiniteElementDomination::this_element_dominates)
-                            ||
-                            (dominating_fe.compare_for_face_domination
-                             (cell->face(face)->get_fe(cell->face(face)->nth_active_fe_index(0)))
-                             == FiniteElementDomination::either_element_can_dominate),
-                            ExcInternalError());
-
 
                     // first get the interpolation matrix from the mother
                     // to the virtual dofs
@@ -1504,7 +1473,7 @@ namespace DoFTools
                 // Only if there is a neighbor with a different
                 // active_fe_index and the same h-level, some action has to
                 // be taken.
-                if ((DoFHandlerSupportsDifferentFEs<DH>::value == true)
+                if ((DoFHandlerSupportsDifferentFEs<DoFHandlerType>::value == true)
                     &&
                     !cell->face(face)->at_boundary ()
                     &&
@@ -1514,7 +1483,7 @@ namespace DoFTools
                     (!cell->face(face)->has_children() &&
                      !cell->neighbor_is_coarser(face) ))
                   {
-                    const typename DH::level_cell_iterator neighbor = cell->neighbor (face);
+                    const typename DoFHandlerType::level_cell_iterator neighbor = cell->neighbor (face);
 
                     // see which side of the face we have to constrain
                     switch (cell->get_fe().compare_for_face_domination (neighbor->get_fe ()))
@@ -1591,12 +1560,149 @@ namespace DoFTools
 
                       case FiniteElementDomination::neither_element_dominates:
                       {
-                        // we don't presently know what exactly to do here.
-                        // it isn't quite clear what exactly we would have
-                        // to do here. sit tight until someone trips over
-                        // the following statement and see what exactly is
-                        // going on
-                        Assert (false, ExcNotImplemented());
+                        // make sure we don't get here twice from each cell
+                        if (cell < neighbor)
+                          break;
+
+                        // our best bet is to find the common space among other
+                        // FEs in FECollection and then constrain both FEs
+                        // to that one.
+                        // More precisely, we follow the strategy outlined on
+                        // page 17 of the hp paper:
+                        // First we find the dominant FE space S.
+                        // Then we divide our dofs in master and slave such that
+                        // I^{face,master}_{S^{face}->S} is invertible.
+                        // And finally constrain slave dofs to master dofs based
+                        // on the interpolation matrix.
+
+                        const unsigned int this_fe_index = cell->active_fe_index();
+                        const unsigned int neighbor_fe_index = neighbor->active_fe_index();
+                        std::set<unsigned int> fes;
+                        fes.insert(this_fe_index);
+                        fes.insert(neighbor_fe_index);
+                        const dealii::hp::FECollection<dim,spacedim> &fe_collection =
+                          *internal::get_fe_collection (dof_handler);
+                        const unsigned int dominating_fe_index = fe_collection.find_least_face_dominating_fe(fes);
+
+                        AssertThrow(dominating_fe_index != numbers::invalid_unsigned_int,
+                                    ExcMessage("Could not find the dominating FE for "
+                                               +cell->get_fe().get_name()
+                                               +" and "
+                                               +neighbor->get_fe().get_name()
+                                               +" inside FECollection."));
+
+                        const FiniteElement<dim,spacedim> &dominating_fe = fe_collection[dominating_fe_index];
+
+                        // TODO: until we hit the second face, the code is
+                        // a copy-paste from h-refinement case...
+
+                        // first get the interpolation matrix from main FE
+                        // to the virtual dofs
+                        Assert (dominating_fe.dofs_per_face <=
+                                cell->get_fe().dofs_per_face,
+                                ExcInternalError());
+
+                        ensure_existence_of_face_matrix
+                        (dominating_fe,
+                         cell->get_fe(),
+                         face_interpolation_matrices
+                         [dominating_fe_index][cell->active_fe_index()]);
+
+                        // split this matrix into master and slave components.
+                        // invert the master component
+                        ensure_existence_of_master_dof_mask
+                        (cell->get_fe(),
+                         dominating_fe,
+                         (*face_interpolation_matrices
+                          [dominating_fe_index]
+                          [cell->active_fe_index()]),
+                         master_dof_masks
+                         [dominating_fe_index]
+                         [cell->active_fe_index()]);
+
+                        ensure_existence_of_split_face_matrix
+                        (*face_interpolation_matrices
+                         [dominating_fe_index][cell->active_fe_index()],
+                         (*master_dof_masks
+                          [dominating_fe_index][cell->active_fe_index()]),
+                         split_face_interpolation_matrices
+                         [dominating_fe_index][cell->active_fe_index()]);
+
+                        const FullMatrix<double> &restrict_mother_to_virtual_master_inv
+                          = (split_face_interpolation_matrices
+                             [dominating_fe_index][cell->active_fe_index()]->first);
+
+                        const FullMatrix<double> &restrict_mother_to_virtual_slave
+                          = (split_face_interpolation_matrices
+                             [dominating_fe_index][cell->active_fe_index()]->second);
+
+                        // now compute the constraint matrix as the product
+                        // between the inverse matrix and the slave part
+                        constraint_matrix.reinit (cell->get_fe().dofs_per_face -
+                                                  dominating_fe.dofs_per_face,
+                                                  dominating_fe.dofs_per_face);
+                        restrict_mother_to_virtual_slave
+                        .mmult (constraint_matrix,
+                                restrict_mother_to_virtual_master_inv);
+
+                        // then figure out the global numbers of master and
+                        // slave dofs and apply constraints
+                        scratch_dofs.resize (cell->get_fe().dofs_per_face);
+                        cell->face(face)->get_dof_indices (scratch_dofs,
+                                                           cell->active_fe_index ());
+
+                        // split dofs into master and slave components
+                        master_dofs.clear ();
+                        slave_dofs.clear ();
+                        for (unsigned int i=0; i<cell->get_fe().dofs_per_face; ++i)
+                          if ((*master_dof_masks
+                               [dominating_fe_index][cell->active_fe_index()])[i] == true)
+                            master_dofs.push_back (scratch_dofs[i]);
+                          else
+                            slave_dofs.push_back (scratch_dofs[i]);
+
+                        AssertDimension (master_dofs.size(), dominating_fe.dofs_per_face);
+                        AssertDimension (slave_dofs.size(),
+                                         cell->get_fe().dofs_per_face - dominating_fe.dofs_per_face);
+
+                        filter_constraints (master_dofs,
+                                            slave_dofs,
+                                            constraint_matrix,
+                                            constraints);
+
+                        // now do the same for another FE
+                        // this is pretty much the same we do above to
+                        // resolve h-refinement constraints
+                        Assert (dominating_fe.dofs_per_face <=
+                                neighbor->get_fe().dofs_per_face,
+                                ExcInternalError());
+
+                        ensure_existence_of_face_matrix
+                        (dominating_fe,
+                         neighbor->get_fe(),
+                         face_interpolation_matrices
+                         [dominating_fe_index][neighbor->active_fe_index()]);
+
+                        const FullMatrix<double> &restrict_secondface_to_virtual
+                          = *(face_interpolation_matrices
+                              [dominating_fe_index][neighbor->active_fe_index()]);
+
+                        constraint_matrix.reinit (neighbor->get_fe().dofs_per_face,
+                                                  dominating_fe.dofs_per_face);
+
+                        restrict_secondface_to_virtual
+                        .mmult (constraint_matrix,
+                                restrict_mother_to_virtual_master_inv);
+
+                        slave_dofs.resize (neighbor->get_fe().dofs_per_face);
+                        cell->face(face)->get_dof_indices (slave_dofs,
+                                                           neighbor->active_fe_index ());
+
+                        filter_constraints (master_dofs,
+                                            slave_dofs,
+                                            constraint_matrix,
+                                            constraints);
+
                         break;
                       }
 
@@ -1612,16 +1718,17 @@ namespace DoFTools
                       }
                   }
               }
+        }
     }
   }
 
 
 
 
-  template <class DH>
+  template <typename DoFHandlerType>
   void
-  make_hanging_node_constraints (const DH &dof_handler,
-                                 ConstraintMatrix &constraints)
+  make_hanging_node_constraints (const DoFHandlerType &dof_handler,
+                                 ConstraintMatrix     &constraints)
   {
     // Decide whether to use the new or old make_hanging_node_constraints
     // function. If all the FiniteElement or all elements in a FECollection
@@ -1635,30 +1742,36 @@ namespace DoFTools
       internal::
       make_oldstyle_hanging_node_constraints (dof_handler,
                                               constraints,
-                                              dealii::internal::int2type<DH::dimension>());
+                                              dealii::internal::int2type<DoFHandlerType::dimension>());
   }
 
 
 
   namespace
   {
-    // enter constraints for periodicity into the given ConstraintMatrix object.
-    // this function is called when at least one of the two face iterators corresponds
-    // to an active object without further children
-    //
-    // @param transformation A matrix that maps degrees of freedom from one face
-    // to another. If the DoFs on the two faces are supposed to match exactly, then
-    // the matrix so provided will be the identity matrix. if face 2 is once refined
-    // from face 1, then the matrix needs to be the interpolation matrix from a face
-    // to this particular child
-    //
-    // @precondition: face_1 is supposed to be active
-    //
-    // @note As bug #82 ((http://code.google.com/p/dealii/issues/detail?id=82) and the
-    // corresponding testcase bits/periodicity_05 demonstrate, we can occasionally
-    // get into trouble if we already have the constraint x1=x2 and want to insert
-    // x2=x1. we avoid this by skipping an identity constraint if the opposite
-    // constraint already exists
+    /**
+     * @internal
+     *
+     * Internally used in make_periodicity_constraints.
+     *
+     * enter constraints for periodicity into the given ConstraintMatrix object.
+     * this function is called when at least one of the two face iterators corresponds
+     * to an active object without further children
+     *
+     * @param transformation A matrix that maps degrees of freedom from one face
+     * to another. If the DoFs on the two faces are supposed to match exactly, then
+     * the matrix so provided will be the identity matrix. if face 2 is once refined
+     * from face 1, then the matrix needs to be the interpolation matrix from a face
+     * to this particular child
+     *
+     * @precondition: face_1 is supposed to be active
+     *
+     * @note As bug #82 ((http://code.google.com/p/dealii/issues/detail?id=82) and the
+     * corresponding testcase bits/periodicity_05 demonstrate, we can occasionally
+     * get into trouble if we already have the constraint x1=x2 and want to insert
+     * x2=x1. we avoid this by skipping an identity constraint if the opposite
+     * constraint already exists
+     */
     template <typename FaceIterator>
     void
     set_periodicity_constraints (const FaceIterator                          &face_1,
@@ -1711,7 +1824,7 @@ namespace DoFTools
         {
           const unsigned int face_1_index = face_1->nth_active_fe_index(0);
           const unsigned int face_2_index = face_2->nth_active_fe_index(0);
-          Assert(face_1->get_fe(face_1_index) == face_2->get_fe(face_1_index),
+          Assert(face_1->get_fe(face_1_index) == face_2->get_fe(face_2_index),
                  ExcMessage ("Matching periodic cells need to use the same finite element"));
 
           const FiniteElement<dim, spacedim> &fe = face_1->get_fe(face_1_index);
@@ -1781,7 +1894,7 @@ namespace DoFTools
               cell_to_rotated_face_index[cell_index] = i;
             }
 
-          // loop over all dofs on face 2 and constrain them again the ones on face 1
+          // loop over all dofs on face 2 and constrain them against the ones on face 1
           for (unsigned int i=0; i<dofs_per_face; ++i)
             if (!constraint_matrix.is_constrained(dofs_2[i]))
               if ((component_mask.n_selected_components(fe.n_components())
@@ -1797,9 +1910,13 @@ namespace DoFTools
                   // to check whether this is the case, first see whether there are
                   // any weights other than 0 and 1, then in a first stage make sure
                   // that if so there is only one weight equal to 1
+                  //
+                  // afterwards do the same for constraints of type dof1=-dof2
                   bool is_identity_constrained = true;
+                  const double eps = 1.e-13;
                   for (unsigned int jj=0; jj<dofs_per_face; ++jj)
-                    if (((transformation(i,jj) == 0) || (transformation(i,jj) == 1)) == false)
+                    if (((std::abs(transformation(i,jj)) < eps) ||
+                         (std::abs(transformation(i,jj)-1) < eps)) == false)
                       {
                         is_identity_constrained = false;
                         break;
@@ -1809,7 +1926,7 @@ namespace DoFTools
                     {
                       bool one_identity_found = false;
                       for (unsigned int jj=0; jj<dofs_per_face; ++jj)
-                        if (transformation(i,jj) == 1)
+                        if (std::abs(transformation(i,jj)-1.) < eps)
                           {
                             if (one_identity_found == false)
                               {
@@ -1825,52 +1942,220 @@ namespace DoFTools
                           }
                     }
 
-                  // now treat constraints, either as an equality constraint or
-                  // as a sequence of constraints
-                  if (is_identity_constrained == true)
-                    {
-                      // Query the correct face_index on face_2 respecting the given
-                      // orientation:
-                      const unsigned int j =
-                        cell_to_rotated_face_index[fe.face_to_cell_index(identity_constraint_target,
-                                                                         0, /* It doesn't really matter, just assume
-                           * we're on the first face...
-                           */
-                                                                         face_orientation, face_flip, face_rotation)];
-
-                      // if the two aren't already identity constrained (whichever way
-                      // around, then enter the constraint. otherwise there is nothing
-                      // for us still to do
-                      if (constraint_matrix.are_identity_constrained(dofs_2[i], dofs_1[i]) == false)
+                  bool is_inverse_constrained = !is_identity_constrained;
+                  unsigned int inverse_constraint_target = numbers::invalid_unsigned_int;
+                  if (is_inverse_constrained)
+                    for (unsigned int jj=0; jj<dofs_per_face; ++jj)
+                      if (((std::abs(transformation(i,jj)) < eps) ||
+                           (std::abs(transformation(i,jj)+1) < eps)) == false)
                         {
-                          constraint_matrix.add_line(dofs_2[i]);
-                          constraint_matrix.add_entry(dofs_2[i], dofs_1[j], 1);
+                          is_inverse_constrained = false;
+                          break;
                         }
-                    }
-                  else
+                  if (is_inverse_constrained)
                     {
-                      // this is just a regular constraint. enter it piece by piece
-                      constraint_matrix.add_line(dofs_2[i]);
+                      bool one_identity_found = false;
                       for (unsigned int jj=0; jj<dofs_per_face; ++jj)
-                        {
-                          // Query the correct face_index on face_2 respecting the given
-                          // orientation:
-                          const unsigned int j =
-                            cell_to_rotated_face_index[fe.face_to_cell_index(jj, 0, /* It doesn't really matter, just assume
-                               * we're on the first face...
-                               */
-                                                                             face_orientation, face_flip, face_rotation)];
+                        if (std::abs(transformation(i,jj)+1) < eps)
+                          {
+                            if (one_identity_found == false)
+                              {
+                                one_identity_found = true;
+                                inverse_constraint_target = jj;
+                              }
+                            else
+                              {
+                                is_inverse_constrained = false;
+                                inverse_constraint_target = numbers::invalid_unsigned_int;
+                                break;
+                              }
+                          }
+                    }
 
-                          // And finally constrain the two DoFs respecting component_mask:
-                          if (transformation(i,jj) != 0)
-                            constraint_matrix.add_entry(dofs_2[i], dofs_1[j],
-                                                        transformation(i,jj));
+                  const unsigned int target = is_identity_constrained
+                                              ? identity_constraint_target
+                                              : inverse_constraint_target;
+
+                  // find out whether this dof also exists on face 1
+                  // if this is true and the constraint is no identity
+                  // constraint to itself, set it to zero
+                  bool constrained_set = false;
+                  for (unsigned int j=0; j<dofs_per_face; ++j)
+                    {
+                      if (dofs_2[i] == dofs_1[j])
+                        if (!(is_identity_constrained && target==i))
+                          {
+                            constraint_matrix.add_line(dofs_2[i]);
+                            constrained_set = true;
+                          }
+                    }
+
+                  if (!constrained_set)
+                    {
+                      // now treat constraints, either as an equality constraint or
+                      // as a sequence of constraints
+                      if (is_identity_constrained == true || is_inverse_constrained == true)
+                        {
+                          // Query the correct face_index on face_1 respecting the given
+                          // orientation:
+                          const unsigned int j
+                            = cell_to_rotated_face_index[fe.face_to_cell_index(target,
+                                                                               0, /* It doesn't really matter, just assume
+                                                                                 * we're on the first face...
+                                                                                 */
+                                                                               face_orientation, face_flip, face_rotation)];
+
+                          // if the two aren't already identity constrained (whichever way
+                          // around) or already identical (in case of rotated periodicity constraints),
+                          // then enter the constraint. otherwise there is nothing for us still to do
+                          bool enter_constraint = false;
+                          if (!constraint_matrix.is_constrained(dofs_1[j]))
+                            {
+                              if (dofs_2[i] != dofs_1[j])
+                                enter_constraint = true;
+                            }
+                          else //dofs_1[j] is constrained, is it identity or inverse constrained?
+                            {
+                              const std::vector<std::pair<types::global_dof_index, double > > *constraint_entries
+                                = constraint_matrix.get_constraint_entries(dofs_1[j]);
+                              if (constraint_entries->size()==1 && (*constraint_entries)[0].first == dofs_2[i])
+                                {
+                                  if ((is_identity_constrained && std::abs((*constraint_entries)[0].second-1) > eps) ||
+                                      (is_inverse_constrained && std::abs((*constraint_entries)[0].second+1) > eps))
+                                    {
+                                      //this pair of constraints means that both dofs have to be constrained to 0.
+                                      constraint_matrix.add_line(dofs_2[i]);
+                                    }
+                                }
+                              else
+                                enter_constraint = true;
+                            }
+
+                          if (enter_constraint)
+                            {
+                              constraint_matrix.add_line(dofs_2[i]);
+                              constraint_matrix.add_entry(dofs_2[i], dofs_1[j], is_identity_constrained?1.0:-1.0);
+                            }
+                        }
+                      else
+                        {
+                          // this is just a regular constraint. enter it piece by piece
+                          constraint_matrix.add_line(dofs_2[i]);
+                          for (unsigned int jj=0; jj<dofs_per_face; ++jj)
+                            {
+                              // Query the correct face_index on face_1 respecting the given
+                              // orientation:
+                              const unsigned int j =
+                                cell_to_rotated_face_index[fe.face_to_cell_index
+                                                           (jj, 0, face_orientation, face_flip, face_rotation)];
+
+                              // And finally constrain the two DoFs respecting component_mask:
+                              if (transformation(i,jj) != 0)
+                                constraint_matrix.add_entry(dofs_2[i], dofs_1[j],
+                                                            transformation(i,jj));
+                            }
                         }
                     }
                 }
         }
     }
-  }
+
+
+    // Internally used in make_periodicity_constraints.
+    //
+    // Build up a (possibly rotated) interpolation matrix that is used in
+    // set_periodicity_constraints with the help of user supplied matrix
+    // and first_vector_components.
+    template<int dim, int spacedim>
+    FullMatrix<double> compute_transformation(
+      const FiniteElement<dim, spacedim> &fe,
+      const FullMatrix<double>           &matrix,
+      const std::vector<unsigned int>    &first_vector_components)
+    {
+      Assert(matrix.m() == matrix.n(), ExcInternalError());
+
+      const unsigned int n_dofs_per_face = fe.dofs_per_face;
+
+      if (matrix.m() == n_dofs_per_face)
+        {
+          // In case of m == n == n_dofs_per_face the supplied matrix is already
+          // an interpolation matrix, so we use it directly:
+          return matrix;
+        }
+
+      if (first_vector_components.empty() && matrix.m() == 0)
+        {
+          // Just the identity matrix in case no rotation is specified:
+          return IdentityMatrix(n_dofs_per_face);
+        }
+
+      // The matrix describes a rotation and we have to build a
+      // transformation matrix, we assume that for a 0* rotation
+      // we would have to build the identity matrix
+
+      Assert(matrix.m() == (int)spacedim, ExcInternalError())
+
+      Quadrature<dim-1> quadrature (fe.get_unit_face_support_points());
+
+      // have an array that stores the location of each vector-dof tuple
+      // we want to rotate.
+      typedef std_cxx1x::array<unsigned int, spacedim> DoFTuple;
+
+      // start with a pristine interpolation matrix...
+      FullMatrix<double> transformation = IdentityMatrix(n_dofs_per_face);
+
+      for (unsigned int i=0; i < n_dofs_per_face; ++i)
+        {
+          std::vector<unsigned int>::const_iterator comp_it
+            = std::find (first_vector_components.begin(),
+                         first_vector_components.end(),
+                         fe.face_system_to_component_index(i).first);
+          if (comp_it != first_vector_components.end())
+            {
+              const unsigned int first_vector_component = *comp_it;
+
+              // find corresponding other components of vector
+              DoFTuple vector_dofs;
+              vector_dofs[0] = i;
+              unsigned int n_found = 1;
+
+              Assert(*comp_it + spacedim <= fe.n_components(),
+                     ExcMessage("Error: the finite element does not have enough components "
+                                "to define rotated periodic boundaries."));
+
+              for (unsigned int k = 0; k < n_dofs_per_face; ++k)
+                if ((k != i) &&
+                    (quadrature.point(k) == quadrature.point(i)) &&
+                    (fe.face_system_to_component_index(k).first >=
+                     first_vector_component) &&
+                    (fe.face_system_to_component_index(k).first <
+                     first_vector_component + spacedim))
+                  {
+                    vector_dofs[fe.face_system_to_component_index(k).first -
+                                first_vector_component]
+                      = k;
+                    n_found++;
+                    if (n_found==dim)
+                      break;
+                  }
+
+              // ... and rotate all dofs belonging to vector valued
+              // components that are selected by first_vector_components:
+              for (int i = 0; i < spacedim; ++i)
+                {
+                  transformation[vector_dofs[i]][vector_dofs[i]] = 0.;
+                  for (int j = 0; j < spacedim; ++j)
+                    transformation[vector_dofs[i]][vector_dofs[j]] = matrix[i][j];
+                }
+            }
+        }
+      return transformation;
+    }
+
+  } /*namespace*/
+
+
+  // Low level interface:
 
 
   template <typename FaceIterator>
@@ -1881,9 +2166,12 @@ namespace DoFTools
                                 const ComponentMask                         &component_mask,
                                 const bool                                   face_orientation,
                                 const bool                                   face_flip,
-                                const bool                                   face_rotation)
+                                const bool                                   face_rotation,
+                                const FullMatrix<double>                    &matrix,
+                                const std::vector<unsigned int>             &first_vector_components)
   {
     static const int dim = FaceIterator::AccessorType::dimension;
+    static const int spacedim = FaceIterator::AccessorType::space_dimension;
 
     Assert( (dim != 1) ||
             (face_orientation == true &&
@@ -1905,8 +2193,48 @@ namespace DoFTools
                        "on the very same face"));
 
     Assert(face_1->at_boundary() && face_2->at_boundary(),
-           ExcMessage ("Faces for periodicity constraints must be on the boundary"));
+           ExcMessage ("Faces for periodicity constraints must be on the "
+                       "boundary"));
 
+    Assert(matrix.m() == matrix.n(),
+           ExcMessage("The supplied (rotation or interpolation) matrix must "
+                      "be a square matrix"));
+
+    Assert(first_vector_components.empty() || matrix.m() == (int)spacedim,
+           ExcMessage ("first_vector_components is nonempty, so matrix must "
+                       "be a rotation matrix exactly of size spacedim"));
+
+#ifdef DEBUG
+    if (!face_1->has_children())
+      {
+        Assert(face_1->n_active_fe_indices() == 1, ExcInternalError());
+        const unsigned int n_dofs_per_face =
+          face_1->get_fe(face_1->nth_active_fe_index(0)).dofs_per_face;
+
+        Assert(matrix.m() == 0
+               || (first_vector_components.empty() && matrix.m() == n_dofs_per_face)
+               || (!first_vector_components.empty() && matrix.m() == (int)spacedim),
+               ExcMessage ("The matrix must have either size 0 or spacedim "
+                           "(if first_vector_components is nonempty) "
+                           "or the size must be equal to the # of DoFs on the face "
+                           "(if first_vector_components is empty)."));
+      }
+
+    if (!face_2->has_children())
+      {
+        Assert(face_2->n_active_fe_indices() == 1, ExcInternalError());
+        const unsigned int n_dofs_per_face =
+          face_2->get_fe(face_2->nth_active_fe_index(0)).dofs_per_face;
+
+        Assert(matrix.m() == 0
+               || (first_vector_components.empty() && matrix.m() == n_dofs_per_face)
+               || (!first_vector_components.empty() && matrix.m() == (int)spacedim),
+               ExcMessage ("The matrix must have either size 0 or spacedim "
+                           "(if first_vector_components is nonempty) "
+                           "or the size must be equal to the # of DoFs on the face "
+                           "(if first_vector_components is empty)."));
+      }
+#endif
 
     // A lookup table on how to go through the child faces depending on the
     // orientation:
@@ -1937,15 +2265,18 @@ namespace DoFTools
       },
     };
 
-    // In the case that both faces have children, we loop over all
-    // children and apply make_periodicty_constrains recursively:
     if (face_1->has_children() && face_2->has_children())
       {
+        // In the case that both faces have children, we loop over all
+        // children and apply make_periodicty_constrains recursively:
+
         Assert(face_1->n_children() == GeometryInfo<dim>::max_children_per_face &&
-               face_2->n_children() == GeometryInfo<dim>::max_children_per_face,
+               face_2->n_children() ==
+               GeometryInfo<dim>::max_children_per_face,
                ExcNotImplemented());
 
-        for (unsigned int i = 0; i < GeometryInfo<dim>::max_children_per_face; ++i)
+        for (unsigned int i = 0; i < GeometryInfo<dim>::max_children_per_face;
+             ++i)
           {
             // Lookup the index for the second face
             unsigned int j;
@@ -1967,152 +2298,109 @@ namespace DoFTools
                                           component_mask,
                                           face_orientation,
                                           face_flip,
-                                          face_rotation);
+                                          face_rotation,
+                                          matrix,
+                                          first_vector_components);
           }
       }
     else
-      // otherwise at least one of the two faces is active and
-      // we need to enter the constraints
       {
-        if (face_2->has_children() == false)
-          set_periodicity_constraints(face_2, face_1,
-                                      FullMatrix<double>(IdentityMatrix(face_1->get_fe(face_1->nth_active_fe_index(0)).dofs_per_face)),
-                                      constraint_matrix,
-                                      component_mask,
-                                      face_orientation, face_flip, face_rotation);
+        // Otherwise at least one of the two faces is active and
+        // we need to do some work and enter the constraints!
+
+        // The finite element that matters is the one on the active face:
+        const FiniteElement<dim,spacedim> &fe =
+          face_1->has_children()
+          ? face_2->get_fe(face_2->nth_active_fe_index(0))
+          : face_1->get_fe(face_1->nth_active_fe_index(0));
+
+        const unsigned int n_dofs_per_face = fe.dofs_per_face;
+
+        // Sometimes we just have nothing to do (for all finite elements,
+        // or systems which accidentally don't have any dofs on the
+        // boundary).
+        if (n_dofs_per_face == 0)
+          return;
+
+        const FullMatrix<double> transformation =
+          compute_transformation(fe, matrix, first_vector_components);
+
+        if (! face_2->has_children())
+          {
+            // Performance hack: We do not need to compute an inverse if
+            // the matrix is the identity matrix.
+            if (first_vector_components.empty() && matrix.m() == 0)
+              {
+                set_periodicity_constraints(face_2,
+                                            face_1,
+                                            transformation,
+                                            constraint_matrix,
+                                            component_mask,
+                                            face_orientation,
+                                            face_flip,
+                                            face_rotation);
+              }
+            else
+              {
+                FullMatrix<double> inverse(transformation.m());
+                inverse.invert(transformation);
+
+                set_periodicity_constraints(face_2,
+                                            face_1,
+                                            inverse,
+                                            constraint_matrix,
+                                            component_mask,
+                                            face_orientation,
+                                            face_flip,
+                                            face_rotation);
+              }
+          }
         else
-          set_periodicity_constraints(face_1, face_2,
-                                      FullMatrix<double>(IdentityMatrix(face_1->get_fe(face_1->nth_active_fe_index(0)).dofs_per_face)),
-                                      constraint_matrix,
-                                      component_mask,
-                                      face_orientation, face_flip, face_rotation);
+          {
+            Assert(!face_1->has_children(), ExcInternalError());
+
+            // Important note:
+            // In 3D we have to take care of the fact that face_rotation
+            // gives the relative rotation of face_1 to face_2, i.e. we
+            // have to invert the rotation when constraining face_2 to
+            // face_1. Therefore face_flip has to be toggled if
+            // face_rotation is true:
+            // In case of inverted orientation, nothing has to be done.
+            set_periodicity_constraints(face_1,
+                                        face_2,
+                                        transformation,
+                                        constraint_matrix,
+                                        component_mask,
+                                        face_orientation,
+                                        face_orientation
+                                        ? face_rotation ^ face_flip
+                                        : face_flip,
+                                        face_rotation);
+          }
       }
   }
 
 
 
-  template<typename DH>
-  void
-  make_periodicity_constraints (const DH                       &dof_handler,
-                                const types::boundary_id       b_id1,
-                                const types::boundary_id       b_id2,
-                                const int                      direction,
-                                dealii::ConstraintMatrix       &constraint_matrix,
-                                const ComponentMask            &component_mask)
-  {
-    Tensor<1,DH::space_dimension> dummy;
-    make_periodicity_constraints (dof_handler,
-                                  b_id1,
-                                  b_id2,
-                                  direction,
-                                  dummy,
-                                  constraint_matrix,
-                                  component_mask);
-  }
-
-
-
-  template<typename DH>
-  void
-  make_periodicity_constraints (const DH                  &dof_handler,
-                                const types::boundary_id  b_id1,
-                                const types::boundary_id  b_id2,
-                                const int                 direction,
-                                dealii::Tensor<1,DH::space_dimension> &offset,
-                                dealii::ConstraintMatrix  &constraint_matrix,
-                                const ComponentMask       &component_mask)
-  {
-    static const int space_dim = DH::space_dimension;
-    Assert (0<=direction && direction<space_dim,
-            ExcIndexRange (direction, 0, space_dim));
-
-    Assert (b_id1 != b_id2,
-            ExcMessage ("The boundary indicators b_id1 and b_id2 must be"
-                        "different to denote different boundaries."));
-
-    std::vector<GridTools::PeriodicFacePair
-    <typename DH::cell_iterator> > matched_faces;
-
-    // Collect matching periodic cells on the coarsest level:
-    GridTools::collect_periodic_faces(dof_handler, b_id1, b_id2, direction,
-                                      matched_faces, offset);
-
-    make_periodicity_constraints<DH>
-    (matched_faces, constraint_matrix, component_mask);
-  }
-
-
-
-  template<typename DH>
-  void
-  make_periodicity_constraints (const DH                       &dof_handler,
-                                const types::boundary_id       b_id,
-                                const int                      direction,
-                                dealii::ConstraintMatrix       &constraint_matrix,
-                                const ComponentMask            &component_mask)
-  {
-    Tensor<1,DH::space_dimension> dummy;
-    make_periodicity_constraints (dof_handler,
-                                  b_id,
-                                  direction,
-                                  dummy,
-                                  constraint_matrix,
-                                  component_mask);
-  }
-
-
-
-  template<typename DH>
-  void
-  make_periodicity_constraints (const DH                  &dof_handler,
-                                const types::boundary_id  b_id,
-                                const int                 direction,
-                                dealii::Tensor<1,DH::space_dimension> &offset,
-                                dealii::ConstraintMatrix  &constraint_matrix,
-                                const ComponentMask       &component_mask)
-  {
-    static const int dim = DH::dimension;
-    static const int space_dim = DH::space_dimension;
-
-    Assert (0<=direction && direction<space_dim,
-            ExcIndexRange (direction, 0, space_dim));
-
-    Assert(dim == space_dim,
-           ExcNotImplemented());
-
-    std::vector<GridTools::PeriodicFacePair
-    <typename DH::cell_iterator> > matched_faces;
-
-    // Collect matching periodic cells on the coarsest level:
-    GridTools::collect_periodic_faces(dof_handler, b_id, direction,
-                                      matched_faces, offset);
-
-    make_periodicity_constraints<DH>
-    (matched_faces, constraint_matrix, component_mask);
-  }
-
-
-
-  template<typename DH>
+  template<typename DoFHandlerType>
   void
   make_periodicity_constraints
-  (const std::vector<GridTools::PeriodicFacePair<typename DH::cell_iterator> >
+  (const std::vector<GridTools::PeriodicFacePair<typename DoFHandlerType::cell_iterator> >
    &periodic_faces,
-   dealii::ConstraintMatrix &constraint_matrix,
-   const ComponentMask      &component_mask)
+   dealii::ConstraintMatrix        &constraint_matrix,
+   const ComponentMask             &component_mask,
+   const std::vector<unsigned int> &first_vector_components)
   {
-    typedef std::vector<GridTools::PeriodicFacePair<typename DH::cell_iterator> >
+    typedef std::vector<GridTools::PeriodicFacePair<typename DoFHandlerType::cell_iterator> >
     FaceVector;
     typename FaceVector::const_iterator it, end_periodic;
     it = periodic_faces.begin();
     end_periodic = periodic_faces.end();
 
-
-    // And apply the low level make_periodicity_constraints function to
-    // every matching pair:
+    // Loop over all periodic faces...
     for (; it!=end_periodic; ++it)
       {
-        typedef typename DH::face_iterator FaceIterator;
+        typedef typename DoFHandlerType::face_iterator FaceIterator;
         const FaceIterator face_1 = it->cell[0]->face(it->face_idx[0]);
         const FaceIterator face_2 = it->cell[1]->face(it->face_idx[1]);
 
@@ -2122,14 +2410,83 @@ namespace DoFTools
         Assert (face_1 != face_2,
                 ExcInternalError());
 
+        // ... and apply the low level make_periodicity_constraints function to
+        // every matching pair:
         make_periodicity_constraints(face_1,
                                      face_2,
                                      constraint_matrix,
                                      component_mask,
                                      it->orientation[0],
                                      it->orientation[1],
-                                     it->orientation[2]);
+                                     it->orientation[2],
+                                     it->matrix,
+                                     first_vector_components);
       }
+  }
+
+
+  // High level interface variants:
+
+
+  template<typename DoFHandlerType>
+  void
+  make_periodicity_constraints (const DoFHandlerType     &dof_handler,
+                                const types::boundary_id  b_id1,
+                                const types::boundary_id  b_id2,
+                                const int                 direction,
+                                dealii::ConstraintMatrix &constraint_matrix,
+                                const ComponentMask      &component_mask)
+  {
+    static const int space_dim = DoFHandlerType::space_dimension;
+    (void)space_dim;
+    Assert (0<=direction && direction<space_dim,
+            ExcIndexRange (direction, 0, space_dim));
+
+    Assert (b_id1 != b_id2,
+            ExcMessage ("The boundary indicators b_id1 and b_id2 must be"
+                        "different to denote different boundaries."));
+
+    std::vector<GridTools::PeriodicFacePair
+    <typename DoFHandlerType::cell_iterator> > matched_faces;
+
+    // Collect matching periodic cells on the coarsest level:
+    GridTools::collect_periodic_faces(dof_handler, b_id1, b_id2, direction,
+                                      matched_faces);
+
+    make_periodicity_constraints<DoFHandlerType>
+    (matched_faces, constraint_matrix, component_mask);
+  }
+
+
+
+  template<typename DoFHandlerType>
+  void
+  make_periodicity_constraints (const DoFHandlerType            &dof_handler,
+                                const types::boundary_id         b_id,
+                                const int                        direction,
+                                dealii::ConstraintMatrix        &constraint_matrix,
+                                const ComponentMask             &component_mask)
+  {
+    static const int dim = DoFHandlerType::dimension;
+    static const int space_dim = DoFHandlerType::space_dimension;
+    (void)dim;
+    (void)space_dim;
+
+    Assert (0<=direction && direction<space_dim,
+            ExcIndexRange (direction, 0, space_dim));
+
+    Assert(dim == space_dim,
+           ExcNotImplemented());
+
+    std::vector<GridTools::PeriodicFacePair
+    <typename DoFHandlerType::cell_iterator> > matched_faces;
+
+    // Collect matching periodic cells on the coarsest level:
+    GridTools::collect_periodic_faces(dof_handler, b_id, direction,
+                                      matched_faces);
+
+    make_periodicity_constraints<DoFHandlerType>
+    (matched_faces, constraint_matrix, component_mask);
   }
 
 
@@ -2146,7 +2503,11 @@ namespace DoFTools
       {
         unsigned int                         dofs_per_cell;
         std::vector<types::global_dof_index> parameter_dof_indices;
+#ifdef DEAL_II_WITH_MPI
+        std::vector<dealii::LinearAlgebra::distributed::Vector<double> > global_parameter_representation;
+#else
         std::vector<dealii::Vector<double> > global_parameter_representation;
+#endif
       };
     }
 
@@ -2165,8 +2526,7 @@ namespace DoFTools
         const unsigned int                                                     coarse_component,
         const FiniteElement<dim,spacedim>                                     &coarse_fe,
         const InterGridMap<dealii::DoFHandler<dim,spacedim> >                 &coarse_to_fine_grid_map,
-        const std::vector<dealii::Vector<double> >                            &parameter_dofs,
-        const std::vector<types::global_dof_index>                            &weight_mapping)
+        const std::vector<dealii::Vector<double> >                            &parameter_dofs)
       {
         // for each cell on the parameter grid: find out which degrees of
         // freedom on the fine grid correspond in which way to the degrees
@@ -2214,7 +2574,6 @@ namespace DoFTools
 
         // vector to hold the representation of a single degree of freedom
         // on the coarse grid (for the selected fe) on the fine grid
-        const types::global_dof_index n_fine_dofs = weight_mapping.size();
 
         copy_data.dofs_per_cell = coarse_fe.dofs_per_cell;
         copy_data.parameter_dof_indices.resize(copy_data.dofs_per_cell);
@@ -2222,9 +2581,6 @@ namespace DoFTools
         // get the global indices of the parameter dofs on this
         // parameter grid cell
         cell->get_dof_indices (copy_data.parameter_dof_indices);
-
-        // reset the output array to a pristine state
-        copy_data.global_parameter_representation.clear ();
 
         // loop over all dofs on this cell and check whether they are
         // interesting for us
@@ -2237,15 +2593,14 @@ namespace DoFTools
               const unsigned int local_parameter_dof
                 = coarse_fe.system_to_component_index(local_dof).second;
 
-              copy_data.global_parameter_representation.push_back(
-                dealii::Vector<double> (n_fine_dofs));
+              copy_data.global_parameter_representation[local_parameter_dof] = 0.;
 
               // distribute the representation of
               // @p{local_parameter_dof} on the parameter grid cell
               // @p{cell} to the global data space
               coarse_to_fine_grid_map[cell]->
               set_dof_values_by_interpolation (parameter_dofs[local_parameter_dof],
-                                               copy_data.global_parameter_representation.back());
+                                               copy_data.global_parameter_representation[local_parameter_dof]);
             }
       }
 
@@ -2261,6 +2616,7 @@ namespace DoFTools
                                     const unsigned int                                      coarse_component,
                                     const FiniteElement<dim,spacedim>                      &coarse_fe,
                                     const std::vector<types::global_dof_index>             &weight_mapping,
+                                    const bool                                              is_called_in_parallel,
                                     std::vector<std::map<types::global_dof_index, float> > &weights)
       {
         unsigned int pos = 0;
@@ -2305,9 +2661,15 @@ namespace DoFTools
                         weights[wi][wj] = copy_data.global_parameter_representation[pos](i);
                       }
                   }
-                else
-                  Assert (copy_data.global_parameter_representation[pos](i) == 0,
-                          ExcInternalError());
+                else if (!is_called_in_parallel)
+                  {
+                    // Note that when this function operates with distributed
+                    // fine grid, this assertion is switched off since the
+                    // condition does not necessarily hold
+                    Assert (copy_data.global_parameter_representation[pos](i) == 0,
+                            ExcInternalError());
+                  }
+
               ++pos;
             }
 
@@ -2333,6 +2695,47 @@ namespace DoFTools
         Assembler::Scratch scratch;
         Assembler::CopyData<dim,spacedim> copy_data;
 
+        unsigned int n_interesting_dofs = 0;
+        for (unsigned int local_dof=0; local_dof<coarse_grid.get_fe().dofs_per_cell; ++local_dof)
+          if (coarse_grid.get_fe().system_to_component_index(local_dof).first
+              ==
+              coarse_component)
+            ++n_interesting_dofs;
+
+        copy_data.global_parameter_representation.resize(n_interesting_dofs);
+
+        bool is_called_in_parallel = false;
+        for (size_t i=0; i<copy_data.global_parameter_representation.size(); ++i)
+          {
+#ifdef DEAL_II_WITH_MPI
+            MPI_Comm communicator = MPI_COMM_SELF;
+            try
+              {
+                const typename dealii::parallel::Triangulation<dim, spacedim> &tria =
+                  dynamic_cast<const typename dealii::parallel::Triangulation<dim, spacedim>&>
+                  (coarse_to_fine_grid_map.get_destination_grid().get_triangulation());
+                communicator = tria.get_communicator ();
+                is_called_in_parallel = true;
+              }
+            catch (std::bad_cast &exp)
+              {
+                // Nothing bad happened: the user used serial Triangulation
+              }
+
+            IndexSet locally_owned_dofs, locally_relevant_dofs;
+            DoFTools::extract_locally_owned_dofs
+            (coarse_to_fine_grid_map.get_destination_grid (), locally_owned_dofs);
+            DoFTools::extract_locally_relevant_dofs
+            (coarse_to_fine_grid_map.get_destination_grid (), locally_relevant_dofs);
+
+            copy_data.global_parameter_representation[i].reinit
+            (locally_owned_dofs, locally_relevant_dofs, communicator);
+#else
+            const types::global_dof_index n_fine_dofs = weight_mapping.size();
+            copy_data.global_parameter_representation[i].reinit (n_fine_dofs);
+#endif
+          }
+
         WorkStream::run(coarse_grid.begin_active(),
                         coarse_grid.end(),
                         std_cxx11::bind(&compute_intergrid_weights_3<dim,spacedim>,
@@ -2342,16 +2745,21 @@ namespace DoFTools
                                         coarse_component,
                                         std_cxx11::cref(coarse_grid.get_fe()),
                                         std_cxx11::cref(coarse_to_fine_grid_map),
-                                        std_cxx11::cref(parameter_dofs),
-                                        std_cxx11::cref(weight_mapping)),
+                                        std_cxx11::cref(parameter_dofs)),
                         std_cxx11::bind(&copy_intergrid_weights_3<dim,spacedim>,
                                         std_cxx11::_1,
                                         coarse_component,
                                         std_cxx11::cref(coarse_grid.get_fe()),
                                         std_cxx11::cref(weight_mapping),
+                                        is_called_in_parallel,
                                         std_cxx11::ref(weights)),
                         scratch,
                         copy_data);
+
+#ifdef DEAL_II_WITH_MPI
+        for (size_t i=0; i<copy_data.global_parameter_representation.size(); ++i)
+          copy_data.global_parameter_representation[i].update_ghost_values ();
+#endif
       }
 
 
@@ -2392,7 +2800,7 @@ namespace DoFTools
 
         // Try to find out whether the grids stem from the same coarse
         // grid. This is a rather crude test, but better than nothing
-        Assert (coarse_grid.get_tria().n_cells(0) == fine_grid.get_tria().n_cells(0),
+        Assert (coarse_grid.get_triangulation().n_cells(0) == fine_grid.get_triangulation().n_cells(0),
                 ExcGridsDontMatch());
 
         // check whether the map correlates the right objects
@@ -2478,12 +2886,13 @@ namespace DoFTools
             for (typename dealii::DoFHandler<dim,spacedim>::active_cell_iterator
                  cell=fine_grid.begin_active();
                  cell!=fine_grid.end(); ++cell)
-              {
-                cell->get_dof_indices (local_dof_indices);
-                for (unsigned int i=0; i<fine_fe.dofs_per_cell; ++i)
-                  if (fine_fe.system_to_component_index(i).first == fine_component)
-                    dof_is_interesting[local_dof_indices[i]] = true;
-              };
+              if (cell->is_locally_owned ())
+                {
+                  cell->get_dof_indices (local_dof_indices);
+                  for (unsigned int i=0; i<fine_fe.dofs_per_cell; ++i)
+                    if (fine_fe.system_to_component_index(i).first == fine_component)
+                      dof_is_interesting[local_dof_indices[i]] = true;
+                };
 
             n_parameters_on_fine_grid = std::count (dof_is_interesting.begin(),
                                                     dof_is_interesting.end(),
@@ -2505,18 +2914,19 @@ namespace DoFTools
             for (typename dealii::DoFHandler<dim,spacedim>::active_cell_iterator
                  cell=fine_grid.begin_active();
                  cell != fine_grid.end(); ++cell)
-              {
-                cell->get_dof_indices (local_dof_indices);
-                for (unsigned int i=0; i<fine_fe.dofs_per_cell; ++i)
-                  // if this DoF is a parameter dof and has not yet been
-                  // numbered, then do so
-                  if ((fine_fe.system_to_component_index(i).first == fine_component) &&
-                      (weight_mapping[local_dof_indices[i]] == numbers::invalid_dof_index))
-                    {
-                      weight_mapping[local_dof_indices[i]] = next_free_index;
-                      ++next_free_index;
-                    };
-              };
+              if (cell->is_locally_owned ())
+                {
+                  cell->get_dof_indices (local_dof_indices);
+                  for (unsigned int i=0; i<fine_fe.dofs_per_cell; ++i)
+                    // if this DoF is a parameter dof and has not yet been
+                    // numbered, then do so
+                    if ((fine_fe.system_to_component_index(i).first == fine_component) &&
+                        (weight_mapping[local_dof_indices[i]] == numbers::invalid_dof_index))
+                      {
+                        weight_mapping[local_dof_indices[i]] = next_free_index;
+                        ++next_free_index;
+                      };
+                };
 
             Assert (next_free_index == n_parameters_on_fine_grid,
                     ExcInternalError());
@@ -2614,6 +3024,7 @@ namespace DoFTools
                                                fine_grid, fine_component,
                                                coarse_to_fine_grid_map,
                                                weights, weight_mapping);
+    (void)n_parameters_on_fine_grid;
 
     // global numbers of dofs
     const types::global_dof_index n_coarse_dofs = coarse_grid.n_dofs(),
@@ -2829,12 +3240,12 @@ namespace DoFTools
 
 
 
-  template <int dim, int spacedim, template <int,int> class DH>
+  template <int dim, int spacedim, template <int, int> class DoFHandlerType>
   void
-  make_zero_boundary_constraints (const DH<dim, spacedim> &dof,
-                                  const types::boundary_id boundary_indicator,
-                                  ConstraintMatrix        &zero_boundary_constraints,
-                                  const ComponentMask     &component_mask)
+  make_zero_boundary_constraints (const DoFHandlerType<dim, spacedim> &dof,
+                                  const types::boundary_id             boundary_id,
+                                  ConstraintMatrix                    &zero_boundary_constraints,
+                                  const ComponentMask                 &component_mask)
   {
     Assert (component_mask.represents_n_components(dof.get_fe().n_components()),
             ExcMessage ("The number of components in the mask has to be either "
@@ -2853,7 +3264,7 @@ namespace DoFTools
     std::vector<types::global_dof_index> cell_dofs;
     cell_dofs.reserve (max_dofs_per_cell(dof));
 
-    typename DH<dim,spacedim>::active_cell_iterator
+    typename DoFHandlerType<dim,spacedim>::active_cell_iterator
     cell = dof.begin_active(),
     endc = dof.end();
     for (; cell!=endc; ++cell)
@@ -2870,15 +3281,15 @@ namespace DoFTools
           for (unsigned int face_no = 0; face_no < GeometryInfo<dim>::faces_per_cell;
                ++face_no)
             {
-              const typename DH<dim,spacedim>::face_iterator face = cell->face(face_no);
+              const typename DoFHandlerType<dim,spacedim>::face_iterator face = cell->face(face_no);
 
               // if face is on the boundary and satisfies the correct
               // boundary id property
               if (face->at_boundary ()
                   &&
-                  ((boundary_indicator == numbers::invalid_boundary_id)
+                  ((boundary_id == numbers::invalid_boundary_id)
                    ||
-                   (face->boundary_indicator() == boundary_indicator)))
+                   (face->boundary_id() == boundary_id)))
                 {
                   // get indices and physical location on this face
                   face_dofs.resize (fe.dofs_per_face);
@@ -2915,11 +3326,11 @@ namespace DoFTools
 
 
 
-  template <int dim, int spacedim, template <int,int> class DH>
+  template <int dim, int spacedim, template <int, int> class DoFHandlerType>
   void
-  make_zero_boundary_constraints (const DH<dim, spacedim> &dof,
-                                  ConstraintMatrix        &zero_boundary_constraints,
-                                  const ComponentMask     &component_mask)
+  make_zero_boundary_constraints (const DoFHandlerType<dim, spacedim> &dof,
+                                  ConstraintMatrix                    &zero_boundary_constraints,
+                                  const ComponentMask                 &component_mask)
   {
     make_zero_boundary_constraints(dof, numbers::invalid_boundary_id,
                                    zero_boundary_constraints, component_mask);

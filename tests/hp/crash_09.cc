@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,7 +51,6 @@ int main ()
   logfile.precision (3);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
 
@@ -72,7 +71,7 @@ int main ()
   hp::FECollection<3> fe;
   fe.push_back (FE_Q<3>(1));
   fe.push_back (FE_Q<3>(2));
-  fe.push_back (FE_Q<3>(3));
+  fe.push_back (FE_Q<3>(QIterated<1>(QTrapez<1>(),3)));
 
   hp::DoFHandler<3>        dof_handler(triangulation);
 
@@ -145,4 +144,3 @@ done:
 
   constraints.print (deallog.get_file_stream());
 }
-

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -434,7 +434,6 @@ int main ()
   logfile.precision (PRECISION);
   logfile.setf(std::ios::fixed);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   Triangulation<2> tria_test;
@@ -445,7 +444,7 @@ int main ()
 
   GridGenerator::hyper_rectangle (tria_test, p1, p2);
   //  tria_test.refine_global (1);
-  //  tria_test.distort_random (0.4);
+  //  GridTools::distort_random (0.4, tria_test);
 
   // Create a DoFHandler for the ABF space
   FE_ABF<2> fe (0);

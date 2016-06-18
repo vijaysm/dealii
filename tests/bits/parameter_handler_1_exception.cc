@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2013 by the deal.II authors
+// Copyright (C) 2002 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,7 +30,7 @@ void check (const char *p)
   try
     {
       prm.declare_entry ("test_1", "abc",
-			 Patterns::List(Patterns::Integer(-1,1),2,3));
+                         Patterns::List(Patterns::Integer(-1,1),2,3));
     }
   catch (const ParameterHandler::ExcValueDoesNotMatchPattern &)
     {
@@ -48,7 +48,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   check (SOURCE_DIR "/prm/parameter_handler_1_exception.prm");

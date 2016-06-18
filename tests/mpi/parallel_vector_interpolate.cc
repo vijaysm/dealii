@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2013 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,7 +19,7 @@
 #include "../tests.h"
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/index_set.h>
-#include <deal.II/lac/parallel_vector.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/distributed/tria.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -52,10 +52,10 @@ void test ()
   DoFTools::extract_locally_relevant_dofs (dof2,
                                            locally_relevant_dofs2);
 
-  parallel::distributed::Vector<double> v1(dof1.locally_owned_dofs(),
-                                           locally_relevant_dofs1,
-                                           MPI_COMM_WORLD),
-                                           v2(dof2.locally_owned_dofs(), locally_relevant_dofs2, MPI_COMM_WORLD);
+  LinearAlgebra::distributed::Vector<double> v1(dof1.locally_owned_dofs(),
+                                                locally_relevant_dofs1,
+                                                MPI_COMM_WORLD),
+                                                v2(dof2.locally_owned_dofs(), locally_relevant_dofs2, MPI_COMM_WORLD);
 
   // set first vector to 1
   VectorTools::interpolate(dof1, ConstantFunction<dim>(1.), v1);
@@ -76,7 +76,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::System::MPI_InitFinalize mpi_initialization(argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, testing_max_num_threads());
 
   unsigned int myid = Utilities::MPI::this_mpi_process (MPI_COMM_WORLD);
   deallog.push(Utilities::int_to_string(myid));
@@ -86,7 +86,6 @@ int main (int argc, char **argv)
       std::ofstream logfile("output");
       deallog.attach(logfile);
       deallog << std::setprecision(4);
-      deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
 
       test();

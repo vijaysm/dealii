@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,10 +36,14 @@
 #include <deal.II/lac/precondition.h>
 #include <typeinfo>
 
-template<class SOLVER, class MATRIX, class VECTOR, class PRECONDITION>
+template<typename SolverType, typename MatrixType, typename VectorType, class PRECONDITION>
 void
-check_solve( SOLVER &solver, const MATRIX &A,
-             VECTOR &u, VECTOR &f, const PRECONDITION &P)
+check_solve(SolverType          &solver,
+            const SolverControl &solver_control,
+            const MatrixType    &A,
+            VectorType          &u,
+            VectorType          &f,
+            const PRECONDITION  &P)
 {
   deallog << "Solver type: " << typeid(solver).name() << std::endl;
 
@@ -55,7 +59,7 @@ check_solve( SOLVER &solver, const MATRIX &A,
       abort ();
     }
 
-  deallog << "Solver stopped after " << solver.control().last_step()
+  deallog << "Solver stopped after " << solver_control.last_step()
           << " iterations" << std::endl;
 }
 
@@ -65,7 +69,6 @@ int main()
   std::ofstream logfile("output");
   deallog << std::setprecision(4);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   GrowingVectorMemory<> mem;
@@ -90,6 +93,5 @@ int main()
 
   SolverQMRS<> solver(control, mem);
   PreconditionIdentity preconditioner;
-  check_solve (solver, A,u,f, preconditioner);
+  check_solve (solver, control, A,u,f, preconditioner);
 }
-

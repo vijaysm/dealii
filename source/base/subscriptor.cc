@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -24,6 +24,7 @@
 DEAL_II_NAMESPACE_OPEN
 
 
+#ifdef DEBUG
 namespace
 {
 // create a lock that might be used to control subscription to and
@@ -37,6 +38,7 @@ namespace
 // <subscriptor.h> file).
   Threads::Mutex subscription_lock;
 }
+#endif
 
 
 static const char *unknown_subscriber = "unknown subscriber";
@@ -46,7 +48,11 @@ Subscriptor::Subscriptor ()
   :
   counter (0),
   object_info (0)
-{}
+{
+  // this has to go somewhere to avoid an extra warning.
+  (void)unknown_subscriber;
+}
+
 
 
 Subscriptor::Subscriptor (const Subscriptor &)
@@ -56,39 +62,53 @@ Subscriptor::Subscriptor (const Subscriptor &)
 {}
 
 
+
+#ifdef DEAL_II_WITH_CXX11
+Subscriptor::Subscriptor (Subscriptor &&subscriptor)
+  :
+  counter(0),
+  object_info (subscriptor.object_info)
+{
+  subscriptor.check_no_subscribers();
+}
+#endif
+
+
+
 Subscriptor::~Subscriptor ()
 {
-  // check whether there are still
-  // subscriptions to this object. if
-  // so, output the actual name of
-  // the class to which this object
-  // belongs, i.e. the most derived
-  // class. note that the name may be
-  // mangled, so it need not be the
-  // clear-text class name. however,
-  // you can obtain the latter by
-  // running the c++filt program over
-  // the output.
+  check_no_subscribers();
+
+#ifdef DEAL_II_WITH_CXX11
+  object_info = nullptr;
+#else
+  object_info = 0;
+#endif
+}
+
+
+void Subscriptor::check_no_subscribers () const
+{
+  // Check whether there are still subscriptions to this object. If so, output
+  // the actual name of the class to which this object belongs, i.e. the most
+  // derived class. Note that the name may be mangled, so it need not be the
+  // clear-text class name. However, you can obtain the latter by running the
+  // c++filt program over the output.
 #ifdef DEBUG
 
-  // if there are still active pointers, show
-  // a message and kill the program. However,
-  // under some circumstances, this is not so
-  // desirable. For example, in code like this
+  // If there are still active pointers, show a message and kill the program.
+  // However, under some circumstances, this is not so desirable. For example,
+  // in code like this:
   //
-  // Triangulation tria;
-  // DoFHandler *dh = new DoFHandler(tria);
-  // ...some function that throws an exception
+  //     Triangulation tria;
+  //     DoFHandler *dh = new DoFHandler(tria);
+  //     ...some function that throws an exception
   //
-  // the exception will lead to the
-  // destruction of the triangulation, but
-  // since the dof_handler is on the heap it
-  // will not be destroyed. This will trigger
-  // an assertion in the triangulation. If we
-  // kill the program at this point, we will
-  // never be able to learn what caused the
-  // problem. In this situation, just display
-  // a message and continue the program.
+  // the exception will lead to the destruction of the triangulation, but since
+  // the dof_handler is on the heap it will not be destroyed. This will trigger
+  // an assertion in the triangulation. If we kill the program at this point, we
+  // will never be able to learn what caused the problem. In this situation,
+  // just display a message and continue the program.
   if (counter != 0)
     {
       if (std::uncaught_exception() == false)
@@ -125,11 +145,7 @@ Subscriptor::~Subscriptor ()
                     << std::endl;
         }
     }
-  // In case we do not abort
-  // on error, this will tell
-  // do_unsubscribe below that the
-  // object is unused now.
-  counter = 0;
+
 #endif
 }
 
@@ -141,6 +157,16 @@ Subscriptor &Subscriptor::operator = (const Subscriptor &s)
   return *this;
 }
 
+
+
+#ifdef DEAL_II_WITH_CXX11
+Subscriptor &Subscriptor::operator = (Subscriptor &&s)
+{
+  s.check_no_subscribers();
+  object_info = s.object_info;
+  return *this;
+}
+#endif
 
 
 void
@@ -161,6 +187,8 @@ Subscriptor::subscribe(const char *id) const
 
   else
     it->second++;
+#  else
+  (void)id;
 #  endif
 #else
   (void)id;

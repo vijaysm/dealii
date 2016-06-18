@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,8 +27,9 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace Algorithms
 {
-  template <class VECTOR>
-  Newton<VECTOR>::Newton(Operator<VECTOR> &residual, Operator<VECTOR> &inverse_derivative)
+  template <typename VectorType>
+  Newton<VectorType>::Newton(OperatorBase &residual,
+                             OperatorBase &inverse_derivative)
     :
     residual(&residual), inverse_derivative(&inverse_derivative),
     assemble_now(false),
@@ -39,9 +40,9 @@ namespace Algorithms
   {}
 
 
-  template <class VECTOR>
+  template <typename VectorType>
   void
-  Newton<VECTOR>::declare_parameters(ParameterHandler &param)
+  Newton<VectorType>::declare_parameters(ParameterHandler &param)
   {
     param.enter_subsection("Newton");
     ReductionControl::declare_parameters (param);
@@ -52,9 +53,9 @@ namespace Algorithms
     param.leave_subsection();
   }
 
-  template <class VECTOR>
+  template <typename VectorType>
   void
-  Newton<VECTOR>::parse_parameters (ParameterHandler &param)
+  Newton<VectorType>::parse_parameters (ParameterHandler &param)
   {
     param.enter_subsection("Newton");
     control.parse_parameters (param);
@@ -64,32 +65,25 @@ namespace Algorithms
     param.leave_subsection ();
   }
 
-  template <class VECTOR>
+  template <typename VectorType>
   void
-  Newton<VECTOR>::initialize (ParameterHandler &param)
-  {
-    parse_parameters(param);
-  }
-
-  template <class VECTOR>
-  void
-  Newton<VECTOR>::initialize (OutputOperator<VECTOR> &output)
+  Newton<VectorType>::initialize (OutputOperator<VectorType> &output)
   {
     data_out = &output;
   }
 
-  template <class VECTOR>
+  template <typename VectorType>
   void
-  Newton<VECTOR>::notify(const Event &e)
+  Newton<VectorType>::notify(const Event &e)
   {
     residual->notify(e);
     inverse_derivative->notify(e);
   }
 
 
-  template <class VECTOR>
+  template <typename VectorType>
   double
-  Newton<VECTOR>::threshold(const double thr)
+  Newton<VectorType>::threshold(const double thr)
   {
     const double t = assemble_threshold;
     assemble_threshold = thr;
@@ -97,56 +91,50 @@ namespace Algorithms
   }
 
 
-  template <class VECTOR>
+  template <typename VectorType>
   void
-  Newton<VECTOR>::operator() (NamedData<VECTOR *> &out, const NamedData<VECTOR *> &in)
-  {
-    Operator<VECTOR>::operator() (out, in);
-  }
-
-  template <class VECTOR>
-  void
-  Newton<VECTOR>::operator() (AnyData &out, const AnyData &in)
+  Newton<VectorType>::operator() (AnyData &out, const AnyData &in)
   {
     Assert (out.size() == 1, ExcNotImplemented());
     deallog.push ("Newton");
 
-    VECTOR &u = *out.entry<VECTOR *>(0);
+    VectorType &u = *out.entry<VectorType *>(0);
 
     if (debug>2)
       deallog << "u: " << u.l2_norm() << std::endl;
 
-    GrowingVectorMemory<VECTOR> mem;
-    typename VectorMemory<VECTOR>::Pointer Du(mem);
-    typename VectorMemory<VECTOR>::Pointer res(mem);
+    GrowingVectorMemory<VectorType> mem;
+    typename VectorMemory<VectorType>::Pointer Du(mem);
+    typename VectorMemory<VectorType>::Pointer res(mem);
 
+    Du->reinit(u);
     res->reinit(u);
     AnyData src1;
     AnyData src2;
-    src1.add<const VECTOR *>(&u, "Newton iterate");
+    src1.add<const VectorType *>(&u, "Newton iterate");
     src1.merge(in);
-    src2.add<const VECTOR *>(res, "Newton residual");
+    src2.add<const VectorType *>(res, "Newton residual");
     src2.merge(src1);
     AnyData out1;
-    out1.add<VECTOR *>(res, "Residual");
+    out1.add<VectorType *>(res, "Residual");
     AnyData out2;
-    out2.add<VECTOR *>(Du, "Update");
+    out2.add<VectorType *>(Du, "Update");
 
     unsigned int step = 0;
     // fill res with (f(u), v)
     (*residual)(out1, src1);
     double resnorm = res->l2_norm();
-    double old_residual = resnorm / assemble_threshold + 1;
+    double old_residual = 0.;
 
     if (debug_vectors)
       {
-        NamedData<VECTOR *> out;
-        VECTOR *p = &u;
-        out.add(p, "solution");
+        AnyData out;
+        VectorType *p = &u;
+        out.add<const VectorType *>(p, "solution");
         p = Du;
-        out.add(p, "update");
+        out.add<const VectorType *>(p, "update");
         p = res;
-        out.add(p, "residual");
+        out.add<const VectorType *>(p, "residual");
         *data_out << step;
         *data_out << out;
       }
@@ -154,7 +142,7 @@ namespace Algorithms
     while (control.check(step++, resnorm) == SolverControl::iterate)
       {
         // assemble (Df(u), v)
-        if (resnorm/old_residual >= assemble_threshold)
+        if ((step > 1) && (resnorm/old_residual >= assemble_threshold))
           inverse_derivative->notify (Events::bad_derivative);
 
         Du->reinit(u);
@@ -171,13 +159,13 @@ namespace Algorithms
 
         if (debug_vectors)
           {
-            NamedData<VECTOR *> out;
-            VECTOR *p = &u;
-            out.add(p, "solution");
+            AnyData out;
+            VectorType *p = &u;
+            out.add<const VectorType *>(p, "solution");
             p = Du;
-            out.add(p, "update");
+            out.add<const VectorType *>(p, "update");
             p = res;
-            out.add(p, "residual");
+            out.add<const VectorType *>(p, "residual");
             *data_out << step;
             *data_out << out;
           }

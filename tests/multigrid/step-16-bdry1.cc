@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,7 +51,6 @@
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/error_estimator.h>
 
-#include <deal.II/multigrid/mg_dof_handler.h>
 #include <deal.II/multigrid/multigrid.h>
 #include <deal.II/multigrid/mg_transfer.h>
 #include <deal.II/multigrid/mg_tools.h>
@@ -76,48 +75,48 @@ class LaplaceMatrix : public MeshWorker::LocalIntegrator<dim>
 {
 public:
   LaplaceMatrix();
-  virtual void cell(MeshWorker::DoFInfo<dim>& dinfo, MeshWorker::IntegrationInfo<dim>& info) const;
-  virtual void boundary(MeshWorker::DoFInfo<dim>& dinfo, MeshWorker::IntegrationInfo<dim>& info) const;
-  virtual void face(MeshWorker::DoFInfo<dim>& dinfo1, MeshWorker::DoFInfo<dim>& dinfo2,
-		    MeshWorker::IntegrationInfo<dim>& info1, MeshWorker::IntegrationInfo<dim>& info2) const;
+  virtual void cell(MeshWorker::DoFInfo<dim> &dinfo, MeshWorker::IntegrationInfo<dim> &info) const;
+  virtual void boundary(MeshWorker::DoFInfo<dim> &dinfo, MeshWorker::IntegrationInfo<dim> &info) const;
+  virtual void face(MeshWorker::DoFInfo<dim> &dinfo1, MeshWorker::DoFInfo<dim> &dinfo2,
+                    MeshWorker::IntegrationInfo<dim> &info1, MeshWorker::IntegrationInfo<dim> &info2) const;
 };
 
 
 template <int dim>
 LaplaceMatrix<dim>::LaplaceMatrix()
-		:
-		MeshWorker::LocalIntegrator<dim>(true, false, false)
+  :
+  MeshWorker::LocalIntegrator<dim>(true, false, false)
 {}
 
 
 template <int dim>
-void LaplaceMatrix<dim>::cell(MeshWorker::DoFInfo<dim>& dinfo, MeshWorker::IntegrationInfo<dim>& info) const
+void LaplaceMatrix<dim>::cell(MeshWorker::DoFInfo<dim> &dinfo, MeshWorker::IntegrationInfo<dim> &info) const
 {
-  AssertDimension (dinfo.n_matrices(), 1);  
+  AssertDimension (dinfo.n_matrices(), 1);
   Laplace::cell_matrix(dinfo.matrix(0,false).matrix, info.fe_values(0));
 }
 
 
 template <int dim>
-void LaplaceMatrix<dim>::boundary(MeshWorker::DoFInfo<dim>& /*dinfo*/,
-				  typename MeshWorker::IntegrationInfo<dim>& /*info*/) const
+void LaplaceMatrix<dim>::boundary(MeshWorker::DoFInfo<dim> & /*dinfo*/,
+                                  typename MeshWorker::IntegrationInfo<dim> & /*info*/) const
 {
 //  const unsigned int deg = info.fe_values(0).get_fe().tensor_degree();
 //  Laplace::nitsche_matrix(dinfo.matrix(0,false).matrix, info.fe_values(0),
-//  			  Laplace::compute_penalty(dinfo, dinfo, deg, deg));
+//          Laplace::compute_penalty(dinfo, dinfo, deg, deg));
 }
 
 
 template <int dim>
 void LaplaceMatrix<dim>::face(
-  MeshWorker::DoFInfo<dim>& /*dinfo1*/, MeshWorker::DoFInfo<dim>& /*dinfo2*/,
-  MeshWorker::IntegrationInfo<dim>& /*info1*/, MeshWorker::IntegrationInfo<dim>& /*info2*/) const
+  MeshWorker::DoFInfo<dim> & /*dinfo1*/, MeshWorker::DoFInfo<dim> & /*dinfo2*/,
+  MeshWorker::IntegrationInfo<dim> & /*info1*/, MeshWorker::IntegrationInfo<dim> & /*info2*/) const
 {
 //  const unsigned int deg = info1.fe_values(0).get_fe().tensor_degree();
-//  Laplace::ip_matrix(dinfo1.matrix(0,false).matrix, dinfo1.matrix(0,true).matrix, 
-//		     dinfo2.matrix(0,true).matrix, dinfo2.matrix(0,false).matrix,
-//		     info1.fe_values(0), info2.fe_values(0),
-//		     Laplace::compute_penalty(dinfo1, dinfo2, deg, deg));
+//  Laplace::ip_matrix(dinfo1.matrix(0,false).matrix, dinfo1.matrix(0,true).matrix,
+//         dinfo2.matrix(0,true).matrix, dinfo2.matrix(0,false).matrix,
+//         info1.fe_values(0), info2.fe_values(0),
+//         Laplace::compute_penalty(dinfo1, dinfo2, deg, deg));
 }
 
 template <int dim>
@@ -130,14 +129,14 @@ public:
 private:
   void setup_system ();
   void assemble_system ();
-  void assemble_multigrid (const bool &use_mw);
-  void solve ();
-  void refine_grid (const std::string& reftype);
+  void assemble_multigrid (bool use_mw);
+  void solve (bool use_mw);
+  void refine_grid (const std::string &reftype);
   void output_results (const unsigned int cycle) const;
 
   Triangulation<dim>   triangulation;
   FE_Q<dim>            fe;
-  MGDoFHandler<dim>    mg_dof_handler;
+  DoFHandler<dim>    mg_dof_handler;
 
   SparsityPattern      sparsity_pattern;
   SparseMatrix<double> system_matrix;
@@ -182,7 +181,7 @@ double Coefficient<dim>::value (const Point<dim> &p,
 //  if (p.square() < 0.5*0.5)
 //    return 20;
 //  else
-    return 1;
+  return 1;
 }
 
 
@@ -220,7 +219,8 @@ LaplaceProblem<dim>::LaplaceProblem (const unsigned int degree)
 template <int dim>
 void LaplaceProblem<dim>::setup_system ()
 {
-  mg_dof_handler.distribute_dofs (fe);
+  mg_dof_handler.distribute_dofs(fe);
+  mg_dof_handler.distribute_mg_dofs (fe);
   deallog << "Number of degrees of freedom: "
           << mg_dof_handler.n_dofs();
 
@@ -246,7 +246,7 @@ void LaplaceProblem<dim>::setup_system ()
   typename FunctionMap<dim>::type      dirichlet_boundary;
   ZeroFunction<dim>                    homogeneous_dirichlet_bc (1);
   dirichlet_boundary[0] = &homogeneous_dirichlet_bc;
-  MappingQ1<dim> mapping;
+  MappingQGeneric<dim> mapping(1);
   VectorTools::interpolate_boundary_values (mapping,
                                             mg_dof_handler,
                                             dirichlet_boundary,
@@ -305,7 +305,7 @@ void LaplaceProblem<dim>::assemble_system ()
   const Coefficient<dim> coefficient;
   std::vector<double>    coefficient_values (n_q_points);
 
-  typename MGDoFHandler<dim>::active_cell_iterator
+  typename DoFHandler<dim>::active_cell_iterator
   cell = mg_dof_handler.begin_active(),
   endc = mg_dof_handler.end();
   for (; cell!=endc; ++cell)
@@ -341,116 +341,136 @@ void LaplaceProblem<dim>::assemble_system ()
 
 
 template <int dim>
-void LaplaceProblem<dim>::assemble_multigrid (const bool& use_mw)
+void LaplaceProblem<dim>::assemble_multigrid (bool use_mw)
 {
-  if(use_mw == true)
-  {
-    mg_matrices = 0.;
+  deallog << "assemble_multigrid " << (use_mw ? "(mesh_worker)":"") << std::endl;
 
-    MappingQ1<dim> mapping;
-    MeshWorker::IntegrationInfoBox<dim> info_box;
-    UpdateFlags update_flags = update_values | update_gradients | update_hessians;
-    info_box.add_update_flags_all(update_flags);
-    info_box.initialize(fe, mapping);
+  if (use_mw == true)
+    {
+      mg_matrices = 0.;
+      mg_interface_in = 0.;
+      mg_interface_out = 0.;
 
-    MeshWorker::DoFInfo<dim> dof_info(mg_dof_handler);
+      MappingQGeneric<dim> mapping(1);
+      MeshWorker::IntegrationInfoBox<dim> info_box;
+      UpdateFlags update_flags = update_values | update_gradients | update_hessians;
+      info_box.add_update_flags_all(update_flags);
+      info_box.initialize(fe, mapping);
 
-    MeshWorker::Assembler::MGMatrixSimple<SparseMatrix<double> > assembler;
-    assembler.initialize(mg_constrained_dofs);
-    assembler.initialize(mg_matrices);
-    assembler.initialize_interfaces(mg_interface_in, mg_interface_out);
+      MeshWorker::DoFInfo<dim> dof_info(mg_dof_handler);
 
-    MeshWorker::integration_loop<dim, dim> (
-        mg_dof_handler.begin(), mg_dof_handler.end(),
+      MeshWorker::Assembler::MGMatrixSimple<SparseMatrix<double> > assembler;
+      assembler.initialize(mg_constrained_dofs);
+      assembler.initialize(mg_matrices);
+      assembler.initialize_interfaces(mg_interface_in, mg_interface_out);
+
+      MeshWorker::integration_loop<dim, dim> (
+        mg_dof_handler.begin_mg(), mg_dof_handler.end_mg(),
         dof_info, info_box, matrix_integrator, assembler);
 
-    const unsigned int nlevels = triangulation.n_levels();
-    for (unsigned int level=0;level<nlevels;++level)
-    {
-      for(unsigned int i=0; i<mg_dof_handler.n_dofs(level); ++i)
-        if(mg_matrices[level].diag_element(i)==0)
-          mg_matrices[level].set(i,i,1.);
+      const unsigned int nlevels = triangulation.n_levels();
+      for (unsigned int level=0; level<nlevels; ++level)
+        {
+          for (unsigned int i=0; i<mg_dof_handler.n_dofs(level); ++i)
+            if (mg_matrices[level].diag_element(i)==0)
+              mg_matrices[level].set(i,i,1.);
+        }
     }
-  }
   else
-  {
-    QGauss<dim>  quadrature_formula(1+degree);
-
-    FEValues<dim> fe_values (fe, quadrature_formula,
-        update_values   | update_gradients |
-        update_quadrature_points | update_JxW_values);
-
-    const unsigned int   dofs_per_cell   = fe.dofs_per_cell;
-    const unsigned int   n_q_points      = quadrature_formula.size();
-
-    FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
-
-    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
-
-    const Coefficient<dim> coefficient;
-    std::vector<double>    coefficient_values (n_q_points);
-
-    std::vector<std::vector<bool> > interface_dofs
-      = mg_constrained_dofs.get_refinement_edge_indices ();
-    std::vector<std::vector<bool> > boundary_interface_dofs
-      = mg_constrained_dofs.get_refinement_edge_boundary_indices ();
-
-    std::vector<ConstraintMatrix> boundary_constraints (triangulation.n_levels());
-    std::vector<ConstraintMatrix> boundary_interface_constraints (triangulation.n_levels());
-    for (unsigned int level=0; level<triangulation.n_levels(); ++level)
     {
-      boundary_constraints[level].add_lines (interface_dofs[level]);
-      boundary_constraints[level].add_lines (mg_constrained_dofs.get_boundary_indices()[level]);
-      boundary_constraints[level].close ();
+      QGauss<dim>  quadrature_formula(1+degree);
 
-      boundary_interface_constraints[level]
-        .add_lines (boundary_interface_dofs[level]);
-      boundary_interface_constraints[level].close ();
+      FEValues<dim> fe_values (fe, quadrature_formula,
+                               update_values   | update_gradients |
+                               update_quadrature_points | update_JxW_values);
+
+      const unsigned int   dofs_per_cell   = fe.dofs_per_cell;
+      const unsigned int   n_q_points      = quadrature_formula.size();
+
+      FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
+
+      std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+      const Coefficient<dim> coefficient;
+      std::vector<double>    coefficient_values (n_q_points);
+
+      std::vector<ConstraintMatrix> boundary_constraints (triangulation.n_levels());
+      ConstraintMatrix empty_constraints;
+
+      for (unsigned int level=0; level<triangulation.n_levels(); ++level)
+        {
+          boundary_constraints[level].add_lines (mg_constrained_dofs.get_refinement_edge_indices(level));
+          boundary_constraints[level].add_lines (mg_constrained_dofs.get_boundary_indices(level));
+          boundary_constraints[level].close ();
+        }
+
+      typename DoFHandler<dim>::level_cell_iterator cell = mg_dof_handler.begin_mg(),
+                                                    endc = mg_dof_handler.end_mg();
+
+      for (; cell!=endc; ++cell)
+        {
+          cell_matrix = 0;
+          fe_values.reinit (cell);
+
+          coefficient.value_list (fe_values.get_quadrature_points(),
+                                  coefficient_values);
+
+          for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
+            for (unsigned int i=0; i<dofs_per_cell; ++i)
+              for (unsigned int j=0; j<dofs_per_cell; ++j)
+                cell_matrix(i,j) += (coefficient_values[q_point] *
+                                     fe_values.shape_grad(i,q_point) *
+                                     fe_values.shape_grad(j,q_point) *
+                                     fe_values.JxW(q_point));
+
+          cell->get_mg_dof_indices (local_dof_indices);
+
+          boundary_constraints[cell->level()]
+          .distribute_local_to_global (cell_matrix,
+                                       local_dof_indices,
+                                       mg_matrices[cell->level()]);
+
+          const unsigned int lvl = cell->level();
+
+          for (unsigned int i=0; i<dofs_per_cell; ++i)
+            for (unsigned int j=0; j<dofs_per_cell; ++j)
+              if (mg_constrained_dofs.at_refinement_edge(lvl, local_dof_indices[i])
+                  &&
+                  ! mg_constrained_dofs.at_refinement_edge(lvl, local_dof_indices[j])
+                  &&
+                  (
+                    (!mg_constrained_dofs.is_boundary_index(lvl, local_dof_indices[i])
+                     &&
+                     !mg_constrained_dofs.is_boundary_index(lvl, local_dof_indices[j])
+                    ) // ( !boundary(i) && !boundary(j) )
+                    ||
+                    (
+                      mg_constrained_dofs.is_boundary_index(lvl, local_dof_indices[i])
+                      &&
+                      local_dof_indices[i]==local_dof_indices[j]
+                    ) // ( boundary(i) && boundary(j) && i==j )
+                  )
+                 )
+                {
+                  // do nothing, so add entries to interface matrix
+                }
+              else
+                {
+                  cell_matrix(i,j) = 0;
+                }
+
+
+          empty_constraints
+          .distribute_local_to_global (cell_matrix,
+                                       local_dof_indices,
+                                       mg_interface_in[cell->level()]);
+        }
     }
-
-    typename MGDoFHandler<dim>::cell_iterator cell = mg_dof_handler.begin(),
-             endc = mg_dof_handler.end();
-
-    for (; cell!=endc; ++cell)
-    {
-      cell_matrix = 0;
-      fe_values.reinit (cell);
-
-      coefficient.value_list (fe_values.get_quadrature_points(),
-          coefficient_values);
-
-      for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
-        for (unsigned int i=0; i<dofs_per_cell; ++i)
-          for (unsigned int j=0; j<dofs_per_cell; ++j)
-            cell_matrix(i,j) += (coefficient_values[q_point] *
-                fe_values.shape_grad(i,q_point) *
-                fe_values.shape_grad(j,q_point) *
-                fe_values.JxW(q_point));
-
-      cell->get_mg_dof_indices (local_dof_indices);
-
-      boundary_constraints[cell->level()]
-        .distribute_local_to_global (cell_matrix,
-            local_dof_indices,
-            mg_matrices[cell->level()]);
-
-      for (unsigned int i=0; i<dofs_per_cell; ++i)
-        for (unsigned int j=0; j<dofs_per_cell; ++j)
-          if ( !(interface_dofs[cell->level()][local_dof_indices[i]]==true &&
-                interface_dofs[cell->level()][local_dof_indices[j]]==false))
-            cell_matrix(i,j) = 0;
-
-      boundary_interface_constraints[cell->level()]
-        .distribute_local_to_global (cell_matrix,
-            local_dof_indices,
-            mg_interface_in[cell->level()]);
-    }
-  }
 }
 
 
 template <int dim>
-void LaplaceProblem<dim>::solve ()
+void LaplaceProblem<dim>::solve (bool use_mw)
 {
   MGTransferPrebuilt<Vector<double> > mg_transfer(hanging_node_constraints, mg_constrained_dofs);
   mg_transfer.build_matrices(mg_dof_handler);
@@ -467,9 +487,11 @@ void LaplaceProblem<dim>::solve ()
   mg_smoother.set_steps(2);
   mg_smoother.set_symmetric(true);
 
-  MGMatrix<> mg_matrix(&mg_matrices);
-  MGMatrix<> mg_interface_up(&mg_interface_in);
-  MGMatrix<> mg_interface_down(&mg_interface_in);
+  mg::Matrix<> mg_matrix(mg_matrices);
+  mg::Matrix<> mg_interface_up(mg_interface_in);
+  mg::Matrix<> mg_interface_down(mg_interface_in);
+  //if (use_mw)
+  //mg_interface_down.initialize(mg_interface_out);
 
   Multigrid<Vector<double> > mg(mg_dof_handler,
                                 mg_matrix,
@@ -498,32 +520,32 @@ void LaplaceProblem<dim>::solve ()
 
 
 template <int dim>
-void LaplaceProblem<dim>::refine_grid (const std::string& reftype)
+void LaplaceProblem<dim>::refine_grid (const std::string &reftype)
 {
   bool cell_refined = false;
   if (reftype == "center" || !cell_refined)
     {
       for (typename Triangulation<dim>::active_cell_iterator
-	     cell = triangulation.begin_active();
-	   cell != triangulation.end(); ++cell)
-	for (unsigned int vertex=0;
-	     vertex < GeometryInfo<dim>::vertices_per_cell;
-	     ++vertex)
-	  {
-	    {
-	      const Point<dim> p = cell->vertex(vertex);
-	      const Point<dim> origin = (dim == 2 ?
-					 Point<dim>(0,0) :
-					 Point<dim>(0,0,0));
-	      const double dist = p.distance(origin);
-	      if(dist<0.25/numbers::PI)
-		{
-		  cell->set_refine_flag ();
-		  cell_refined = true;
-		  break;
-		}
-	    }
-	  }
+           cell = triangulation.begin_active();
+           cell != triangulation.end(); ++cell)
+        for (unsigned int vertex=0;
+             vertex < GeometryInfo<dim>::vertices_per_cell;
+             ++vertex)
+          {
+            {
+              const Point<dim> p = cell->vertex(vertex);
+              const Point<dim> origin = (dim == 2 ?
+                                         Point<dim>(0,0) :
+                                         Point<dim>(0,0,0));
+              const double dist = p.distance(origin);
+              if (dist<0.25/numbers::PI)
+                {
+                  cell->set_refine_flag ();
+                  cell_refined = true;
+                  break;
+                }
+            }
+          }
     }
   if (reftype=="global" || !cell_refined)
     triangulation.refine_global(1);
@@ -588,9 +610,13 @@ void LaplaceProblem<dim>::run ()
       deallog << std::endl;
 
       assemble_system ();
-      assemble_multigrid (true);
+      assemble_multigrid (false);
 
-      solve ();
+      solve (false);
+
+      assemble_multigrid (true);
+      solve (true);
+
       // output_results (cycle);
     }
 }
@@ -602,7 +628,6 @@ int main ()
 
   try
     {
-      deallog.depth_console (0);
 
       LaplaceProblem<2> laplace_problem(1);
       laplace_problem.run ();

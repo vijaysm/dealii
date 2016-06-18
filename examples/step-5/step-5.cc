@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 1999 - 2013 by the deal.II authors
+ * Copyright (C) 1999 - 2015 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -28,7 +28,7 @@
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/sparse_matrix.h>
-#include <deal.II/lac/compressed_sparsity_pattern.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/grid/tria.h>
@@ -49,10 +49,11 @@
 
 // We will use a circular domain, and the object describing the boundary of it
 // comes from this file:
-#include <deal.II/grid/tria_boundary_lib.h>
+#include <deal.II/grid/manifold_lib.h>
 
 // This is C++ ...
 #include <fstream>
+#include <iostream>
 // ... and this is too: We will convert integers to strings using the C++
 // stringstream class <code>ostringstream</code>:
 #include <sstream>
@@ -178,12 +179,12 @@ double Coefficient<dim>::value (const Point<dim> &p,
 // Most people who have tried that soon realize that they introduce lots of
 // errors that would have easily been caught had they run the program in debug
 // mode while developing.) For those who want to try: The way to switch from
-// debug mode to optimized mode is to go edit the Makefile in this
-// directory. It should have a line <code>debug-mode = on</code>; simply
-// replace it by <code>debug-mode = off</code> and recompile your program. The
-// output of the <code>make</code> program should already indicate to you that
-// the program is now compiled in optimized mode, and it will later also be
-// linked to libraries that have been compiled for optimized mode.
+// debug mode to optimized mode is to recompile your program with the command
+// <code>make release</code>. The output of the <code>make</code> program should
+// now indicate to you that the program is now compiled in optimized mode, and
+// it will later also be linked to libraries that have been compiled for
+// optimized mode. In order to switch back to debug mode, simply recompile with
+// the command <code>make debug</code>.
 //
 // Here, as has been said above, we would like to make sure that the size of
 // the two arrays is equal, and if not throw an exception. Comparing the sizes
@@ -269,9 +270,9 @@ void Step5<dim>::setup_system ()
             << dof_handler.n_dofs()
             << std::endl;
 
-  CompressedSparsityPattern c_sparsity(dof_handler.n_dofs());
-  DoFTools::make_sparsity_pattern (dof_handler, c_sparsity);
-  sparsity_pattern.copy_from(c_sparsity);
+  DynamicSparsityPattern dsp(dof_handler.n_dofs());
+  DoFTools::make_sparsity_pattern (dof_handler, dsp);
+  sparsity_pattern.copy_from(dsp);
 
   system_matrix.reinit (sparsity_pattern);
 
@@ -582,24 +583,22 @@ void Step5<dim>::run ()
   // not to do, after all.
 
   // So if we got past the assertion, we know that dim==2, and we can now
-  // actually read the grid. It is in UCD (unstructured cell data) format (but
-  // the ending of the <code>UCD</code>-file is <code>inp</code>), as
-  // supported as input format by the AVS Explorer (a visualization program),
-  // for example:
+  // actually read the grid. It is in UCD (unstructured cell data) format (though
+  // the convention is to use the suffix <code>inp</code> for UCD files):
   grid_in.read_ucd (input_file);
-  // If you like to use another input format, you have to use an other
+  // If you like to use another input format, you have to use one of the other
   // <code>grid_in.read_xxx</code> function. (See the documentation of the
   // <code>GridIn</code> class to find out what input formats are presently
   // supported.)
 
-  // The grid in the file describes a circle. Therefore we have to use a
-  // boundary object which tells the triangulation where to put new points on
-  // the boundary when the grid is refined. This works in the same way as in
-  // the first example. Note that the HyperBallBoundary constructor takes two
-  // parameters, the center of the ball and the radius, but that their default
-  // (the origin and 1.0) are the ones which we would like to use here.
-  static const HyperBallBoundary<dim> boundary;
-  triangulation.set_boundary (0, boundary);
+  // The grid in the file describes a circle. Therefore we have to use
+  // a manifold object which tells the triangulation where to put new
+  // points on the boundary when the grid is refined. This works in
+  // the same way as in the first example, but in this case we only
+  // set the manifold ids of the boundary.
+  static const SphericalManifold<dim> boundary;
+  triangulation.set_all_manifold_ids_on_boundary(0);
+  triangulation.set_manifold (0, boundary);
 
   for (unsigned int cycle=0; cycle<6; ++cycle)
     {
@@ -631,8 +630,6 @@ void Step5<dim>::run ()
 // won't comment on it further:
 int main ()
 {
-  deallog.depth_console (0);
-
   Step5<2> laplace_problem_2d;
   laplace_problem_2d.run ();
 

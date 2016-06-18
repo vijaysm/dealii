@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,16 +30,18 @@
 
 using namespace std;
 
-template<int dim, class POLY>
-void check_point (const Point<dim> &x,
-                  const POLY &p)
+template<int dim, class PolynomialType>
+void check_point (const Point<dim>     &x,
+                  const PolynomialType &p)
 {
   const unsigned int n = p.n();
   std::vector<Tensor<1,dim> > values(n);
   std::vector<Tensor<2,dim> > gradients(n);
   std::vector<Tensor<3,dim> > seconds(0);
+  std::vector<Tensor<4,dim> > thirds(0);
+  std::vector<Tensor<5,dim> > fourths(0);
 
-  p.compute(x, values, gradients, seconds);
+  p.compute(x, values, gradients, seconds, thirds, fourths);
 
   deallog << "Point " << x << std::endl;
   for (unsigned int i=0; i<n; ++i)
@@ -103,7 +105,6 @@ int main()
   std::ofstream logfile("output");
   deallog << std::setprecision(0);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   deallog.push("BDM");

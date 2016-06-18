@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2013 by the deal.II authors
+// Copyright (C) 1999 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -159,12 +159,11 @@ int main ()
   logfile.precision(2);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   FE_Q<2> fe_1 (1);
   FE_Q<2> fe_2 (2);
-  FE_Q<2> fe_3 (3);
+  FE_Q<2> fe_3 (QIterated<1>(QTrapez<1>(),3));
 
   hp::FECollection<2> fe_coll2;
   fe_coll2.push_back (fe_3);

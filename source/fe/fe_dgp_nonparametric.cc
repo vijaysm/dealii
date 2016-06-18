@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2013 by the deal.II authors
+// Copyright (C) 2002 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -128,8 +128,11 @@ double
 FE_DGPNonparametric<dim,spacedim>::shape_value (const unsigned int i,
                                                 const Point<dim> &p) const
 {
+  (void)i;
+  (void)p;
   Assert (i<this->dofs_per_cell, ExcIndexRange(i, 0, this->dofs_per_cell));
-  return polynomial_space.compute_value(i, p);
+  AssertThrow (false, (typename FiniteElement<dim>::ExcUnitShapeValuesDoNotExist()));
+  return 0;
 }
 
 
@@ -140,9 +143,13 @@ FE_DGPNonparametric<dim,spacedim>::shape_value_component (const unsigned int i,
                                                           const Point<dim> &p,
                                                           const unsigned int component) const
 {
+  (void)i;
+  (void)p;
+  (void)component;
   Assert (i<this->dofs_per_cell, ExcIndexRange(i, 0, this->dofs_per_cell));
   Assert (component == 0, ExcIndexRange (component, 0, 1));
-  return polynomial_space.compute_value(i, p);
+  AssertThrow (false, (typename FiniteElement<dim>::ExcUnitShapeValuesDoNotExist()));
+  return 0;
 }
 
 
@@ -152,8 +159,11 @@ Tensor<1,dim>
 FE_DGPNonparametric<dim,spacedim>::shape_grad (const unsigned int i,
                                                const Point<dim> &p) const
 {
+  (void)i;
+  (void)p;
   Assert (i<this->dofs_per_cell, ExcIndexRange(i, 0, this->dofs_per_cell));
-  return polynomial_space.compute_grad(i, p);
+  AssertThrow (false, (typename FiniteElement<dim>::ExcUnitShapeValuesDoNotExist()));
+  return Tensor<1,dim>();
 }
 
 
@@ -163,9 +173,13 @@ FE_DGPNonparametric<dim,spacedim>::shape_grad_component (const unsigned int i,
                                                          const Point<dim> &p,
                                                          const unsigned int component) const
 {
+  (void)i;
+  (void)p;
+  (void)component;
   Assert (i<this->dofs_per_cell, ExcIndexRange(i, 0, this->dofs_per_cell));
   Assert (component == 0, ExcIndexRange (component, 0, 1));
-  return polynomial_space.compute_grad(i, p);
+  AssertThrow (false, (typename FiniteElement<dim>::ExcUnitShapeValuesDoNotExist()));
+  return Tensor<1,dim>();
 }
 
 
@@ -175,8 +189,11 @@ Tensor<2,dim>
 FE_DGPNonparametric<dim,spacedim>::shape_grad_grad (const unsigned int i,
                                                     const Point<dim> &p) const
 {
+  (void)i;
+  (void)p;
   Assert (i<this->dofs_per_cell, ExcIndexRange(i, 0, this->dofs_per_cell));
-  return polynomial_space.compute_grad_grad(i, p);
+  AssertThrow (false, (typename FiniteElement<dim>::ExcUnitShapeValuesDoNotExist()));
+  return Tensor<2,dim>();
 }
 
 
@@ -187,9 +204,13 @@ FE_DGPNonparametric<dim,spacedim>::shape_grad_grad_component (const unsigned int
     const Point<dim> &p,
     const unsigned int component) const
 {
+  (void)i;
+  (void)p;
+  (void)component;
   Assert (i<this->dofs_per_cell, ExcIndexRange(i, 0, this->dofs_per_cell));
   Assert (component == 0, ExcIndexRange (component, 0, 1));
-  return polynomial_space.compute_grad_grad(i, p);
+  AssertThrow (false, (typename FiniteElement<dim>::ExcUnitShapeValuesDoNotExist()));
+  return Tensor<2,dim>();
 }
 
 
@@ -213,22 +234,10 @@ FE_DGPNonparametric<dim,spacedim>::get_dpo_vector (const unsigned int deg)
 }
 
 
-template <int dim, int spacedim>
-UpdateFlags
-FE_DGPNonparametric<dim,spacedim>::update_once (const UpdateFlags) const
-{
-  // for this kind of elements, only
-  // the values can be precomputed
-  // once and for all. set this flag
-  // if the values are requested at
-  // all
-  return update_default;
-}
-
 
 template <int dim, int spacedim>
 UpdateFlags
-FE_DGPNonparametric<dim,spacedim>::update_each (const UpdateFlags flags) const
+FE_DGPNonparametric<dim,spacedim>::requires_update_flags (const UpdateFlags flags) const
 {
   UpdateFlags out = flags;
 
@@ -239,46 +248,27 @@ FE_DGPNonparametric<dim,spacedim>::update_each (const UpdateFlags flags) const
 }
 
 
+
 //---------------------------------------------------------------------------
 // Data field initialization
 //---------------------------------------------------------------------------
 
 template <int dim, int spacedim>
-typename Mapping<dim,spacedim>::InternalDataBase *
-FE_DGPNonparametric<dim,spacedim>::get_data (
-  const UpdateFlags      update_flags,
-  const Mapping<dim,spacedim> &,
-  const Quadrature<dim> &) const
+typename FiniteElement<dim,spacedim>::InternalDataBase *
+FE_DGPNonparametric<dim,spacedim>::
+get_data (const UpdateFlags                                                    update_flags,
+          const Mapping<dim,spacedim> &,
+          const Quadrature<dim> &,
+          dealii::internal::FEValues::FiniteElementRelatedData<dim, spacedim> &/*output_data*/) const
 {
   // generate a new data object
-  InternalData *data = new InternalData;
-  // check what needs to be
-  // initialized only once and what
-  // on every cell/face/subface we
-  // visit
-  data->update_once = update_once(update_flags);
-  data->update_each = update_each(update_flags);
-  data->update_flags = data->update_once | data->update_each;
+  typename FiniteElement<dim,spacedim>::InternalDataBase *data
+    = new typename FiniteElement<dim,spacedim>::InternalDataBase;
+  data->update_each = requires_update_flags(update_flags);
 
-  const UpdateFlags flags(data->update_flags);
+  // other than that, there is nothing we can add here as discussed
+  // in the general documentation of this class
 
-  // initialize fields only if really
-  // necessary. otherwise, don't
-  // allocate memory
-  if (flags & update_values)
-    {
-      data->values.resize (this->dofs_per_cell);
-    }
-
-  if (flags & update_gradients)
-    {
-      data->grads.resize (this->dofs_per_cell);
-    }
-
-  if (flags & update_hessians)
-    {
-      data->grad_grads.resize (this->dofs_per_cell);
-    }
   return data;
 }
 
@@ -290,42 +280,45 @@ FE_DGPNonparametric<dim,spacedim>::get_data (
 
 template <int dim, int spacedim>
 void
-FE_DGPNonparametric<dim,spacedim>::fill_fe_values (
-  const Mapping<dim,spacedim> &,
-  const typename Triangulation<dim,spacedim>::cell_iterator &,
-  const Quadrature<dim> &,
-  typename Mapping<dim,spacedim>::InternalDataBase &,
-  typename Mapping<dim,spacedim>::InternalDataBase &fedata,
-  FEValuesData<dim,spacedim> &data,
-  CellSimilarity::Similarity &/*cell_similarity*/) const
+FE_DGPNonparametric<dim,spacedim>::
+fill_fe_values (const typename Triangulation<dim,spacedim>::cell_iterator &,
+                const CellSimilarity::Similarity                                     ,
+                const Quadrature<dim> &,
+                const Mapping<dim,spacedim> &,
+                const typename Mapping<dim,spacedim>::InternalDataBase &,
+                const dealii::internal::FEValues::MappingRelatedData<dim, spacedim> &mapping_data,
+                const typename FiniteElement<dim,spacedim>::InternalDataBase        &fe_internal,
+                dealii::internal::FEValues::FiniteElementRelatedData<dim, spacedim> &output_data) const
 {
-  // convert data object to internal
-  // data for this class. fails with
-  // an exception if that is not
-  // possible
-  Assert (dynamic_cast<InternalData *> (&fedata) != 0,
-          ExcInternalError());
-  InternalData &fe_data = static_cast<InternalData &> (fedata);
+  Assert (fe_internal.update_each & update_quadrature_points, ExcInternalError());
 
-  const UpdateFlags flags(fe_data.current_update_flags());
-  Assert (flags & update_quadrature_points, ExcInternalError());
+  const unsigned int n_q_points = mapping_data.quadrature_points.size();
 
-  const unsigned int n_q_points = data.quadrature_points.size();
+  std::vector<double> values(fe_internal.update_each & update_values ? this->dofs_per_cell : 0);
+  std::vector<Tensor<1,dim> > grads(fe_internal.update_each & update_gradients ? this->dofs_per_cell : 0);
+  std::vector<Tensor<2,dim> > grad_grads(fe_internal.update_each & update_hessians ? this->dofs_per_cell : 0);
+  std::vector<Tensor<3,dim> > empty_vector_of_3rd_order_tensors;
+  std::vector<Tensor<4,dim> > empty_vector_of_4th_order_tensors;
 
-  if (flags & (update_values | update_gradients))
+  if (fe_internal.update_each & (update_values | update_gradients))
     for (unsigned int i=0; i<n_q_points; ++i)
       {
-        polynomial_space.compute(data.quadrature_points[i],
-                                 fe_data.values, fe_data.grads, fe_data.grad_grads);
-        for (unsigned int k=0; k<this->dofs_per_cell; ++k)
-          {
-            if (flags & update_values)
-              data.shape_values[k][i] = fe_data.values[k];
-            if (flags & update_gradients)
-              data.shape_gradients[k][i] = fe_data.grads[k];
-            if (flags & update_hessians)
-              data.shape_hessians[k][i] = fe_data.grad_grads[k];
-          }
+        polynomial_space.compute(mapping_data.quadrature_points[i],
+                                 values, grads, grad_grads,
+                                 empty_vector_of_3rd_order_tensors,
+                                 empty_vector_of_4th_order_tensors);
+
+        if (fe_internal.update_each & update_values)
+          for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+            output_data.shape_values[k][i] = values[k];
+
+        if (fe_internal.update_each & update_gradients)
+          for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+            output_data.shape_gradients[k][i] = grads[k];
+
+        if (fe_internal.update_each & update_hessians)
+          for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+            output_data.shape_hessians[k][i] = grad_grads[k];
       }
 }
 
@@ -333,42 +326,45 @@ FE_DGPNonparametric<dim,spacedim>::fill_fe_values (
 
 template <int dim, int spacedim>
 void
-FE_DGPNonparametric<dim,spacedim>::fill_fe_face_values (
-  const Mapping<dim,spacedim> &,
-  const typename Triangulation<dim,spacedim>::cell_iterator &,
-  const unsigned int,
-  const Quadrature<dim-1>&,
-  typename Mapping<dim,spacedim>::InternalDataBase &,
-  typename Mapping<dim,spacedim>::InternalDataBase       &fedata,
-  FEValuesData<dim,spacedim>                             &data) const
+FE_DGPNonparametric<dim,spacedim>::
+fill_fe_face_values (const typename Triangulation<dim,spacedim>::cell_iterator &,
+                     const unsigned int                                                   ,
+                     const Quadrature<dim-1>                                             &,
+                     const Mapping<dim,spacedim> &,
+                     const typename Mapping<dim,spacedim>::InternalDataBase &,
+                     const dealii::internal::FEValues::MappingRelatedData<dim, spacedim> &mapping_data,
+                     const typename FiniteElement<dim,spacedim>::InternalDataBase        &fe_internal,
+                     dealii::internal::FEValues::FiniteElementRelatedData<dim, spacedim> &output_data) const
 {
-  // convert data object to internal
-  // data for this class. fails with
-  // an exception if that is not
-  // possible
-  Assert (dynamic_cast<InternalData *> (&fedata) != 0,
-          ExcInternalError());
-  InternalData &fe_data = static_cast<InternalData &> (fedata);
+  Assert (fe_internal.update_each & update_quadrature_points, ExcInternalError());
 
-  const UpdateFlags flags(fe_data.update_once | fe_data.update_each);
-  Assert (flags & update_quadrature_points, ExcInternalError());
+  const unsigned int n_q_points = mapping_data.quadrature_points.size();
 
-  const unsigned int n_q_points = data.quadrature_points.size();
+  std::vector<double> values(fe_internal.update_each & update_values ? this->dofs_per_cell : 0);
+  std::vector<Tensor<1,dim> > grads(fe_internal.update_each & update_gradients ? this->dofs_per_cell : 0);
+  std::vector<Tensor<2,dim> > grad_grads(fe_internal.update_each & update_hessians ? this->dofs_per_cell : 0);
+  std::vector<Tensor<3,dim> > empty_vector_of_3rd_order_tensors;
+  std::vector<Tensor<4,dim> > empty_vector_of_4th_order_tensors;
 
-  if (flags & (update_values | update_gradients))
+  if (fe_internal.update_each & (update_values | update_gradients))
     for (unsigned int i=0; i<n_q_points; ++i)
       {
-        polynomial_space.compute(data.quadrature_points[i],
-                                 fe_data.values, fe_data.grads, fe_data.grad_grads);
-        for (unsigned int k=0; k<this->dofs_per_cell; ++k)
-          {
-            if (flags & update_values)
-              data.shape_values[k][i] = fe_data.values[k];
-            if (flags & update_gradients)
-              data.shape_gradients[k][i] = fe_data.grads[k];
-            if (flags & update_hessians)
-              data.shape_hessians[k][i] = fe_data.grad_grads[k];
-          }
+        polynomial_space.compute(mapping_data.quadrature_points[i],
+                                 values, grads, grad_grads,
+                                 empty_vector_of_3rd_order_tensors,
+                                 empty_vector_of_4th_order_tensors);
+
+        if (fe_internal.update_each & update_values)
+          for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+            output_data.shape_values[k][i] = values[k];
+
+        if (fe_internal.update_each & update_gradients)
+          for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+            output_data.shape_gradients[k][i] = grads[k];
+
+        if (fe_internal.update_each & update_hessians)
+          for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+            output_data.shape_hessians[k][i] = grad_grads[k];
       }
 }
 
@@ -376,43 +372,46 @@ FE_DGPNonparametric<dim,spacedim>::fill_fe_face_values (
 
 template <int dim, int spacedim>
 void
-FE_DGPNonparametric<dim,spacedim>::fill_fe_subface_values (
-  const Mapping<dim,spacedim> &,
-  const typename Triangulation<dim,spacedim>::cell_iterator &,
-  const unsigned int,
-  const unsigned int,
-  const Quadrature<dim-1>&,
-  typename Mapping<dim,spacedim>::InternalDataBase &,
-  typename Mapping<dim,spacedim>::InternalDataBase       &fedata,
-  FEValuesData<dim,spacedim>                             &data) const
+FE_DGPNonparametric<dim,spacedim>::
+fill_fe_subface_values (const typename Triangulation<dim,spacedim>::cell_iterator &,
+                        const unsigned int                                                   ,
+                        const unsigned int                                                   ,
+                        const Quadrature<dim-1>                                             &,
+                        const Mapping<dim,spacedim> &,
+                        const typename Mapping<dim,spacedim>::InternalDataBase &,
+                        const dealii::internal::FEValues::MappingRelatedData<dim, spacedim> &mapping_data,
+                        const typename FiniteElement<dim,spacedim>::InternalDataBase        &fe_internal,
+                        dealii::internal::FEValues::FiniteElementRelatedData<dim, spacedim> &output_data) const
 {
-  // convert data object to internal
-  // data for this class. fails with
-  // an exception if that is not
-  // possible
-  Assert (dynamic_cast<InternalData *> (&fedata) != 0,
-          ExcInternalError());
-  InternalData &fe_data = static_cast<InternalData &> (fedata);
+  Assert (fe_internal.update_each & update_quadrature_points, ExcInternalError());
 
-  const UpdateFlags flags(fe_data.update_once | fe_data.update_each);
-  Assert (flags & update_quadrature_points, ExcInternalError());
+  const unsigned int n_q_points = mapping_data.quadrature_points.size();
 
-  const unsigned int n_q_points = data.quadrature_points.size();
+  std::vector<double> values(fe_internal.update_each & update_values ? this->dofs_per_cell : 0);
+  std::vector<Tensor<1,dim> > grads(fe_internal.update_each & update_gradients ? this->dofs_per_cell : 0);
+  std::vector<Tensor<2,dim> > grad_grads(fe_internal.update_each & update_hessians ? this->dofs_per_cell : 0);
+  std::vector<Tensor<3,dim> > empty_vector_of_3rd_order_tensors;
+  std::vector<Tensor<4,dim> > empty_vector_of_4th_order_tensors;
 
-  if (flags & (update_values | update_gradients))
+  if (fe_internal.update_each & (update_values | update_gradients))
     for (unsigned int i=0; i<n_q_points; ++i)
       {
-        polynomial_space.compute(data.quadrature_points[i],
-                                 fe_data.values, fe_data.grads, fe_data.grad_grads);
-        for (unsigned int k=0; k<this->dofs_per_cell; ++k)
-          {
-            if (flags & update_values)
-              data.shape_values[k][i] = fe_data.values[k];
-            if (flags & update_gradients)
-              data.shape_gradients[k][i] = fe_data.grads[k];
-            if (flags & update_hessians)
-              data.shape_hessians[k][i] = fe_data.grad_grads[k];
-          }
+        polynomial_space.compute(mapping_data.quadrature_points[i],
+                                 values, grads, grad_grads,
+                                 empty_vector_of_3rd_order_tensors,
+                                 empty_vector_of_4th_order_tensors);
+
+        if (fe_internal.update_each & update_values)
+          for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+            output_data.shape_values[k][i] = values[k];
+
+        if (fe_internal.update_each & update_gradients)
+          for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+            output_data.shape_gradients[k][i] = grads[k];
+
+        if (fe_internal.update_each & update_hessians)
+          for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+            output_data.shape_hessians[k][i] = grad_grads[k];
       }
 }
 
@@ -430,6 +429,7 @@ get_face_interpolation_matrix (const FiniteElement<dim,spacedim> &x_source_fe,
   // faces and the face interpolation matrix
   // is necessarily empty -- i.e. there isn't
   // much we need to do here.
+  (void)interpolation_matrix;
   typedef              FiniteElement<dim,spacedim> FEE;
   AssertThrow ((x_source_fe.get_name().find ("FE_DGPNonparametric<") == 0)
                ||
@@ -460,6 +460,7 @@ get_subface_interpolation_matrix (const FiniteElement<dim,spacedim> &x_source_fe
   // faces and the face interpolation matrix
   // is necessarily empty -- i.e. there isn't
   // much we need to do here.
+  (void)interpolation_matrix;
   typedef              FiniteElement<dim,spacedim> FEE;
   AssertThrow ((x_source_fe.get_name().find ("FE_DGPNonparametric<") == 0)
                ||

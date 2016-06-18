@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2008 - 2014 by the deal.II authors
+ * Copyright (C) 2008 - 2015 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -64,6 +64,7 @@
 #include <deal.II/lac/sparse_ilu.h>
 
 // This is C++:
+#include <iostream>
 #include <fstream>
 #include <sstream>
 
@@ -263,25 +264,26 @@ namespace Step22
   // <code>InverseMatrix</code> object is created. The member function
   // <code>vmult</code> is, as in step-20, a multiplication with a vector,
   // obtained by solving a linear system:
-  template <class Matrix, class Preconditioner>
+  template <class MatrixType, class PreconditionerType>
   class InverseMatrix : public Subscriptor
   {
   public:
-    InverseMatrix (const Matrix         &m,
-                   const Preconditioner &preconditioner);
+    InverseMatrix (const MatrixType         &m,
+                   const PreconditionerType &preconditioner);
 
     void vmult (Vector<double>       &dst,
                 const Vector<double> &src) const;
 
   private:
-    const SmartPointer<const Matrix> matrix;
-    const SmartPointer<const Preconditioner> preconditioner;
+    const SmartPointer<const MatrixType> matrix;
+    const SmartPointer<const PreconditionerType> preconditioner;
   };
 
 
-  template <class Matrix, class Preconditioner>
-  InverseMatrix<Matrix,Preconditioner>::InverseMatrix (const Matrix &m,
-                                                       const Preconditioner &preconditioner)
+  template <class MatrixType, class PreconditionerType>
+  InverseMatrix<MatrixType,PreconditionerType>::InverseMatrix
+  (const MatrixType         &m,
+   const PreconditionerType &preconditioner)
     :
     matrix (&m),
     preconditioner (&preconditioner)
@@ -298,9 +300,10 @@ namespace Step22
   // inverse of the Laplace matrix &ndash; which is hence directly responsible
   // for the accuracy of the solution itself, so we can't choose a too large
   // tolerance, either.
-  template <class Matrix, class Preconditioner>
-  void InverseMatrix<Matrix,Preconditioner>::vmult (Vector<double>       &dst,
-                                                    const Vector<double> &src) const
+  template <class MatrixType, class PreconditionerType>
+  void InverseMatrix<MatrixType,PreconditionerType>::vmult
+  (Vector<double>       &dst,
+   const Vector<double> &src) const
   {
     SolverControl solver_control (src.size(), 1e-6*src.l2_norm());
     SolverCG<>    cg (solver_control);
@@ -315,35 +318,35 @@ namespace Step22
 
   // This class implements the Schur complement discussed in the introduction.
   // It is in analogy to step-20.  Though, we now call it with a template
-  // parameter <code>Preconditioner</code> in order to access that when
+  // parameter <code>PreconditionerType</code> in order to access that when
   // specifying the respective type of the inverse matrix class. As a
   // consequence of the definition above, the declaration
   // <code>InverseMatrix</code> now contains the second template parameter for
   // a preconditioner class as above, which affects the
   // <code>SmartPointer</code> object <code>m_inverse</code> as well.
-  template <class Preconditioner>
+  template <class PreconditionerType>
   class SchurComplement : public Subscriptor
   {
   public:
     SchurComplement (const BlockSparseMatrix<double> &system_matrix,
-                     const InverseMatrix<SparseMatrix<double>, Preconditioner> &A_inverse);
+                     const InverseMatrix<SparseMatrix<double>, PreconditionerType> &A_inverse);
 
     void vmult (Vector<double>       &dst,
                 const Vector<double> &src) const;
 
   private:
     const SmartPointer<const BlockSparseMatrix<double> > system_matrix;
-    const SmartPointer<const InverseMatrix<SparseMatrix<double>, Preconditioner> > A_inverse;
+    const SmartPointer<const InverseMatrix<SparseMatrix<double>, PreconditionerType> > A_inverse;
 
     mutable Vector<double> tmp1, tmp2;
   };
 
 
 
-  template <class Preconditioner>
-  SchurComplement<Preconditioner>::
-  SchurComplement (const BlockSparseMatrix<double> &system_matrix,
-                   const InverseMatrix<SparseMatrix<double>,Preconditioner> &A_inverse)
+  template <class PreconditionerType>
+  SchurComplement<PreconditionerType>::SchurComplement
+  (const BlockSparseMatrix<double>                              &system_matrix,
+   const InverseMatrix<SparseMatrix<double>,PreconditionerType> &A_inverse)
     :
     system_matrix (&system_matrix),
     A_inverse (&A_inverse),
@@ -352,9 +355,9 @@ namespace Step22
   {}
 
 
-  template <class Preconditioner>
-  void SchurComplement<Preconditioner>::vmult (Vector<double>       &dst,
-                                               const Vector<double> &src) const
+  template <class PreconditionerType>
+  void SchurComplement<PreconditionerType>::vmult (Vector<double>       &dst,
+                                                   const Vector<double> &src) const
   {
     system_matrix->block(0,1).vmult (tmp1, src);
     A_inverse->vmult (tmp2, tmp1);
@@ -520,42 +523,21 @@ namespace Step22
     // BlockSparsityPattern. This is entirely analogous to what we already did
     // in step-11 and step-18.
     //
-    // There is one snag again here, though: it turns out that using the
-    // CompressedSparsityPattern (or the block version
-    // BlockCompressedSparsityPattern we would use here) has a bottleneck that
-    // makes the algorithm to build the sparsity pattern be quadratic in the
-    // number of degrees of freedom. This doesn't become noticeable until we
-    // get well into the range of several 100,000 degrees of freedom, but
-    // eventually dominates the setup of the linear system when we get to more
-    // than a million degrees of freedom. This is due to the data structures
-    // used in the CompressedSparsityPattern class, nothing that can easily be
-    // changed. Fortunately, there is an easy solution: the
-    // CompressedSimpleSparsityPattern class (and its block variant
-    // BlockCompressedSimpleSparsityPattern) has exactly the same interface,
-    // uses a different %internal data structure and is linear in the number
-    // of degrees of freedom and therefore much more efficient for large
-    // problems. As another alternative, we could also have chosen the class
-    // BlockCompressedSetSparsityPattern that uses yet another strategy for
-    // %internal memory management. Though, that class turns out to be more
-    // memory-demanding than BlockCompressedSimpleSparsityPattern for this
-    // example.
-    //
-    // Consequently, this is the class that we will use for our intermediate
-    // sparsity representation. All this is done inside a new scope, which
-    // means that the memory of <code>csp</code> will be released once the
+    // All this is done inside a new scope, which
+    // means that the memory of <code>dsp</code> will be released once the
     // information has been copied to <code>sparsity_pattern</code>.
     {
-      BlockCompressedSimpleSparsityPattern csp (2,2);
+      BlockDynamicSparsityPattern dsp (2,2);
 
-      csp.block(0,0).reinit (n_u, n_u);
-      csp.block(1,0).reinit (n_p, n_u);
-      csp.block(0,1).reinit (n_u, n_p);
-      csp.block(1,1).reinit (n_p, n_p);
+      dsp.block(0,0).reinit (n_u, n_u);
+      dsp.block(1,0).reinit (n_p, n_u);
+      dsp.block(0,1).reinit (n_u, n_p);
+      dsp.block(1,1).reinit (n_p, n_p);
 
-      csp.collect_sizes();
+      dsp.collect_sizes();
 
-      DoFTools::make_sparsity_pattern (dof_handler, csp, constraints, false);
-      sparsity_pattern.copy_from (csp);
+      DoFTools::make_sparsity_pattern (dof_handler, dsp, constraints, false);
+      sparsity_pattern.copy_from (dsp);
     }
 
     // Finally, the system matrix, solution and right hand side are created
@@ -613,16 +595,15 @@ namespace Step22
     const FEValuesExtractors::Vector velocities (0);
     const FEValuesExtractors::Scalar pressure (dim);
 
-    // As an extension over step-20 and step-21, we include a few
-    // optimizations that make assembly much faster for this particular
-    // problem.  The improvements are based on the observation that we do a
-    // few calculations too many times when we do as in step-20: The symmetric
-    // gradient actually has <code>dofs_per_cell</code> different values per
-    // quadrature point, but we extract it
-    // <code>dofs_per_cell*dofs_per_cell</code> times from the FEValues object
-    // - for both the loop over <code>i</code> and the inner loop over
-    // <code>j</code>. In 3d, that means evaluating it $89^2=7921$ instead of
-    // $89$ times, a not insignificant difference.
+    // As an extension over step-20 and step-21, we include a few optimizations
+    // that make assembly much faster for this particular problem. The
+    // improvements are based on the observation that we do a few calculations
+    // too many times when we do as in step-20: The symmetric gradient actually
+    // has <code>dofs_per_cell</code> different values per quadrature point, but
+    // we extract it <code>dofs_per_cell*dofs_per_cell</code> times from the
+    // FEValues object - for both the loop over <code>i</code> and the inner
+    // loop over <code>j</code>. In 3d, that means evaluating it $89^2=7921$
+    // instead of $89$ times, a not insignificant difference.
     //
     // So what we're going to do here is to avoid such repeated calculations
     // by getting a vector of rank-2 tensors (and similarly for the divergence
@@ -665,7 +646,7 @@ namespace Step22
               {
                 for (unsigned int j=0; j<=i; ++j)
                   {
-                    local_matrix(i,j) += (symgrad_phi_u[i] * symgrad_phi_u[j]
+                    local_matrix(i,j) += (2 * (symgrad_phi_u[i] * symgrad_phi_u[j])
                                           - div_phi_u[i] * phi_p[j]
                                           - phi_p[i] * div_phi_u[j]
                                           + phi_p[i] * phi_p[j])
@@ -678,8 +659,8 @@ namespace Step22
                 // elements are primitive).  Instead of multiplying the tensor
                 // representing the dim+1 values of shape function i with the
                 // whole right-hand side vector, we only look at the only
-                // non-zero component. The Function
-                // FiniteElement::system_to_component_index(i) will return
+                // non-zero component. The function
+                // FiniteElement::system_to_component_index will return
                 // which component this shape function lives in (0=x velocity,
                 // 1=y velocity, 2=pressure in 2d), which we use to pick out
                 // the correct component of the right-hand side vector to
@@ -974,7 +955,7 @@ namespace Step22
          cell != triangulation.end(); ++cell)
       for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
         if (cell->face(f)->center()[dim-1] == 0)
-          cell->face(f)->set_all_boundary_indicators(1);
+          cell->face(f)->set_all_boundary_ids(1);
 
 
     // We then apply an initial refinement before solving for the first
@@ -1019,8 +1000,6 @@ int main ()
     {
       using namespace dealii;
       using namespace Step22;
-
-      deallog.depth_console (0);
 
       StokesProblem<2> flow_problem(1);
       flow_problem.run ();

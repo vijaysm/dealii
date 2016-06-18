@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,13 +34,12 @@ main ()
   deallog << std::fixed;
   deallog << std::setprecision(0);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   // rank=1
   {
     deallog << "rank=1" << std::endl;
-    
+
     const double entries[] = { 1, 2, 3 };
 
     Table<1,double> t (3);
@@ -62,7 +61,7 @@ main ()
   // rank=2
   {
     deallog << "rank=2" << std::endl;
-    
+
     const double entries[] = { 1, 2, 3, 4, 5, 6 };
 
     // create a 2x3 table from this
@@ -71,9 +70,9 @@ main ()
 
     for (unsigned int i=0; i<t.size()[0]; ++i)
       {
-	for (unsigned int j=0; j<t.size()[1]; ++j)
-	  deallog << t[i][j] << ' ';
-	deallog << std::endl;
+        for (unsigned int j=0; j<t.size()[1]; ++j)
+          deallog << t[i][j] << ' ';
+        deallog << std::endl;
       }
 
     // same data, same table, but filled in transpose ordering
@@ -81,9 +80,9 @@ main ()
 
     for (unsigned int i=0; i<t.size()[0]; ++i)
       {
-	for (unsigned int j=0; j<t.size()[1]; ++j)
-	  deallog << t[i][j] << ' ';
-	deallog << std::endl;
+        for (unsigned int j=0; j<t.size()[1]; ++j)
+          deallog << t[i][j] << ' ';
+        deallog << std::endl;
       }
   }
 
@@ -91,9 +90,10 @@ main ()
   // rank=3
   {
     deallog << "rank=3" << std::endl;
-    
+
     const double entries[] = { 1, 2, 3, 4, 5, 6,
-			       7, 8, 9, 10, 11, 12 };
+                               7, 8, 9, 10, 11, 12
+                             };
 
     // create a 2x3x2 table from this
     Table<3,double> t (2,3,2);
@@ -101,14 +101,14 @@ main ()
 
     for (unsigned int i=0; i<t.size()[0]; ++i)
       {
-	for (unsigned int j=0; j<t.size()[1]; ++j)
-	  {
-	    deallog << '(';
-	    for (unsigned int k=0; k<t.size()[2]; ++k)
-	      deallog << t[i][j][k] << ' ';
-	    deallog << ')';
-	  }
-	deallog << std::endl;
+        for (unsigned int j=0; j<t.size()[1]; ++j)
+          {
+            deallog << '(';
+            for (unsigned int k=0; k<t.size()[2]; ++k)
+              deallog << t[i][j][k] << ' ';
+            deallog << ')';
+          }
+        deallog << std::endl;
       }
 
     // same data, same table, but filled in transpose ordering
@@ -116,14 +116,14 @@ main ()
 
     for (unsigned int i=0; i<t.size()[0]; ++i)
       {
-	for (unsigned int j=0; j<t.size()[1]; ++j)
-	  {
-	    deallog << '(';
-	    for (unsigned int k=0; k<t.size()[2]; ++k)
-	      deallog << t[i][j][k] << ' ';
-	    deallog << ')';
-	  }
-	deallog << std::endl;
+        for (unsigned int j=0; j<t.size()[1]; ++j)
+          {
+            deallog << '(';
+            for (unsigned int k=0; k<t.size()[2]; ++k)
+              deallog << t[i][j][k] << ' ';
+            deallog << ')';
+          }
+        deallog << std::endl;
       }
   }
 }

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2014 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -25,6 +25,8 @@
 #include <deal.II/grid/tria.h>
 #include <deal.II/base/geometry_info.h>
 #include <deal.II/fe/fe.h>
+#include <deal.II/distributed/shared_tria.h>
+#include <deal.II/distributed/tria.h>
 
 #include <set>
 #include <algorithm>
@@ -33,7 +35,7 @@ DEAL_II_NAMESPACE_OPEN
 
 
 //TODO[WB]: do not use a plain pointer for DoFHandler::faces, but rather an
-//auto_ptr or some such thing. alternatively, why not use the DoFFaces object
+//unique_ptr or some such thing. alternatively, why not use the DoFFaces object
 //right away?
 
 template<int dim, int spacedim>
@@ -49,7 +51,7 @@ template <int dim, int spacedim>
 const unsigned int DoFHandler<dim,spacedim>::default_fe_index;
 
 
-// reference the invalid_dof_index variable explicitely to work around
+// reference the invalid_dof_index variable explicitly to work around
 // a bug in the icc8 compiler
 namespace internal
 {
@@ -72,6 +74,8 @@ namespace internal
       policy_name = "Policy::Sequential<";
     else if (dynamic_cast<const typename dealii::internal::DoFHandler::Policy::ParallelDistributed<dim,spacedim>*>(&policy))
       policy_name = "Policy::ParallelDistributed<";
+    else if (dynamic_cast<const typename dealii::internal::DoFHandler::Policy::ParallelShared<dim,spacedim>*>(&policy))
+      policy_name = "Policy::ParallelShared<";
     else
       AssertThrow(false, ExcNotImplemented());
     policy_name += Utilities::int_to_string(dim)+
@@ -371,10 +375,10 @@ namespace internal
       static
       void reserve_space_mg (DoFHandler<1, spacedim> &dof_handler)
       {
-        Assert (dof_handler.get_tria ().n_levels () > 0, ExcMessage ("Invalid triangulation"));
+        Assert (dof_handler.get_triangulation().n_levels () > 0, ExcMessage ("Invalid triangulation"));
         dof_handler.clear_mg_space ();
 
-        const dealii::Triangulation<1, spacedim> &tria = dof_handler.get_tria ();
+        const dealii::Triangulation<1, spacedim> &tria = dof_handler.get_triangulation();
         const unsigned int &dofs_per_line = dof_handler.get_fe ().dofs_per_line;
         const unsigned int &n_levels = tria.n_levels ();
 
@@ -427,11 +431,11 @@ namespace internal
       static
       void reserve_space_mg (DoFHandler<2, spacedim> &dof_handler)
       {
-        Assert (dof_handler.get_tria ().n_levels () > 0, ExcMessage ("Invalid triangulation"));
+        Assert (dof_handler.get_triangulation().n_levels () > 0, ExcMessage ("Invalid triangulation"));
         dof_handler.clear_mg_space ();
 
         const dealii::FiniteElement<2, spacedim> &fe = dof_handler.get_fe ();
-        const dealii::Triangulation<2, spacedim> &tria = dof_handler.get_tria ();
+        const dealii::Triangulation<2, spacedim> &tria = dof_handler.get_triangulation();
         const unsigned int &n_levels = tria.n_levels ();
 
         for (unsigned int i = 0; i < n_levels; ++i)
@@ -486,11 +490,11 @@ namespace internal
       static
       void reserve_space_mg (DoFHandler<3, spacedim> &dof_handler)
       {
-        Assert (dof_handler.get_tria ().n_levels () > 0, ExcMessage ("Invalid triangulation"));
+        Assert (dof_handler.get_triangulation().n_levels () > 0, ExcMessage ("Invalid triangulation"));
         dof_handler.clear_mg_space ();
 
         const dealii::FiniteElement<3, spacedim> &fe = dof_handler.get_fe ();
-        const dealii::Triangulation<3, spacedim> &tria = dof_handler.get_tria ();
+        const dealii::Triangulation<3, spacedim> &tria = dof_handler.get_triangulation();
         const unsigned int &n_levels = tria.n_levels ();
 
         for (unsigned int i = 0; i < n_levels; ++i)
@@ -542,112 +546,7 @@ namespace internal
             }
       }
 
-      template<int spacedim>
-      static
-      types::global_dof_index distribute_dofs_on_cell (typename DoFHandler<1, spacedim>::cell_iterator &cell, types::global_dof_index next_free_dof)
-      {
-        const FiniteElement<1, spacedim> &fe = cell->get_fe ();
 
-        if (fe.dofs_per_vertex > 0)
-          for (unsigned int vertex = 0; vertex < GeometryInfo<1>::vertices_per_cell; ++vertex)
-            {
-              typename DoFHandler<1, spacedim>::cell_iterator neighbor = cell->neighbor (vertex);
-
-              if (neighbor.state () == IteratorState::valid)
-                if (neighbor->user_flag_set () && (neighbor->level () == cell->level ()))
-                  {
-                    if (vertex == 0)
-                      for (unsigned int dof = 0; dof < fe.dofs_per_vertex; ++dof)
-                        cell->set_mg_vertex_dof_index (cell->level (), 0, dof, neighbor->mg_vertex_dof_index (cell->level (), 1, dof));
-
-                    else
-                      for (unsigned int dof = 0; dof < fe.dofs_per_vertex; ++dof)
-                        cell->set_mg_vertex_dof_index (cell->level (), 1, dof, neighbor->mg_vertex_dof_index (cell->level (), 0, dof));
-
-                    continue;
-                  }
-
-              for (unsigned int dof = 0; dof < fe.dofs_per_vertex; ++dof)
-                cell->set_mg_vertex_dof_index (cell->level (), vertex, dof, next_free_dof++);
-            }
-
-        if (fe.dofs_per_line > 0)
-          for (unsigned int dof = 0; dof < fe.dofs_per_line; ++dof)
-            cell->set_mg_dof_index (cell->level (), dof, next_free_dof++);
-
-        cell->set_user_flag ();
-        return next_free_dof;
-      }
-
-      template<int spacedim>
-      static
-      types::global_dof_index distribute_dofs_on_cell (typename DoFHandler<2, spacedim>::cell_iterator &cell, types::global_dof_index next_free_dof)
-      {
-        const FiniteElement<2, spacedim> &fe = cell->get_fe ();
-
-        if (fe.dofs_per_vertex > 0)
-          for (unsigned int vertex = 0; vertex < GeometryInfo<2>::vertices_per_cell; ++vertex)
-            if (cell->mg_vertex_dof_index (cell->level (), vertex, 0) == DoFHandler<2>::invalid_dof_index)
-              for (unsigned int dof = 0; dof < fe.dofs_per_vertex; ++dof)
-                cell->set_mg_vertex_dof_index (cell->level (), vertex, dof, next_free_dof++);
-
-        if (fe.dofs_per_line > 0)
-          for (unsigned int face = 0; face < GeometryInfo<2>::faces_per_cell; ++face)
-            {
-              typename DoFHandler<2, spacedim>::line_iterator line = cell->line (face);
-
-              if (line->mg_dof_index (cell->level (), 0) == DoFHandler<2>::invalid_dof_index)
-                for (unsigned int dof = 0; dof < fe.dofs_per_line; ++dof)
-                  line->set_mg_dof_index (cell->level (), dof, next_free_dof++);
-            }
-
-        if (fe.dofs_per_quad > 0)
-          for (unsigned int dof = 0; dof < fe.dofs_per_quad; ++dof)
-            cell->set_mg_dof_index (cell->level (), dof, next_free_dof++);
-
-        cell->set_user_flag ();
-        return next_free_dof;
-      }
-
-      template<int spacedim>
-      static
-      types::global_dof_index distribute_dofs_on_cell (typename DoFHandler<3, spacedim>::cell_iterator &cell, types::global_dof_index next_free_dof)
-      {
-        const FiniteElement<3, spacedim> &fe = cell->get_fe ();
-
-        if (fe.dofs_per_vertex > 0)
-          for (unsigned int vertex = 0; vertex < GeometryInfo<3>::vertices_per_cell; ++vertex)
-            if (cell->mg_vertex_dof_index (cell->level (), vertex, 0) == DoFHandler<3>::invalid_dof_index)
-              for (unsigned int dof = 0; dof < fe.dofs_per_vertex; ++dof)
-                cell->set_mg_vertex_dof_index (cell->level (), vertex, dof, next_free_dof++);
-
-        if (fe.dofs_per_line > 0)
-          for (unsigned int line = 0; line < GeometryInfo<3>::lines_per_cell; ++line)
-            {
-              typename DoFHandler<3, spacedim>::line_iterator line_it = cell->line (line);
-
-              if (line_it->mg_dof_index (cell->level (), 0) == DoFHandler<3>::invalid_dof_index)
-                for (unsigned int dof = 0; dof < fe.dofs_per_line; ++dof)
-                  line_it->set_mg_dof_index (cell->level (), dof, next_free_dof++);
-            }
-
-        if (fe.dofs_per_quad > 0)
-          for (unsigned int face = 0; face < GeometryInfo<3>::quads_per_cell; ++face)
-            {
-              typename DoFHandler<3, spacedim>::quad_iterator quad = cell->quad (face);
-
-              if (quad->mg_dof_index (cell->level (), 0) == DoFHandler<3>::invalid_dof_index)
-                for (unsigned int dof = 0; dof < fe.dofs_per_quad; ++dof)
-                  quad->set_mg_dof_index (cell->level (), dof, next_free_dof++);
-            }
-
-        if (fe.dofs_per_hex > 0)
-          for (unsigned int dof = 0; dof < fe.dofs_per_hex; ++dof)
-            cell->set_mg_dof_index (cell->level (), dof, next_free_dof++);
-
-        cell->set_user_flag ();
-        return next_free_dof;
-      }
 
       template<int spacedim>
       static
@@ -762,9 +661,13 @@ DoFHandler<dim,spacedim>::DoFHandler (const Triangulation<dim,spacedim> &tria)
   // decide whether we need a
   // sequential or a parallel
   // distributed policy
-  if (dynamic_cast<const parallel::distributed::Triangulation< dim, spacedim >*>
+  if (dynamic_cast<const parallel::shared::Triangulation< dim, spacedim>*>
       (&tria)
-      == 0)
+      != 0)
+    policy.reset (new internal::DoFHandler::Policy::ParallelShared<dim,spacedim>());
+  else if (dynamic_cast<const parallel::distributed::Triangulation< dim, spacedim >*>
+           (&tria)
+           == 0)
     policy.reset (new internal::DoFHandler::Policy::Sequential<dim,spacedim>());
   else
     policy.reset (new internal::DoFHandler::Policy::ParallelDistributed<dim,spacedim>());
@@ -802,9 +705,13 @@ DoFHandler<dim,spacedim>::initialize(
   // decide whether we need a
   // sequential or a parallel
   // distributed policy
-  if (dynamic_cast<const parallel::distributed::Triangulation< dim, spacedim >*>
+  if (dynamic_cast<const parallel::shared::Triangulation< dim, spacedim>*>
       (&t)
-      == 0)
+      != 0)
+    policy.reset (new internal::DoFHandler::Policy::ParallelShared<dim,spacedim>());
+  else if (dynamic_cast<const parallel::distributed::Triangulation< dim, spacedim >*>
+           (&t)
+           == 0)
     policy.reset (new internal::DoFHandler::Policy::Sequential<dim,spacedim>());
   else
     policy.reset (new internal::DoFHandler::Policy::ParallelDistributed<dim,spacedim>());
@@ -820,8 +727,8 @@ template <int dim, int spacedim>
 typename DoFHandler<dim,spacedim>::cell_iterator
 DoFHandler<dim,spacedim>::begin (const unsigned int level) const
 {
-  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_tria().begin(level);
-  if (cell == this->get_tria().end(level))
+  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_triangulation().begin(level);
+  if (cell == this->get_triangulation().end(level))
     return end(level);
   return cell_iterator (*cell, this);
 }
@@ -848,7 +755,7 @@ template <int dim, int spacedim>
 typename DoFHandler<dim,spacedim>::cell_iterator
 DoFHandler<dim,spacedim>::end () const
 {
-  return cell_iterator (&this->get_tria(),
+  return cell_iterator (&this->get_triangulation(),
                         -1,
                         -1,
                         this);
@@ -859,7 +766,7 @@ template <int dim, int spacedim>
 typename DoFHandler<dim,spacedim>::cell_iterator
 DoFHandler<dim,spacedim>::end (const unsigned int level) const
 {
-  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_tria().end(level);
+  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_triangulation().end(level);
   if (cell.state() != IteratorState::valid)
     return end();
   return cell_iterator (*cell, this);
@@ -870,7 +777,7 @@ template <int dim, int spacedim>
 typename DoFHandler<dim, spacedim>::active_cell_iterator
 DoFHandler<dim, spacedim>::end_active (const unsigned int level) const
 {
-  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_tria().end_active(level);
+  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_triangulation().end_active(level);
   if (cell.state() != IteratorState::valid)
     return active_cell_iterator(end());
   return active_cell_iterator (*cell, this);
@@ -884,8 +791,8 @@ DoFHandler<dim, spacedim>::begin_mg (const unsigned int level) const
 {
   // Assert(this->has_level_dofs(), ExcMessage("You can only iterate over mg "
   //     "levels if mg dofs got distributed."));
-  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_tria().begin(level);
-  if (cell == this->get_tria().end(level))
+  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_triangulation().begin(level);
+  if (cell == this->get_triangulation().end(level))
     return end_mg(level);
   return level_cell_iterator (*cell, this);
 }
@@ -897,7 +804,7 @@ DoFHandler<dim, spacedim>::end_mg (const unsigned int level) const
 {
   // Assert(this->has_level_dofs(), ExcMessage("You can only iterate over mg "
   //     "levels if mg dofs got distributed."));
-  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_tria().end(level);
+  typename Triangulation<dim,spacedim>::cell_iterator cell = this->get_triangulation().end(level);
   if (cell.state() != IteratorState::valid)
     return end();
   return level_cell_iterator (*cell, this);
@@ -908,7 +815,7 @@ template <int dim, int spacedim>
 typename DoFHandler<dim, spacedim>::level_cell_iterator
 DoFHandler<dim, spacedim>::end_mg () const
 {
-  return level_cell_iterator (&this->get_tria(), -1, -1, this);
+  return level_cell_iterator (&this->get_triangulation(), -1, -1, this);
 }
 
 
@@ -992,33 +899,34 @@ types::global_dof_index DoFHandler<1>::n_boundary_dofs () const
 
 
 template <>
-types::global_dof_index DoFHandler<1>::n_boundary_dofs (const FunctionMap &boundary_indicators) const
+template <typename number>
+types::global_dof_index DoFHandler<1>::n_boundary_dofs (const std::map<types::boundary_id, const Function<1,number>*> &boundary_ids) const
 {
   // check that only boundary
   // indicators 0 and 1 are allowed
   // in 1d
-  for (FunctionMap::const_iterator i=boundary_indicators.begin();
-       i!=boundary_indicators.end(); ++i)
+  for (typename std::map<types::boundary_id, const Function<1,number>*>::const_iterator i=boundary_ids.begin();
+       i!=boundary_ids.end(); ++i)
     Assert ((i->first == 0) || (i->first == 1),
             ExcInvalidBoundaryIndicator());
 
-  return boundary_indicators.size()*get_fe().dofs_per_vertex;
+  return boundary_ids.size()*get_fe().dofs_per_vertex;
 }
 
 
 
 template <>
-types::global_dof_index DoFHandler<1>::n_boundary_dofs (const std::set<types::boundary_id> &boundary_indicators) const
+types::global_dof_index DoFHandler<1>::n_boundary_dofs (const std::set<types::boundary_id> &boundary_ids) const
 {
   // check that only boundary
   // indicators 0 and 1 are allowed
   // in 1d
-  for (std::set<types::boundary_id>::const_iterator i=boundary_indicators.begin();
-       i!=boundary_indicators.end(); ++i)
+  for (std::set<types::boundary_id>::const_iterator i=boundary_ids.begin();
+       i!=boundary_ids.end(); ++i)
     Assert ((*i == 0) || (*i == 1),
             ExcInvalidBoundaryIndicator());
 
-  return boundary_indicators.size()*get_fe().dofs_per_vertex;
+  return boundary_ids.size()*get_fe().dofs_per_vertex;
 }
 
 
@@ -1031,33 +939,34 @@ types::global_dof_index DoFHandler<1,2>::n_boundary_dofs () const
 
 
 template <>
-types::global_dof_index DoFHandler<1,2>::n_boundary_dofs (const FunctionMap &boundary_indicators) const
+template <typename number>
+types::global_dof_index DoFHandler<1,2>::n_boundary_dofs (const std::map<types::boundary_id, const Function<2,number>*> &boundary_ids) const
 {
   // check that only boundary
   // indicators 0 and 1 are allowed
   // in 1d
-  for (FunctionMap::const_iterator i=boundary_indicators.begin();
-       i!=boundary_indicators.end(); ++i)
+  for (typename std::map<types::boundary_id, const Function<2,number>*>::const_iterator i=boundary_ids.begin();
+       i!=boundary_ids.end(); ++i)
     Assert ((i->first == 0) || (i->first == 1),
             ExcInvalidBoundaryIndicator());
 
-  return boundary_indicators.size()*get_fe().dofs_per_vertex;
+  return boundary_ids.size()*get_fe().dofs_per_vertex;
 }
 
 
 
 template <>
-types::global_dof_index DoFHandler<1,2>::n_boundary_dofs (const std::set<types::boundary_id> &boundary_indicators) const
+types::global_dof_index DoFHandler<1,2>::n_boundary_dofs (const std::set<types::boundary_id> &boundary_ids) const
 {
   // check that only boundary
   // indicators 0 and 1 are allowed
   // in 1d
-  for (std::set<types::boundary_id>::const_iterator i=boundary_indicators.begin();
-       i!=boundary_indicators.end(); ++i)
+  for (std::set<types::boundary_id>::const_iterator i=boundary_ids.begin();
+       i!=boundary_ids.end(); ++i)
     Assert ((*i == 0) || (*i == 1),
             ExcInvalidBoundaryIndicator());
 
-  return boundary_indicators.size()*get_fe().dofs_per_vertex;
+  return boundary_ids.size()*get_fe().dofs_per_vertex;
 }
 
 
@@ -1101,10 +1010,11 @@ types::global_dof_index DoFHandler<dim,spacedim>::n_boundary_dofs () const
 
 
 template<int dim, int spacedim>
+template<typename number>
 types::global_dof_index
-DoFHandler<dim,spacedim>::n_boundary_dofs (const FunctionMap &boundary_indicators) const
+DoFHandler<dim,spacedim>::n_boundary_dofs (const std::map<types::boundary_id, const Function<spacedim,number>*> &boundary_ids) const
 {
-  Assert (boundary_indicators.find(numbers::internal_face_boundary_id) == boundary_indicators.end(),
+  Assert (boundary_ids.find(numbers::internal_face_boundary_id) == boundary_ids.end(),
           ExcInvalidBoundaryIndicator());
 
   std::set<int> boundary_dofs;
@@ -1121,8 +1031,8 @@ DoFHandler<dim,spacedim>::n_boundary_dofs (const FunctionMap &boundary_indicator
     for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
       if (cell->at_boundary(f)
           &&
-          (boundary_indicators.find(cell->face(f)->boundary_indicator()) !=
-           boundary_indicators.end()))
+          (boundary_ids.find(cell->face(f)->boundary_id()) !=
+           boundary_ids.end()))
         {
           cell->face(f)->get_dof_indices (dofs_on_face);
           for (unsigned int i=0; i<dofs_per_face; ++i)
@@ -1136,9 +1046,9 @@ DoFHandler<dim,spacedim>::n_boundary_dofs (const FunctionMap &boundary_indicator
 
 template<int dim, int spacedim>
 types::global_dof_index
-DoFHandler<dim,spacedim>::n_boundary_dofs (const std::set<types::boundary_id> &boundary_indicators) const
+DoFHandler<dim,spacedim>::n_boundary_dofs (const std::set<types::boundary_id> &boundary_ids) const
 {
-  Assert (boundary_indicators.find (numbers::internal_face_boundary_id) == boundary_indicators.end(),
+  Assert (boundary_ids.find (numbers::internal_face_boundary_id) == boundary_ids.end(),
           ExcInvalidBoundaryIndicator());
 
   std::set<int> boundary_dofs;
@@ -1155,10 +1065,10 @@ DoFHandler<dim,spacedim>::n_boundary_dofs (const std::set<types::boundary_id> &b
     for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
       if (cell->at_boundary(f)
           &&
-          (std::find (boundary_indicators.begin(),
-                      boundary_indicators.end(),
-                      cell->face(f)->boundary_indicator()) !=
-           boundary_indicators.end()))
+          (std::find (boundary_ids.begin(),
+                      boundary_ids.end(),
+                      cell->face(f)->boundary_id()) !=
+           boundary_ids.end()))
         {
           cell->face(f)->get_dof_indices (dofs_on_face);
           for (unsigned int i=0; i<dofs_per_face; ++i)
@@ -1225,7 +1135,7 @@ void DoFHandler<dim,spacedim>::distribute_dofs (const FiniteElement<dim,spacedim
   internal::DoFHandler::Implementation::reserve_space (*this);
 
   // hand things off to the policy
-  number_cache = policy->distribute_dofs (*this);
+  policy->distribute_dofs (*this,number_cache);
 
   // initialize the block info object
   // only if this is a sequential
@@ -1239,9 +1149,12 @@ void DoFHandler<dim,spacedim>::distribute_dofs (const FiniteElement<dim,spacedim
 template<int dim, int spacedim>
 void DoFHandler<dim, spacedim>::distribute_mg_dofs (const FiniteElement<dim, spacedim> &fe)
 {
+  (void)fe;
+  Assert(levels.size()>0, ExcMessage("Distribute active DoFs using distribute_dofs() before calling distribute_mg_dofs()."));
+
   const FiniteElement<dim, spacedim> *old_fe = selected_fe;
-  Assert((old_fe==NULL) || (old_fe == &fe), ExcMessage("you are required to use the same FE for level and active DoFs!") );
-  selected_fe = &fe;
+  (void)old_fe;
+  Assert(old_fe == &fe, ExcMessage("You are required to use the same FE for level and active DoFs!") );
 
   clear_mg_space();
 
@@ -1311,6 +1224,8 @@ template <int dim, int spacedim>
 void
 DoFHandler<dim,spacedim>::renumber_dofs (const std::vector<types::global_dof_index> &new_numbers)
 {
+  Assert(levels.size()>0, ExcMessage("You need to distribute DoFs before you can renumber them."));
+
   Assert (new_numbers.size() == n_locally_owned_dofs(),
           ExcRenumberingIncomplete());
 
@@ -1339,7 +1254,7 @@ DoFHandler<dim,spacedim>::renumber_dofs (const std::vector<types::global_dof_ind
               ExcMessage ("New DoF index is not less than the total number of dofs."));
 #endif
 
-  number_cache = policy->renumber_dofs (new_numbers, *this);
+  policy->renumber_dofs (new_numbers, *this,number_cache);
 }
 
 
@@ -1356,6 +1271,8 @@ template<>
 void DoFHandler<1>::renumber_dofs (const unsigned int level,
                                    const std::vector<types::global_dof_index> &new_numbers)
 {
+  Assert(mg_levels.size()>0 && levels.size()>0,
+         ExcMessage("You need to distribute active and level DoFs before you can renumber level DoFs."));
   Assert (new_numbers.size() == n_dofs(level), DoFHandler<1>::ExcRenumberingIncomplete());
 
   // note that we can not use cell iterators
@@ -1390,6 +1307,8 @@ template<>
 void DoFHandler<2>::renumber_dofs (const unsigned int  level,
                                    const std::vector<types::global_dof_index>  &new_numbers)
 {
+  Assert(mg_levels.size()>0 && levels.size()>0,
+         ExcMessage("You need to distribute active and level DoFs before you can renumber level DoFs."));
   Assert (new_numbers.size() == n_dofs(level),
           DoFHandler<2>::ExcRenumberingIncomplete());
 
@@ -1406,14 +1325,15 @@ void DoFHandler<2>::renumber_dofs (const unsigned int  level,
     {
       // save user flags as they will be modified
       std::vector<bool> user_flags;
-      this->get_tria().save_user_flags(user_flags);
-      const_cast<Triangulation<2> &>(this->get_tria()).clear_user_flags ();
+      this->get_triangulation().save_user_flags(user_flags);
+      const_cast<Triangulation<2> &>(this->get_triangulation()).clear_user_flags ();
 
       // flag all lines adjacent to cells of the current
       // level, as those lines logically belong to the same
       // level as the cell, at least for for isotropic
       // refinement
-      for (level_cell_iterator cell = begin(level); cell != end(level); ++cell)
+      level_cell_iterator cell, endc = end(level);
+      for (cell = begin(level); cell != endc; ++cell)
         for (unsigned int line=0; line < GeometryInfo<2>::faces_per_cell; ++line)
           cell->face(line)->set_user_flag();
 
@@ -1427,7 +1347,7 @@ void DoFHandler<2>::renumber_dofs (const unsigned int  level,
               cell->line(l)->clear_user_flag();
             }
       // finally, restore user flags
-      const_cast<Triangulation<2> &>(this->get_tria()).load_user_flags (user_flags);
+      const_cast<Triangulation<2> &>(this->get_triangulation()).load_user_flags (user_flags);
     }
 
   for (std::vector<types::global_dof_index>::iterator i=mg_levels[level]->dof_object.dofs.begin();
@@ -1447,6 +1367,8 @@ template<>
 void DoFHandler<3>::renumber_dofs (const unsigned int  level,
                                    const std::vector<types::global_dof_index>  &new_numbers)
 {
+  Assert(mg_levels.size()>0 && levels.size()>0,
+         ExcMessage("You need to distribute active and level DoFs before you can renumber level DoFs."));
   Assert (new_numbers.size() == n_dofs(level),
           DoFHandler<3>::ExcRenumberingIncomplete());
 
@@ -1464,19 +1386,20 @@ void DoFHandler<3>::renumber_dofs (const unsigned int  level,
     {
       // save user flags as they will be modified
       std::vector<bool> user_flags;
-      this->get_tria().save_user_flags(user_flags);
-      const_cast<Triangulation<3> &>(this->get_tria()).clear_user_flags ();
+      this->get_triangulation().save_user_flags(user_flags);
+      const_cast<Triangulation<3> &>(this->get_triangulation()).clear_user_flags ();
 
       // flag all lines adjacent to cells of the current
       // level, as those lines logically belong to the same
       // level as the cell, at least for for isotropic
       // refinement
-      for (level_cell_iterator cell = begin(level) ; cell != end(level) ; ++cell)
+      level_cell_iterator cell, endc = end(level);
+      for (cell = begin(level) ; cell != endc ; ++cell)
         for (unsigned int line=0; line < GeometryInfo<3>::lines_per_cell; ++line)
           cell->line(line)->set_user_flag();
 
 
-      for (cell_iterator cell = begin(level); cell != end(level); ++cell)
+      for (cell = begin(level); cell != endc; ++cell)
         for (unsigned int l=0; l<GeometryInfo<3>::lines_per_cell; ++l)
           if (cell->line(l)->user_flag_set())
             {
@@ -1486,7 +1409,7 @@ void DoFHandler<3>::renumber_dofs (const unsigned int  level,
               cell->line(l)->clear_user_flag();
             }
       // finally, restore user flags
-      const_cast<Triangulation<3> &>(this->get_tria()).load_user_flags (user_flags);
+      const_cast<Triangulation<3> &>(this->get_triangulation()).load_user_flags (user_flags);
     }
 
   // QUAD DoFs
@@ -1494,18 +1417,19 @@ void DoFHandler<3>::renumber_dofs (const unsigned int  level,
     {
       // save user flags as they will be modified
       std::vector<bool> user_flags;
-      this->get_tria().save_user_flags(user_flags);
-      const_cast<Triangulation<3> &>(this->get_tria()).clear_user_flags ();
+      this->get_triangulation().save_user_flags(user_flags);
+      const_cast<Triangulation<3> &>(this->get_triangulation()).clear_user_flags ();
 
       // flag all quads adjacent to cells of the current
       // level, as those lines logically belong to the same
       // level as the cell, at least for for isotropic
       // refinement
-      for (level_cell_iterator cell = begin(level) ; cell != end(level); ++cell)
+      level_cell_iterator cell, endc = end(level);
+      for (cell = begin(level) ; cell != endc; ++cell)
         for (unsigned int quad=0; quad < GeometryInfo<3>::faces_per_cell; ++quad)
           cell->face(quad)->set_user_flag();
 
-      for (cell_iterator cell = begin(level); cell != end(level); ++cell)
+      for (cell = begin(level); cell != endc; ++cell)
         for (unsigned int q=0; q<GeometryInfo<3>::quads_per_cell; ++q)
           if (cell->quad(q)->user_flag_set())
             {
@@ -1515,7 +1439,7 @@ void DoFHandler<3>::renumber_dofs (const unsigned int  level,
               cell->quad(q)->clear_user_flag();
             }
       // finally, restore user flags
-      const_cast<Triangulation<3> &>(this->get_tria()).load_user_flags (user_flags);
+      const_cast<Triangulation<3> &>(this->get_triangulation()).load_user_flags (user_flags);
     }
 
   //HEX DoFs

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__dof_print_solver_step_h
-#define __deal2__dof_print_solver_step_h
+#ifndef dealii__dof_print_solver_step_h
+#define dealii__dof_print_solver_step_h
 
 #include <deal.II/base/config.h>
 #include <deal.II/base/logstream.h>
@@ -30,55 +30,48 @@ DEAL_II_NAMESPACE_OPEN
 
 
 /**
- * Print intermediate solutions in solvers.  This is derived from a
- * solver class provided as template argument.  It implements the
- * @p print_vector function of the solver using a
- * DoFHandler. This way, the intermediate vectors can be viewed
- * as finite element functions. This class might be used first to
- * understand how solvers work (for example to visualize the smoothing
- * properties of various solvers, e.g. in a multigrid context), and
- * second to investigate why and how a solver fails to solve certain
- * classes of problems.
+ * Print intermediate solutions in solvers.  This is derived from a solver
+ * class provided as template argument.  It implements the @p print_vector
+ * function of the solver using a DoFHandler. This way, the intermediate
+ * vectors can be viewed as finite element functions. This class might be used
+ * first to understand how solvers work (for example to visualize the
+ * smoothing properties of various solvers, e.g. in a multigrid context), and
+ * second to investigate why and how a solver fails to solve certain classes
+ * of problems.
  *
- * Objects of this class are provided with a solver class through a
- * template argument, and with a file name (as a string), with which a
- * new file is constructed in each iteration (named
- * <tt>basename.[step].[suffix]</tt>) and into which the solution is
- * written as a finite element field using the DataOut class.
- * Please note that this class may produce enormous amounts of data!
+ * Objects of this class are provided with a solver class through a template
+ * argument, and with a file name (as a string), with which a new file is
+ * constructed in each iteration (named <tt>basename.[step].[suffix]</tt>) and
+ * into which the solution is written as a finite element field using the
+ * DataOut class. Please note that this class may produce enormous amounts of
+ * data!
  *
  * @ingroup output
  * @author Guido Kanschat, 2000
  */
-template<int dim, class SOLVER, class VECTOR = Vector<double> >
-class DoFPrintSolverStep : public SOLVER
+template<int dim, typename SolverType, class VectorType = Vector<double> >
+class DoFPrintSolverStep : public SolverType
 {
 public:
   /**
-   * Constructor.  First, we take
-   * the arguments needed for the
-   * solver. @p data_out is the
-   * object doing the output as a
-   * finite element function.
+   * Constructor.  First, we take the arguments needed for the solver. @p
+   * data_out is the object doing the output as a finite element function.
    *
-   * One output file with the name
-   * <tt>basename.[step].[suffix]</tt>
-   * will be produced for each
-   * iteration step.
+   * One output file with the name <tt>basename.[step].[suffix]</tt> will be
+   * produced for each iteration step.
    */
   DoFPrintSolverStep (SolverControl &control,
-                      VectorMemory<VECTOR> &mem,
-                      DataOut<dim> &data_out,
-                      const std::string &basename);
+                      VectorMemory<VectorType> &mem,
+                      DataOut<dim>             &data_out,
+                      const std::string        &basename);
 
   /**
-   * Call-back function for the
-   * iterative method.
+   * Call-back function for the iterative method.
    */
   virtual void print_vectors (const unsigned int step,
-                              const VECTOR &x,
-                              const VECTOR &r,
-                              const VECTOR &d) const;
+                              const VectorType   &x,
+                              const VectorType   &r,
+                              const VectorType   &d) const;
 private:
   /**
    * Output object.
@@ -94,23 +87,25 @@ private:
 
 /* ----------------------- template functions --------------- */
 
-template<int dim, class SOLVER, class VECTOR>
-DoFPrintSolverStep<dim, SOLVER, VECTOR>::DoFPrintSolverStep (SolverControl &control,
-    VectorMemory<VECTOR> &mem,
-    DataOut<dim> &data_out,
-    const std::string &basename)
-  : SOLVER (control, mem),
+template<int dim, typename SolverType, class VectorType>
+DoFPrintSolverStep<dim, SolverType, VectorType>::DoFPrintSolverStep
+(SolverControl            &control,
+ VectorMemory<VectorType> &mem,
+ DataOut<dim>             &data_out,
+ const std::string        &basename)
+  : SolverType (control, mem),
     out (data_out),
     basename (basename)
 {}
 
 
-template<int dim, class SOLVER, class VECTOR>
+template<int dim, typename SolverType, class VectorType>
 void
-DoFPrintSolverStep<dim, SOLVER, VECTOR>::print_vectors (const unsigned int step,
-                                                        const VECTOR &x,
-                                                        const VECTOR &r,
-                                                        const VECTOR &d) const
+DoFPrintSolverStep<dim, SolverType, VectorType>::print_vectors
+(const unsigned int  step,
+ const VectorType   &x,
+ const VectorType   &r,
+ const VectorType   &d) const
 {
   out.clear_data_vectors();
   out.add_data_vector(x, "solution");

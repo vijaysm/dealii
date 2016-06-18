@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -75,9 +75,9 @@ void test ()
   hp::FECollection<dim> fe;
   fe.push_back (FE_Q<dim>(1));
   fe.push_back (FE_Q<dim>(2));
-  fe.push_back (FE_Q<dim>(3));
-  fe.push_back (FE_Q<dim>(4));
-  fe.push_back (FE_Q<dim>(5));
+  fe.push_back (FE_Q<dim>(QIterated<1>(QTrapez<1>(),3)));
+  fe.push_back (FE_Q<dim>(QIterated<1>(QTrapez<1>(),4)));
+  fe.push_back (FE_Q<dim>(QIterated<1>(QTrapez<1>(),5)));
 
   hp::DoFHandler<dim>        dof_handler(triangulation);
 
@@ -117,11 +117,9 @@ int main ()
   logfile.precision (7);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
 
   test<2> ();
   test<3> ();
 }
-

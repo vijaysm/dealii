@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2014 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -49,7 +49,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   Triangulation<2> triangulation;
@@ -66,7 +65,7 @@ int main()
 
   // Assign FE to cells
   hp::DoFHandler<2>::active_cell_iterator cell;
-  hp::DoFHandler<2>::active_cell_iterator endc = dof_handler.end();      
+  hp::DoFHandler<2>::active_cell_iterator endc = dof_handler.end();
 
 
   cell = dof_handler.begin_active();
@@ -91,7 +90,7 @@ int main()
 
   triangulation.execute_coarsening_and_refinement ();
   dof_handler.distribute_dofs (fe_collection);
-  
+
   Vector<double> new_solution(dof_handler.n_dofs());
   solultion_trans.interpolate(solution, new_solution);
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2014 by the deal.II authors
+// Copyright (C) 2009 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -35,13 +35,12 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   Threads::Task<> t;
-  Assert (t.joinable() == false, ExcInternalError());
-  
+  AssertThrow (t.joinable() == false, ExcInternalError());
+
   t = Threads::new_task (test);
-  Assert (t.joinable() == true, ExcInternalError());
+  AssertThrow (t.joinable() == true, ExcInternalError());
   t.join ();
 }

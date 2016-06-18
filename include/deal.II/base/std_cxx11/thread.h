@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__std_cxx11_thread_h
-#define __deal2__std_cxx11_thread_h
+#ifndef dealii__std_cxx11_thread_h
+#define dealii__std_cxx11_thread_h
 
 
 #include <deal.II/base/config.h>
@@ -31,7 +31,10 @@ DEAL_II_NAMESPACE_CLOSE
 
 #else
 
+DEAL_II_DISABLE_EXTRA_DIAGNOSTICS
 #  include <boost/thread.hpp>
+DEAL_II_ENABLE_EXTRA_DIAGNOSTICS
+
 DEAL_II_NAMESPACE_OPEN
 namespace std_cxx11
 {
@@ -40,5 +43,10 @@ namespace std_cxx11
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
+
+// then allow using the old namespace name instead of the new one
+DEAL_II_NAMESPACE_OPEN
+namespace std_cxx1x = std_cxx11;
+DEAL_II_NAMESPACE_CLOSE
 
 #endif

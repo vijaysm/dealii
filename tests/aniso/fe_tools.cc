@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,6 +28,7 @@
 #include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_raviart_thomas.h>
 #include <deal.II/fe/fe_system.h>
+#include <deal.II/base/quadrature_lib.h>
 
 #include <deal.II/fe/fe_tools.h>
 
@@ -125,8 +126,8 @@ void test_projection (std::ostream &out)
   FE_DGQ<dim> q0(0);
   FE_DGQ<dim> q1(1);
   FE_DGQ<dim> q2(2);
-  FE_DGQ<dim> q3(3);
-  FE_DGQ<dim> q4(4);
+  FE_DGQArbitraryNodes<dim> q3(QIterated<1>(QTrapez<1>(),3));
+  FE_DGQArbitraryNodes<dim> q4(QIterated<1>(QTrapez<1>(),4));
 
   FE_DGP<dim> p0(0);
   FE_DGP<dim> p1(1);
@@ -171,7 +172,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog << std::setprecision(8);
   deallog.threshold_double(1.e-8);
 

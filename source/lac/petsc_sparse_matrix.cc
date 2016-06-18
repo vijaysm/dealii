@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,8 +19,7 @@
 
 #  include <deal.II/lac/petsc_vector.h>
 #  include <deal.II/lac/sparsity_pattern.h>
-#  include <deal.II/lac/compressed_sparsity_pattern.h>
-#  include <deal.II/lac/compressed_simple_sparsity_pattern.h>
+#  include <deal.II/lac/dynamic_sparsity_pattern.h>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -58,10 +57,10 @@ namespace PETScWrappers
 
 
 
-  template <typename SparsityType>
+  template <typename SparsityPatternType>
   SparseMatrix::
-  SparseMatrix (const SparsityType &sparsity_pattern,
-                const bool          preset_nonzero_locations)
+  SparseMatrix (const SparsityPatternType &sparsity_pattern,
+                const bool                 preset_nonzero_locations)
   {
     do_reinit (sparsity_pattern, preset_nonzero_locations);
   }
@@ -117,11 +116,11 @@ namespace PETScWrappers
 
 
 
-  template <typename SparsityType>
+  template <typename SparsityPatternType>
   void
   SparseMatrix::
-  reinit (const SparsityType &sparsity_pattern,
-          const bool          preset_nonzero_locations)
+  reinit (const SparsityPatternType &sparsity_pattern,
+          const bool                 preset_nonzero_locations)
   {
     // get rid of old matrix and generate a
     // new one
@@ -220,10 +219,10 @@ namespace PETScWrappers
 
 
 
-  template <typename SparsityType>
+  template <typename SparsityPatternType>
   void
-  SparseMatrix::do_reinit (const SparsityType &sparsity_pattern,
-                           const bool          preset_nonzero_locations)
+  SparseMatrix::do_reinit (const SparsityPatternType &sparsity_pattern,
+                           const bool                 preset_nonzero_locations)
   {
     std::vector<size_type> row_lengths (sparsity_pattern.n_rows());
     for (size_type i=0; i<sparsity_pattern.n_rows(); ++i)
@@ -262,7 +261,7 @@ namespace PETScWrappers
                           row_lengths[i], &row_entries[0],
                           &row_values[0], INSERT_VALUES);
           }
-        compress ();
+        compress (VectorOperation::insert);
 
 
         // Tell PETSc that we are not
@@ -309,6 +308,25 @@ namespace PETScWrappers
       }
   }
 
+  size_t
+  SparseMatrix::m () const
+  {
+    PetscInt m,n;
+    PetscErrorCode ierr = MatGetSize(matrix, &m, &n);
+    AssertThrow (ierr == 0, ExcPETScError(ierr));
+
+    return m;
+  }
+
+  size_t
+  SparseMatrix::n () const
+  {
+    PetscInt m,n;
+    PetscErrorCode ierr = MatGetSize(matrix, &m, &n);
+    AssertThrow (ierr == 0, ExcPETScError(ierr));
+
+    return n;
+  }
 
   // Explicit instantiations
   //
@@ -316,30 +334,21 @@ namespace PETScWrappers
   SparseMatrix::SparseMatrix (const SparsityPattern &,
                               const bool);
   template
-  SparseMatrix::SparseMatrix (const CompressedSparsityPattern &,
-                              const bool);
-  template
-  SparseMatrix::SparseMatrix (const CompressedSimpleSparsityPattern &,
+  SparseMatrix::SparseMatrix (const DynamicSparsityPattern &,
                               const bool);
 
   template void
   SparseMatrix::reinit (const SparsityPattern &,
                         const bool);
   template void
-  SparseMatrix::reinit (const CompressedSparsityPattern &,
-                        const bool);
-  template void
-  SparseMatrix::reinit (const CompressedSimpleSparsityPattern &,
+  SparseMatrix::reinit (const DynamicSparsityPattern &,
                         const bool);
 
   template void
   SparseMatrix::do_reinit (const SparsityPattern &,
                            const bool);
   template void
-  SparseMatrix::do_reinit (const CompressedSparsityPattern &,
-                           const bool);
-  template void
-  SparseMatrix::do_reinit (const CompressedSimpleSparsityPattern &,
+  SparseMatrix::do_reinit (const DynamicSparsityPattern &,
                            const bool);
 
   PetscScalar

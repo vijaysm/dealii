@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,11 +18,11 @@
 #include <deal.II/base/memory_consumption.h>
 #include <deal.II/base/thread_management.h>
 
-#ifdef HAVE_SYS_RESOURCE_H
+#ifdef DEAL_II_HAVE_SYS_RESOURCE_H
 #  include <sys/resource.h>
 #endif
 
-#ifdef HAVE_UNISTD_H
+#ifdef DEAL_II_HAVE_UNISTD_H
 #  include <unistd.h>
 #endif
 
@@ -49,7 +49,7 @@ LogStream::LogStream()
   :
   std_out(&std::cerr),
   file(0),
-  std_depth(10000),
+  std_depth(0),
   file_depth(10000),
   print_utime(false),
   diff_utime(false),
@@ -62,7 +62,7 @@ LogStream::LogStream()
 {
   get_prefixes().push("DEAL:");
 
-#if defined(HAVE_UNISTD_H) && defined(HAVE_TIMES)
+#if defined(DEAL_II_HAVE_UNISTD_H) && defined(DEAL_II_HAVE_TIMES)
   reference_time_val = 1./sysconf(_SC_CLK_TCK) * times(&reference_tms);
 #endif
 
@@ -115,7 +115,7 @@ LogStream::test_mode(bool on)
   if (on)
     {
       double_threshold = 1.e-10;
-      float_threshold = 1.e-7;
+      float_threshold = 1.e-7f;
       offset = 1.e-7;
     }
   else
@@ -405,7 +405,7 @@ LogStream::get_prefixes() const
         = prefixes.get_implementation();
 
       // The thread that created this LogStream object should be the first
-      // in tbb's enumerable_thread_specific containter.
+      // in tbb's enumerable_thread_specific container.
       const tbb::enumerable_thread_specific<std::stack<std::string> >::const_iterator first_elem
         = impl.begin();
 
@@ -426,7 +426,7 @@ LogStream::get_prefixes() const
 void
 LogStream::print_line_head()
 {
-#ifdef HAVE_SYS_RESOURCE_H
+#ifdef DEAL_II_HAVE_SYS_RESOURCE_H
   rusage usage;
   double utime = 0.;
   if (print_utime)
@@ -445,37 +445,6 @@ LogStream::print_line_head()
   double utime = 0.;
 #endif
 
-  /*
-   * The following lines were used for debugging a memory leak.
-   * They work on Linux, not on Solaris, since the /proc filesystem
-   * on Solaris is quite cryptic. For other systems, we don't know.
-   *
-   * Unfortunately, the information in /proc/pid/stat is updated slowly,
-   * therefore, the information is quite unreliable.
-   *
-   * Furthermore, the constructor of ifstream caused another memory leak.
-   *
-   * Still, this code might be useful sometimes, so I kept it here.
-   * When we have more information about the kernel, this should be
-   * incorporated properly. Suggestions are welcome!
-   */
-
-#ifdef DEALII_MEMORY_DEBUG
-  static const pid_t id = getpid();
-
-  std::ostringstream statname;
-  statname << "/proc/" << id << "/stat";
-
-  static long size;
-  static string dummy;
-  ifstream stat(statname.str());
-  // ignore 22 values
-  stat >> dummy >> dummy >> dummy >> dummy >> dummy >> dummy >>
-       dummy >> dummy >> dummy >> dummy >> dummy >>
-       dummy >> dummy >> dummy >> dummy >> dummy >> dummy >>
-       dummy >> dummy >> dummy >> dummy >> dummy >> size;
-#endif
-
   const std::string &head = get_prefix();
   const unsigned int thread = Threads::this_thread_id();
 
@@ -485,9 +454,6 @@ LogStream::print_line_head()
         {
           int p = std_out->width(5);
           *std_out << utime << ':';
-#ifdef DEALII_MEMORY_DEBUG
-          *std_out << size << ':';
-#endif
           std_out->width(p);
         }
       if (print_thread_id)
@@ -503,9 +469,6 @@ LogStream::print_line_head()
         {
           int p = file->width(6);
           *file << utime << ':';
-#ifdef DEALII_MEMORY_DEBUG
-          *file << size << ':';
-#endif
           file->width(p);
         }
       if (print_thread_id)
@@ -521,12 +484,16 @@ void
 LogStream::timestamp ()
 {
   struct tms current_tms;
-#if defined(HAVE_UNISTD_H) && defined(HAVE_TIMES)
+#if defined(DEAL_II_HAVE_UNISTD_H) && defined(DEAL_II_HAVE_TIMES)
   const clock_t tick = sysconf(_SC_CLK_TCK);
   const double time = 1./tick * times(&current_tms);
 #else
   const double time = 0.;
   const unsigned int tick = 100;
+  current_tms.tms_utime = 0;
+  current_tms.tms_stime = 0;
+  current_tms.tms_cutime = 0;
+  current_tms.tms_cstime = 0;
 #endif
   (*this) << "Wall: " << time - reference_time_val
           << " User: " << 1./tick * (current_tms.tms_utime - reference_tms.tms_utime)

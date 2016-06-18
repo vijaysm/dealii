@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2013 by the deal.II authors
+// Copyright (C) 1999 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,8 +15,8 @@
 
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/block_vector.h>
-#include <deal.II/lac/parallel_vector.h>
-#include <deal.II/lac/parallel_block_vector.h>
+#include <deal.II/lac/la_parallel_vector.h>
+#include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/petsc_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/trilinos_vector.h>
@@ -27,23 +27,23 @@
 DEAL_II_NAMESPACE_OPEN
 
 
-template <class VECTOR>
-MGTransferBase<VECTOR>::~MGTransferBase()
+template <typename VectorType>
+MGTransferBase<VectorType>::~MGTransferBase()
 {}
 
 
-template <class VECTOR>
-MGMatrixBase<VECTOR>::~MGMatrixBase()
+template <typename VectorType>
+MGMatrixBase<VectorType>::~MGMatrixBase()
 {}
 
 
-template <class VECTOR>
-MGSmootherBase<VECTOR>::~MGSmootherBase()
+template <typename VectorType>
+MGSmootherBase<VectorType>::~MGSmootherBase()
 {}
 
 
-template <class VECTOR>
-MGCoarseGridBase<VECTOR>::~MGCoarseGridBase()
+template <typename VectorType>
+MGCoarseGridBase<VectorType>::~MGCoarseGridBase()
 {}
 
 

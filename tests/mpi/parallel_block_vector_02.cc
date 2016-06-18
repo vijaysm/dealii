@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2013 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -19,8 +19,8 @@
 #include "../tests.h"
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/index_set.h>
-#include <deal.II/lac/parallel_block_vector.h>
-#include <deal.II/lac/parallel_vector.h>
+#include <deal.II/lac/la_parallel_block_vector.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -43,8 +43,8 @@ void test ()
   local_relevant = local_owned;
   local_relevant.add_range(1,2);
 
-  parallel::distributed::Vector<double> v(local_owned, local_relevant,
-                                          MPI_COMM_WORLD);
+  LinearAlgebra::distributed::Vector<double> v(local_owned, local_relevant,
+                                               MPI_COMM_WORLD);
 
   // set local values
   if (myid < 8)
@@ -54,7 +54,7 @@ void test ()
     }
   v.compress(VectorOperation::insert);
 
-  parallel::distributed::BlockVector<double> w(3);
+  LinearAlgebra::distributed::BlockVector<double> w(3);
   for (unsigned int i=0; i<3; ++i)
     {
       w.block(i) = v;
@@ -63,10 +63,18 @@ void test ()
   w.collect_sizes();
 
   // see if we can access the ghosted entry 1 in each block with the correct
-  // value: the initialization should also update the ghost values, so all
-  // processors should have i+1
+  // value: the initialization should non have updated the ghost values, so
+  // all other processors except 0 should have zero entry on the global index
+  // 1
   for (unsigned int i=0; i<3; ++i)
-    AssertDimension(i+1,(unsigned int)w.block(i)(1));
+    if (myid == 0)
+      {
+        AssertDimension(i+1,(unsigned int)w.block(i)(1));
+      }
+    else
+      {
+        AssertDimension(0,(unsigned int)w.block(i)(1));
+      }
 
   // import ghost values, all processors should still have i+1
   w.update_ghost_values();
@@ -85,12 +93,19 @@ void test ()
         AssertDimension(0,(unsigned int)w.block(i)(1));
       }
 
-  // create a vector copy that gets the entries from w. First, it should have
-  // updated the ghosts because it is created from an empty state.
-  parallel::distributed::BlockVector<double> x(w);
-  Assert(x.has_ghost_elements() == true, ExcInternalError());
+  // create a vector copy that gets the entries from w. First, it should not
+  // have updated the ghosts because it is created from an empty state.
+  LinearAlgebra::distributed::BlockVector<double> x(w);
+  Assert(x.has_ghost_elements() == false, ExcInternalError());
   for (unsigned int i=0; i<3; ++i)
-    AssertDimension(i+1,(unsigned int)x.block(i)(1));
+    if (myid == 0)
+      {
+        AssertDimension(i+1,(unsigned int)x.block(i)(1));
+      }
+    else
+      {
+        AssertDimension(0,(unsigned int)x.block(i)(1));
+      }
 
   // now we zero the vector, which should disable ghost elements
   x = 0;
@@ -140,7 +155,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::System::MPI_InitFinalize mpi_initialization(argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, testing_max_num_threads());
 
   unsigned int myid = Utilities::MPI::this_mpi_process (MPI_COMM_WORLD);
   deallog.push(Utilities::int_to_string(myid));
@@ -150,7 +165,6 @@ int main (int argc, char **argv)
       std::ofstream logfile("output");
       deallog.attach(logfile);
       deallog << std::setprecision(4);
-      deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
 
       test();

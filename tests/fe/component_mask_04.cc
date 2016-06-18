@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2013 by the deal.II authors
+// Copyright (C) 2012 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,8 +31,8 @@
 
 void test ()
 {
-  Assert (ComponentMask(12, false).size() == 12, ExcInternalError());
-  Assert (ComponentMask().size() == 0, ExcInternalError());
+  AssertThrow (ComponentMask(12, false).size() == 12, ExcInternalError());
+  AssertThrow (ComponentMask().size() == 0, ExcInternalError());
 
   deallog << "OK" << std::endl;
 }
@@ -44,7 +44,6 @@ int main()
   deallog << std::setprecision (4);
 
   deallog.attach(logfile);
-  deallog.depth_console (0);
   deallog.threshold_double(1.e-7);
 
   test();

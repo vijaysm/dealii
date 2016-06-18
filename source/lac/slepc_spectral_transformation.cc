@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,25 +31,31 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace SLEPcWrappers
 {
-  TransformationBase::TransformationData::~TransformationData ()
-  {}
-
-  TransformationBase::TransformationBase ()
-  {}
+  TransformationBase::TransformationBase (const MPI_Comm &mpi_communicator)
+  {
+    int ierr = STCreate(mpi_communicator, &st);
+    AssertThrow (ierr == 0, SolverBase::ExcSLEPcError(ierr));
+  }
 
   TransformationBase::~TransformationBase ()
-  {}
-
-  void TransformationBase::set_context (EPS &eps)
   {
-    AssertThrow (transformation_data.get() == 0,
-                 SolverBase::ExcSLEPcWrappersUsageError());
-    transformation_data.reset (new TransformationData());
+    if (st!=NULL)
+      {
+        int ierr = STDestroy(&st);
+        AssertThrow (ierr == 0, SolverBase::ExcSLEPcError(ierr));
+      }
+  }
 
-    int ierr = EPSGetST(eps, &transformation_data->st);
+  void TransformationBase::set_matrix_mode(const STMatMode mode)
+  {
+    int ierr = STSetMatMode(st,mode);
     AssertThrow (ierr == 0, SolverBase::ExcSLEPcError(ierr));
+  }
 
-    set_transformation_type(transformation_data->st);
+  void TransformationBase::set_solver(const PETScWrappers::SolverBase &solver)
+  {
+    int ierr = STSetKSP(st,solver.solver_data->ksp);
+    AssertThrow (ierr == 0, SolverBase::ExcSLEPcError(ierr));
   }
 
   /* ------------------- TransformationShift --------------------- */
@@ -60,13 +66,11 @@ namespace SLEPcWrappers
     shift_parameter (shift_parameter)
   {}
 
-  TransformationShift::TransformationShift (const AdditionalData &data)
+  TransformationShift::TransformationShift (const MPI_Comm &mpi_communicator,
+                                            const AdditionalData &data)
     :
+    TransformationBase(mpi_communicator),
     additional_data (data)
-  {}
-
-  void
-  TransformationShift::set_transformation_type (ST &st) const
   {
     int ierr;
     ierr = STSetType (st, const_cast<char *>(STSHIFT));
@@ -84,13 +88,11 @@ namespace SLEPcWrappers
     shift_parameter (shift_parameter)
   {}
 
-  TransformationShiftInvert::TransformationShiftInvert (const AdditionalData &data)
+  TransformationShiftInvert::TransformationShiftInvert (const MPI_Comm &mpi_communicator,
+                                                        const AdditionalData &data)
     :
+    TransformationBase(mpi_communicator),
     additional_data (data)
-  {}
-
-  void
-  TransformationShiftInvert::set_transformation_type (ST &st) const
   {
     int ierr;
 #if DEAL_II_PETSC_VERSION_LT(3,1,0)
@@ -112,24 +114,24 @@ namespace SLEPcWrappers
     shift_parameter (shift_parameter)
   {}
 
-  TransformationSpectrumFolding::TransformationSpectrumFolding (const AdditionalData &data)
+  TransformationSpectrumFolding::TransformationSpectrumFolding (const MPI_Comm &mpi_communicator,
+      const AdditionalData &data)
     :
+    TransformationBase(mpi_communicator),
     additional_data (data)
-  {}
-
-
-  void
-  TransformationSpectrumFolding::set_transformation_type (ST &st) const
   {
 #if DEAL_II_PETSC_VERSION_LT(3,5,0)
     int ierr;
     ierr = STSetType (st, const_cast<char *>(STFOLD));
+    (void)ierr;
     AssertThrow (ierr == 0, SolverBase::ExcSLEPcError(ierr));
 
     ierr = STSetShift (st, additional_data.shift_parameter);
+    (void)ierr;
     AssertThrow (ierr == 0, SolverBase::ExcSLEPcError(ierr));
 #else
     // PETSc/SLEPc version must be < 3.5.0.
+    (void)st;
     Assert ((false),
             ExcMessage ("Folding transformation has been removed in SLEPc 3.5.0 and newer."
                         "You cannot use this transformation anymore."));
@@ -147,14 +149,11 @@ namespace SLEPcWrappers
   {
   }
 
-  TransformationCayley::TransformationCayley (const double shift,
-                                              const double antishift)
+  TransformationCayley::TransformationCayley (const MPI_Comm &mpi_communicator,
+                                              const AdditionalData &data)
     :
-    additional_data (shift, antishift)
-  {}
-
-  void
-  TransformationCayley::set_transformation_type (ST &st) const
+    TransformationBase(mpi_communicator),
+    additional_data (data)
   {
     int ierr = STSetType (st, const_cast<char *>(STCAYLEY));
     AssertThrow (ierr == 0, SolverBase::ExcSLEPcError(ierr));
@@ -171,4 +170,3 @@ namespace SLEPcWrappers
 DEAL_II_NAMESPACE_CLOSE
 
 #endif // DEAL_II_WITH_SLEPC
-

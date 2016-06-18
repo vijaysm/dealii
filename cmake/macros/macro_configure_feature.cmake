@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2013 by the deal.II authors
+## Copyright (C) 2012 - 2016 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -24,7 +24,7 @@
 #
 # FEATURE_${feature}_DEPENDS    (a variable)
 #    a variable which contains an optional list of other features
-#    this feature depends on (and which have to be enbled for this feature
+#    this feature depends on (and which have to be enabled for this feature
 #    to work.)
 #    Features must be given with short name, i.e. without DEAL_II_WITH_
 #
@@ -45,7 +45,7 @@
 #
 # FEATURE_${feature}_FIND_EXTERNAL(var)   (a macro)
 #    which should set var to TRUE if all dependencies for the feature are
-#    fullfilled. In this case all necessary variables for
+#    fulfilled. In this case all necessary variables for
 #    FEATURE_${feature}_CONFIGURE_EXTERNAL must be set. Otherwise
 #    var should remain unset.
 #    If not defined, FIND_PACKAGE(${feature}) is called.
@@ -55,7 +55,7 @@
 #    external dependencies.
 #
 # FEATURE_${feature}_ERROR_MESSAGE()  (macro)
-#    which should print a meaningfull error message (with FATAL_ERROR) for
+#    which should print a meaningful error message (with FATAL_ERROR) for
 #    the case that no usable library was found.
 #    If not defined, a suitable default error message will be printed.
 #
@@ -146,6 +146,12 @@ ENDMACRO()
 ########################################################################
 
 MACRO(CONFIGURE_FEATURE _feature)
+
+  #
+  # Register the feature in the DEAL_II_FEATURES list
+  #
+  LIST(APPEND DEAL_II_FEATURES ${_feature})
+
   #
   # This script is arcane black magic. But at least for the better good: We
   # don't have to copy the configuration logic to every single
@@ -189,7 +195,7 @@ MACRO(CONFIGURE_FEATURE _feature)
      DEAL_II_WITH_${_feature})
 
     #
-    # Are all dependencies fullfilled?
+    # Are all dependencies fulfilled?
     #
     SET(_dependencies_ok TRUE)
     FOREACH(_dependency ${FEATURE_${_feature}_DEPENDS})
@@ -197,12 +203,12 @@ MACRO(CONFIGURE_FEATURE _feature)
         IF(DEAL_II_WITH_${_feature})
           MESSAGE(FATAL_ERROR "\n"
             "DEAL_II_WITH_${_feature} has unmet configuration requirements: "
-            "${_dependency} has to be set to \"ON\".\n\n"
+            "DEAL_II_WITH_${_dependency} has to be set to \"ON\".\n\n"
             )
         ELSE()
           MESSAGE(STATUS
             "DEAL_II_WITH_${_feature} has unmet configuration requirements: "
-            "${_dependency} has to be set to \"ON\"."
+            "DEAL_II_WITH_${_dependency} has to be set to \"ON\"."
             )
           PURGE_FEATURE(${_feature})
           SET_CACHED_OPTION(${_feature} OFF)
@@ -222,7 +228,6 @@ MACRO(CONFIGURE_FEATURE _feature)
         IF(FEATURE_${_feature}_HAVE_BUNDLED)
           RUN_COMMAND("FEATURE_${_feature}_CONFIGURE_BUNDLED()")
           MESSAGE(STATUS "DEAL_II_WITH_${_feature} successfully set up with bundled packages.")
-          LIST(APPEND DEAL_II_FEATURES ${_feature})
           SET(FEATURE_${_feature}_BUNDLED_CONFIGURED TRUE)
           SET_CACHED_OPTION(${_feature} ON)
         ELSE()
@@ -248,7 +253,6 @@ MACRO(CONFIGURE_FEATURE _feature)
           ENDIF()
 
           MESSAGE(STATUS "DEAL_II_WITH_${_feature} successfully set up with external dependencies.")
-          LIST(APPEND DEAL_II_FEATURES ${_feature})
           SET(FEATURE_${_feature}_EXTERNAL_CONFIGURED TRUE)
           SET_CACHED_OPTION(${_feature} ON)
 
@@ -262,7 +266,6 @@ MACRO(CONFIGURE_FEATURE _feature)
             RUN_COMMAND("FEATURE_${_feature}_CONFIGURE_BUNDLED()")
 
             MESSAGE(STATUS "DEAL_II_WITH_${_feature} successfully set up with bundled packages.")
-            LIST(APPEND DEAL_II_FEATURES ${_feature})
             SET(FEATURE_${_feature}_BUNDLED_CONFIGURED TRUE)
             SET_CACHED_OPTION(${_feature} ON)
 

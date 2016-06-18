@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -66,7 +66,29 @@ namespace PETScWrappers
         }
   }
 
+  std::vector<BlockSparseMatrix::size_type >
+  BlockSparseMatrix::
+  locally_owned_domain_sizes() const
+  {
+    std::vector< size_type > index_sets;
 
+    for ( unsigned int i=0; i<this->n_block_cols(); ++i)
+      index_sets.push_back(this->block(0,i).n());
+
+    return index_sets;
+  }
+
+  std::vector<BlockSparseMatrix::size_type >
+  BlockSparseMatrix::
+  locally_owned_range_sizes() const
+  {
+    std::vector< size_type > index_sets;
+
+    for ( unsigned int i=0; i<this->n_block_rows(); ++i)
+      index_sets.push_back(this->block(i,0).m());
+
+    return index_sets;
+  }
 
   void
   BlockSparseMatrix::collect_sizes ()

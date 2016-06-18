@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -62,8 +62,17 @@ namespace PETScWrappers
 
 
   void
+  Vector::clear ()
+  {
+    VectorBase::clear ();
+    Vector::create_vector (0);
+  }
+
+
+
+  void
   Vector::reinit (const size_type n,
-                  const bool      fast)
+                  const bool      omit_zeroing_entries)
   {
     // only do something if the sizes
     // mismatch
@@ -92,7 +101,7 @@ namespace PETScWrappers
 
     // finally clear the new vector if so
     // desired
-    if (fast == false)
+    if (omit_zeroing_entries == false)
       *this = 0;
   }
 
@@ -100,9 +109,9 @@ namespace PETScWrappers
 
   void
   Vector::reinit (const Vector &v,
-                  const bool    fast)
+                  const bool    omit_zeroing_entries)
   {
-    reinit (v.size(), fast);
+    reinit (v.size(), omit_zeroing_entries);
   }
 
 

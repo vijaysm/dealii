@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -36,7 +36,7 @@ void test (Vector<double> &v)
   v.compress ();
 
   // then check the norm
-  Assert (std::fabs((v.l2_norm() - std::sqrt(norm))/std::sqrt(norm)) < 1e-14, ExcInternalError());
+  AssertThrow (std::fabs((v.l2_norm() - std::sqrt(norm))/std::sqrt(norm)) < 1e-14, ExcInternalError());
 
   deallog << "OK" << std::endl;
 }
@@ -47,7 +47,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   try

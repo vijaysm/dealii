@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2011 - 2013 by the deal.II authors
+ * Copyright (C) 2011 - 2015 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -58,6 +58,7 @@
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/error_estimator.h>
 
+#include <iostream>
 #include <fstream>
 #include <sstream>
 
@@ -320,7 +321,7 @@ namespace Step46
         if (cell->face(f)->at_boundary()
             &&
             (cell->face(f)->center()[dim-1] == 1))
-          cell->face(f)->set_all_boundary_indicators(1);
+          cell->face(f)->set_all_boundary_ids(1);
 
 
     for (typename Triangulation<dim>::active_cell_iterator
@@ -459,8 +460,8 @@ namespace Step46
     // extensively in the introduction, and use it to initialize the matrix;
     // then also set vectors to their correct sizes:
     {
-      CompressedSimpleSparsityPattern csp (dof_handler.n_dofs(),
-                                           dof_handler.n_dofs());
+      DynamicSparsityPattern dsp (dof_handler.n_dofs(),
+                                  dof_handler.n_dofs());
 
       Table<2,DoFTools::Coupling> cell_coupling (fe_collection.n_components(),
                                                  fe_collection.n_components());
@@ -480,10 +481,10 @@ namespace Step46
               face_coupling[c][d] = DoFTools::always;
           }
 
-      DoFTools::make_flux_sparsity_pattern (dof_handler, csp,
+      DoFTools::make_flux_sparsity_pattern (dof_handler, dsp,
                                             cell_coupling, face_coupling);
-      constraints.condense (csp);
-      sparsity_pattern.copy_from (csp);
+      constraints.condense (dsp);
+      sparsity_pattern.copy_from (dsp);
     }
 
     system_matrix.reinit (sparsity_pattern);
@@ -993,59 +994,56 @@ namespace Step46
     // more. The structure of these nested conditions is much the same as we
     // encountered when assembling interface terms in
     // <code>assemble_system</code>.
-    {
-      unsigned int cell_index = 0;
-      for (typename hp::DoFHandler<dim>::active_cell_iterator
-           cell = dof_handler.begin_active();
-           cell != dof_handler.end(); ++cell, ++cell_index)
-        for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
-          if (cell_is_in_solid_domain (cell))
-            {
-              if ((cell->at_boundary(f) == false)
+    for (typename hp::DoFHandler<dim>::active_cell_iterator
+         cell = dof_handler.begin_active();
+         cell != dof_handler.end(); ++cell)
+      for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
+        if (cell_is_in_solid_domain (cell))
+          {
+            if ((cell->at_boundary(f) == false)
+                &&
+                (((cell->neighbor(f)->level() == cell->level())
                   &&
-                  (((cell->neighbor(f)->level() == cell->level())
-                    &&
-                    (cell->neighbor(f)->has_children() == false)
-                    &&
-                    cell_is_in_fluid_domain (cell->neighbor(f)))
-                   ||
-                   ((cell->neighbor(f)->level() == cell->level())
-                    &&
-                    (cell->neighbor(f)->has_children() == true)
-                    &&
-                    (cell_is_in_fluid_domain (cell->neighbor_child_on_subface
-                                              (f, 0))))
-                   ||
-                   (cell->neighbor_is_coarser(f)
-                    &&
-                    cell_is_in_fluid_domain(cell->neighbor(f)))
-                  ))
-                estimated_error_per_cell(cell_index) = 0;
-            }
-          else
-            {
-              if ((cell->at_boundary(f) == false)
+                  (cell->neighbor(f)->has_children() == false)
                   &&
-                  (((cell->neighbor(f)->level() == cell->level())
-                    &&
-                    (cell->neighbor(f)->has_children() == false)
-                    &&
-                    cell_is_in_solid_domain (cell->neighbor(f)))
-                   ||
-                   ((cell->neighbor(f)->level() == cell->level())
-                    &&
-                    (cell->neighbor(f)->has_children() == true)
-                    &&
-                    (cell_is_in_solid_domain (cell->neighbor_child_on_subface
-                                              (f, 0))))
-                   ||
-                   (cell->neighbor_is_coarser(f)
-                    &&
-                    cell_is_in_solid_domain(cell->neighbor(f)))
-                  ))
-                estimated_error_per_cell(cell_index) = 0;
-            }
-    }
+                  cell_is_in_fluid_domain (cell->neighbor(f)))
+                 ||
+                 ((cell->neighbor(f)->level() == cell->level())
+                  &&
+                  (cell->neighbor(f)->has_children() == true)
+                  &&
+                  (cell_is_in_fluid_domain (cell->neighbor_child_on_subface
+                                            (f, 0))))
+                 ||
+                 (cell->neighbor_is_coarser(f)
+                  &&
+                  cell_is_in_fluid_domain(cell->neighbor(f)))
+                ))
+              estimated_error_per_cell(cell->active_cell_index()) = 0;
+          }
+        else
+          {
+            if ((cell->at_boundary(f) == false)
+                &&
+                (((cell->neighbor(f)->level() == cell->level())
+                  &&
+                  (cell->neighbor(f)->has_children() == false)
+                  &&
+                  cell_is_in_solid_domain (cell->neighbor(f)))
+                 ||
+                 ((cell->neighbor(f)->level() == cell->level())
+                  &&
+                  (cell->neighbor(f)->has_children() == true)
+                  &&
+                  (cell_is_in_solid_domain (cell->neighbor_child_on_subface
+                                            (f, 0))))
+                 ||
+                 (cell->neighbor_is_coarser(f)
+                  &&
+                  cell_is_in_solid_domain(cell->neighbor(f)))
+                ))
+              estimated_error_per_cell(cell->active_cell_index()) = 0;
+          }
 
     GridRefinement::refine_and_coarsen_fixed_number (triangulation,
                                                      estimated_error_per_cell,
@@ -1102,8 +1100,6 @@ int main ()
     {
       using namespace dealii;
       using namespace Step46;
-
-      deallog.depth_console (0);
 
       FluidStructureProblem<2> flow_problem(1, 1);
       flow_problem.run ();

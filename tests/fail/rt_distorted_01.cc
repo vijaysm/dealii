@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -60,6 +60,7 @@ std::ofstream logfile ("output");
 #include <deal.II/fe/fe_raviart_thomas.h>
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/mapping_q1_eulerian.h>
+#include <deal.II/grid/grid_tools.h>
 
 #include <fstream>
 
@@ -311,7 +312,6 @@ int main (int /*argc*/, char **/*argv*/)
   logfile.precision (PRECISION);
   logfile.setf(std::ios::fixed);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   Triangulation<2> tria_test;
@@ -325,7 +325,7 @@ int main (int /*argc*/, char **/*argv*/)
 
   // Uncommenting the following line, demonstrates the problem
   // of RT elements on distorted Quads!
-  tria_test.distort_random (0.4);
+  GridTools::distort_random (0.4, tria_test);
 
   // Create a DoFHandler for the RT space
   FE_RaviartThomas<2> fe (2);

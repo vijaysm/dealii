@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -72,9 +72,9 @@ check ()
   element.push_back (FESystem<dim> (FE_Q<dim>(1), 1,
                                     FE_Q<dim>(2), 1));
   element.push_back (FESystem<dim> (FE_Q<dim>(2), 1,
-                                    FE_Q<dim>(3), 1));
-  element.push_back (FESystem<dim> (FE_Q<dim>(3), 1,
-                                    FE_Q<dim>(4), 1));
+                                    FE_Q<dim>(QIterated<1>(QTrapez<1>(),3)), 1));
+  element.push_back (FESystem<dim> (FE_Q<dim>(QIterated<1>(QTrapez<1>(),3)), 1,
+                                    FE_Q<dim>(QIterated<1>(QTrapez<1>(),4)), 1));
 
   hp::DoFHandler<dim> dof(tr);
 
@@ -96,8 +96,9 @@ check ()
   // that different components should
   // not couple, so use pattern
   SparsityPattern sparsity (dof.n_dofs(), dof.n_dofs());
-  std::vector<std::vector<bool> > mask (2, std::vector<bool>(2, false));
-  mask[0][0] = mask[1][1] = true;
+  Table<2,DoFTools::Coupling> mask (2, 2);
+  mask(0,0) = mask(1,1) = DoFTools::always;
+  mask(0,1) = mask(1,0) = DoFTools::none;
   DoFTools::make_sparsity_pattern (dof, mask, sparsity);
   ConstraintMatrix constraints;
   DoFTools::make_hanging_node_constraints (dof, constraints);
@@ -123,8 +124,9 @@ check ()
   // multiply matrix by 100 to
   // make test more sensitive
   deallog << "Matrix: " << std::endl;
-  for (unsigned int i=0; i<matrix.n_nonzero_elements(); ++i)
-    deallog << matrix.global_entry(i) * 100
+  for (SparseMatrix<double>::const_iterator p=matrix.begin();
+       p!=matrix.end(); ++p)
+    deallog << p->value() * 100
             << std::endl;
 }
 
@@ -136,7 +138,6 @@ int main ()
   deallog << std::setprecision (2);
   deallog << std::fixed;
   deallog.attach(logfile);
-  deallog.depth_console (0);
 
   deallog.push ("1d");
   check<1> ();

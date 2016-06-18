@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2014 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -49,7 +49,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   Triangulation<2> triangulation;
@@ -104,10 +103,10 @@ int main()
     {
       x_fe_values.reinit (cell);
       std::vector<std::vector<Tensor<1,2> > >
-	derivatives (q[0].size(), std::vector<Tensor<1,2> >(cell->get_fe().n_components()));
+      derivatives (q[0].size(), std::vector<Tensor<1,2> >(cell->get_fe().n_components()));
 
       x_fe_values.get_present_fe_values().get_function_gradients (new_solution,
-								  derivatives);
+                                                                  derivatives);
     }
 
   // we are good if we made it to here

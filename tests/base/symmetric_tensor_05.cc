@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -55,7 +55,7 @@ void test ()
         b[i][j] = tmp_ij;
       }
 
-  Assert (a == b/2, ExcInternalError());
+  AssertThrow (a == b/2, ExcInternalError());
 
   // try the same thing with scaled
   // tensors etc
@@ -71,7 +71,7 @@ void test ()
         b[i][j] = tmp_ij;
       }
 
-  Assert (a == b/4, ExcInternalError());
+  AssertThrow (a == b/4, ExcInternalError());
 }
 
 
@@ -82,7 +82,6 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<2> ();

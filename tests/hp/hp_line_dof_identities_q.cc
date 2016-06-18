@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,6 +22,7 @@
 #include <deal.II/base/logstream.h>
 #include <deal.II/hp/fe_collection.h>
 #include <deal.II/fe/fe_q.h>
+#include <deal.II/base/quadrature_lib.h>
 
 #include <fstream>
 
@@ -31,7 +32,7 @@ void test ()
 {
   hp::FECollection<dim> fe_collection;
   for (unsigned int i=1; i<8-dim; ++i)
-    fe_collection.push_back (FE_Q<dim>(i));
+    fe_collection.push_back (FE_Q<dim>(QIterated<1>(QTrapez<1>(),i)));
 
   for (unsigned int i=0; i<fe_collection.size(); ++i)
     for (unsigned int j=0; j<fe_collection.size(); ++j)
@@ -67,7 +68,6 @@ int main ()
   logfile.precision(2);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();

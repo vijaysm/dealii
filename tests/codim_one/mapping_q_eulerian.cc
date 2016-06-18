@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -23,6 +23,7 @@
 
 // all include files you need here
 
+#include <deal.II/lac/vector.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_in.h>
 #include <deal.II/grid/grid_out.h>
@@ -89,7 +90,6 @@ void test(std::string filename, unsigned int degree)
 int main ()
 {
   deallog.attach(logfile);
-  deallog.depth_console(0);
 
   test<1,2>(SOURCE_DIR "/grids/circle_1.inp",1);
   test<1,2>(SOURCE_DIR "/grids/circle_1.inp",2);

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -58,7 +58,7 @@ void check ()
                         - third_invariant(S) * unit_symmetric_tensor<dim> ();
       deallog << R << std::endl;
 
-      Assert (R.norm() < 1e-10, ExcInternalError());
+      AssertThrow (R.norm() < 1e-10, ExcInternalError());
     }
 }
 
@@ -68,7 +68,6 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   check<3> ();

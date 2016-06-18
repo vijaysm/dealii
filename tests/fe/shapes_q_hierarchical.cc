@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 by the deal.II authors
+// Copyright (C) 2013 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -21,13 +21,13 @@
 #include <fstream>
 #include <string>
 
-#define PRECISION 2
+#define PRECISION 8
 
 
 template<int dim>
 void plot_FE_Q_Hierarchical_shape_functions()
 {
-  MappingQ1<dim> m;
+  MappingQGeneric<dim> m(1);
 
   FE_Q_Hierarchical<dim> q1(1);
   plot_shape_functions(m, q1, "QHierarchical1");
@@ -62,7 +62,6 @@ main()
   std::ofstream logfile ("output");
   deallog << std::setprecision(PRECISION) << std::fixed;
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   plot_FE_Q_Hierarchical_shape_functions<1>();
@@ -71,6 +70,3 @@ main()
 
   return 0;
 }
-
-
-

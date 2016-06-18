@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -41,15 +41,15 @@ void test ()
       t[i][j] = (1.+(i+1)*(j*2));
 
   deallog << scalar_product(s,s) << std::endl;
-  Assert (scalar_product(s,s) == s*s, ExcInternalError());
-  
+  AssertThrow (scalar_product(s,s) == s*s, ExcInternalError());
+
   deallog << scalar_product(s,t) << std::endl;
-  Assert (scalar_product(s,t) == s*symmetrize(t), ExcInternalError());
-  Assert (scalar_product(s,t) == symmetrize(t)*s, ExcInternalError());
-  
+  AssertThrow (scalar_product(s,t) == s*symmetrize(t), ExcInternalError());
+  AssertThrow (scalar_product(s,t) == symmetrize(t)*s, ExcInternalError());
+
   deallog << scalar_product(t,s) << std::endl;
-  Assert (scalar_product(t,s) == s*symmetrize(t), ExcInternalError());
-  Assert (scalar_product(t,s) == symmetrize(t)*s, ExcInternalError());
+  AssertThrow (scalar_product(t,s) == s*symmetrize(t), ExcInternalError());
+  AssertThrow (scalar_product(t,s) == symmetrize(t)*s, ExcInternalError());
 }
 
 
@@ -60,12 +60,12 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();
   test<2> ();
   test<3> ();
+  test<4> ();
 
   deallog << "OK" << std::endl;
 }

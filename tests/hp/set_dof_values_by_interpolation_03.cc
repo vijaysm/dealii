@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2014 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -53,7 +53,7 @@ void test ()
 
   hp::FECollection<dim> fe;
   for (unsigned int i=1; i<5; ++i)
-    fe.push_back (FE_Q<dim>(i));
+    fe.push_back (FE_Q<dim>(QIterated<1>(QTrapez<1>(),i)));
 
   hp::DoFHandler<dim> dof_handler(tr);
   for (typename hp::DoFHandler<dim>::cell_iterator cell=dof_handler.begin();
@@ -72,7 +72,7 @@ void test ()
   for (unsigned int i=0; i<local.size(); ++i)
     local(i) = i;
   cell->set_dof_values_by_interpolation (local, solution,
-					 0);
+                                         0);
 
   // for comparison purposes, also output the values of DoFs on all cells
   for (typename hp::DoFHandler<dim>::active_cell_iterator cell=dof_handler.begin_active();
@@ -82,7 +82,7 @@ void test ()
       cell->get_dof_values (solution, x);
       deallog << "cell =" << cell << ":  ";
       for (unsigned int i=0; i<x.size(); ++i)
-	deallog << x[i] << ' ';
+        deallog << x[i] << ' ';
       deallog << std::endl;
     }
 }
@@ -95,7 +95,6 @@ main()
   logfile.precision (1);
   logfile.setf(std::ios::fixed);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1>();
@@ -104,6 +103,3 @@ main()
 
   return 0;
 }
-
-
-

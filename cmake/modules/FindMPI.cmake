@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2014 by the deal.II authors
+## Copyright (C) 2012 - 2016 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -23,6 +23,7 @@
 #   MPI_LINKER_FLAGS
 #   MPI_VERSION
 #   OMPI_VERSION
+#   MPI_HAVE_MPI_SEEK_SET
 #
 
 #
@@ -62,6 +63,14 @@ ENDIF()
 #
 # Call the system FindMPI.cmake module:
 #
+
+# in case MPIEXEC is specified first call find_program() so that in case of success 
+# its subsequent runs inside FIND_PACKAGE(MPI) do not alter the desired result.
+IF(DEFINED ENV{MPIEXEC})
+  FIND_PROGRAM(MPIEXEC $ENV{MPIEXEC})
+ENDIF()
+
+# temporarily disable ${CMAKE_SOURCE_DIR}/cmake/modules for module lookup
 LIST(REMOVE_ITEM CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules/)
 FIND_PACKAGE(MPI)
 
@@ -77,6 +86,9 @@ IF(NOT MPI_CXX_FOUND AND DEAL_II_WITH_MPI)
     )
   # Clear variables so that FIND_PACKAGE runs again:
   SET(MPI_FOUND)
+  SET(MPI_CXX_COMPILER)
+  SET(MPI_C_COMPILER)
+  SET(MPI_Fortran_COMPILER)
   UNSET(MPI_CXX_COMPILER CACHE)
   UNSET(MPI_C_COMPILER CACHE)
   UNSET(MPI_Fortran_COMPILER CACHE)
@@ -84,6 +96,27 @@ IF(NOT MPI_CXX_FOUND AND DEAL_II_WITH_MPI)
 ENDIF()
 LIST(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules/)
 
+#
+# Older versions of MPI may not have MPI_SEEK_SET, which we
+# require. Strangely, unlike MPICH, OpenMPI needs the correct link libraries
+# for this to compile, not *just* the correct include directories.
+#
+
+CLEAR_CMAKE_REQUIRED()
+SET(CMAKE_REQUIRED_FLAGS ${MPI_CXX_COMPILE_FLAGS} ${MPI_CXX_LINK_FLAGS})
+SET(CMAKE_REQUIRED_INCLUDES ${MPI_CXX_INCLUDE_PATH})
+SET(CMAKE_REQUIRED_LIBRARIES ${MPI_LIBRARIES})
+CHECK_CXX_SOURCE_COMPILES(
+  "
+  #include <mpi.h>
+  #ifndef MPI_SEEK_SET
+  #  error
+  #endif
+  int main() {}
+  "
+  MPI_HAVE_MPI_SEEK_SET
+  )
+RESET_CMAKE_REQUIRED()
 
 #
 # Manually assemble some version information:
@@ -160,5 +193,6 @@ DEAL_II_PACKAGE_HANDLE(MPI
     MPI_LIB
     MPI_LIBRARY
     MPI_MPI_H
+    MPI_HAVE_MPI_SEEK_SET
   )
 

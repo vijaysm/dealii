@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -33,8 +33,8 @@ void test ()
     for (unsigned int j=i; j<dim; ++j)
       t[i][j] = (1.+(i+1)*(j*2));
 
-  Assert (trace(deviator_tensor<dim>()*t) < 1e-15*t.norm(),
-          ExcInternalError());
+  AssertThrow (trace(deviator_tensor<dim>()*t) < 1e-15*t.norm(),
+               ExcInternalError());
 }
 
 
@@ -45,7 +45,6 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();

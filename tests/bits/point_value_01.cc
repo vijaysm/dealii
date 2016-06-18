@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -109,7 +109,7 @@ check ()
   Triangulation<dim> tria;
   make_mesh (tria);
 
-  FE_Q<dim> element(3);
+  FE_Q<dim> element(QIterated<1>(QTrapez<1>(),3));
   DoFHandler<dim> dof(tria);
   dof.distribute_dofs(element);
 
@@ -151,11 +151,11 @@ check ()
           VectorTools::point_value (dof, v, p[i], value);
           deallog << -value(0) << std::endl;
 
-          Assert (std::abs(value(0) - function.value(p[i])) < 1e-4,
+          Assert (std::abs(value(0) - function.value(p[i])) < 2e-4,
                   ExcInternalError());
 
           const double scalar_value = VectorTools::point_value (dof, v, p[i]);
-          Assert (std::abs(value(0) - scalar_value) < 1e-4,
+          Assert (std::abs(value(0) - scalar_value) < 2e-4,
                   ExcInternalError());
         }
     }
@@ -169,7 +169,6 @@ int main ()
   std::ofstream logfile ("output");
   deallog << std::setprecision (4);
   deallog.attach(logfile);
-  deallog.depth_console (0);
 
   deallog.push ("1d");
   check<1> ();

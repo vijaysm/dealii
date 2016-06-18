@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2013 by the deal.II authors
+// Copyright (C) 1999 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__precondition_selector_h
-#define __deal2__precondition_selector_h
+#ifndef dealii__precondition_selector_h
+#define dealii__precondition_selector_h
 
 
 #include <deal.II/base/config.h>
@@ -32,21 +32,18 @@ template <class number> class SparseMatrix;
  */
 
 /**
- * Selects the preconditioner. The constructor of this class takes
- * the name of the preconditioning and the damping parameter
- * @p omega of the preconditioning and the @p use_matrix function takes
- * the matrix that is used
- * by the matrix-builtin precondition functions. Each time, the <tt>operator()</tt> function
- * is called, this preselected preconditioner, this matrix and
- * this @p omega is used
- * for the preconditioning. This class is designed for being used as
- * argument of the @p solve function of a @p Solver and it covers the
- * selection of all matrix-builtin precondition functions. The selection
- * of other preconditioners, like BlockSOR or ILU should be handled in
- * derived classes by the user.
+ * Selects the preconditioner. The constructor of this class takes the name of
+ * the preconditioning and the damping parameter @p omega of the
+ * preconditioning and the @p use_matrix function takes the matrix that is
+ * used by the matrix-builtin precondition functions. Each time, the
+ * <tt>operator()</tt> function is called, this preselected preconditioner,
+ * this matrix and this @p omega is used for the preconditioning. This class
+ * is designed for being used as argument of the @p solve function of a @p
+ * Solver and it covers the selection of all matrix-builtin precondition
+ * functions. The selection of other preconditioners, like BlockSOR or ILU
+ * should be handled in derived classes by the user.
  *
- * <h3>Usage</h3>
- * The simplest use of this class is the following:
+ * <h3>Usage</h3> The simplest use of this class is the following:
  * @code
  *                                  // generate a @p SolverControl and
  *                                  // a @p VectorMemory
@@ -84,27 +81,31 @@ template <class number> class SparseMatrix;
  *
  * solver_selector.solve(A,x,b,preconditioning);
  * @endcode
- * Now the use of the @p SolverSelector in combination with the @p PreconditionSelector
- * allows the user to select both, the solver and the preconditioner, at the
- * beginning of his program and each time the
- * solver is started (that is several times e.g. in a nonlinear iteration) this
+ * Now the use of the @p SolverSelector in combination with the @p
+ * PreconditionSelector allows the user to select both, the solver and the
+ * preconditioner, at the beginning of his program and each time the solver is
+ * started (that is several times e.g. in a nonlinear iteration) this
  * preselected solver and preconditioner is called.
  *
- * @author Ralf Hartmann, 1999
+ * @author Ralf Hartmann, 1999; extension for full compatibility with
+ * LinearOperator class: Jean-Paul Pelteret, 2015
  */
-template <class MATRIX = SparseMatrix<double>,
-          class VECTOR = dealii::Vector<double> >
+template <typename MatrixType = SparseMatrix<double>,
+          typename VectorType = dealii::Vector<double> >
 class PreconditionSelector : public Subscriptor
 {
 public:
+  /**
+   * Declare type for container size.
+   */
+  typedef typename MatrixType::size_type size_type;
 
   /**
-   * Constructor. @p omega denotes
-   * the damping parameter of
-   * the preconditioning.
+   * Constructor. @p omega denotes the damping parameter of the
+   * preconditioning.
    */
-  PreconditionSelector(const std::string                 &preconditioning,
-                       const typename VECTOR::value_type &omega=1.);
+  PreconditionSelector (const std::string                     &preconditioning,
+                        const typename VectorType::value_type &omega=1.);
 
   /**
    * Destructor.
@@ -112,28 +113,44 @@ public:
   virtual ~PreconditionSelector();
 
   /**
-   * Takes the matrix that is needed
-   * for preconditionings that involves a
-   * matrix. e.g. for @p precondition_jacobi,
-   * <tt>~_sor</tt>, <tt>~_ssor</tt>.
+   * Takes the matrix that is needed for preconditionings that involves a
+   * matrix. e.g. for @p precondition_jacobi, <tt>~_sor</tt>, <tt>~_ssor</tt>.
    */
-  void use_matrix(const MATRIX &M);
+  void use_matrix(const MatrixType &M);
 
   /**
-   * Precondition procedure. Calls the
-   * preconditioning that was specified in
+   * Return the dimension of the codomain (or range) space. To remember: the
+   * matrix is of dimension $m \times n$.
+   */
+  size_type m () const;
+
+  /**
+   * Return the dimension of the domain space. To remember: the matrix is of
+   * dimension $m \times n$.
+   */
+  size_type n () const;
+
+  /**
+   * Precondition procedure. Calls the preconditioning that was specified in
    * the constructor.
    */
-  virtual void vmult (VECTOR &dst, const VECTOR &src) const;
+  virtual void vmult (VectorType &dst, const VectorType &src) const;
 
   /**
-   * Get the names of all implemented
-   * preconditionings.
+   * Transpose precondition procedure. Calls the preconditioning that was
+   * specified in the constructor.
+   */
+  virtual void Tvmult (VectorType &dst, const VectorType &src) const;
+
+  /**
+   * Get the names of all implemented preconditionings.
    */
   static std::string get_precondition_names();
 
-  /** @addtogroup Exceptions
-   * @{ */
+  /**
+   * @addtogroup Exceptions
+   * @{
+   */
 
 
   /**
@@ -145,55 +162,72 @@ public:
 protected:
 
   /**
-   * Stores the name of the
-   * preconditioning.
+   * Stores the name of the preconditioning.
    */
   std::string preconditioning;
 
 private:
   /**
-   * Matrix that is used for the
-   * matrix-builtin preconditioning function.
-   * cf. also @p PreconditionUseMatrix.
+   * Matrix that is used for the matrix-builtin preconditioning function. cf.
+   * also @p PreconditionUseMatrix.
    */
-  SmartPointer<const MATRIX,PreconditionSelector<MATRIX,VECTOR> > A;
+  SmartPointer<const MatrixType,PreconditionSelector<MatrixType,VectorType> > A;
 
   /**
-   * Stores the damping parameter
-   * of the preconditioner.
+   * Stores the damping parameter of the preconditioner.
    */
-  const typename VECTOR::value_type omega;
+  const typename VectorType::value_type omega;
 };
 
 /*@}*/
 /* --------------------- Inline and template functions ------------------- */
 
 
-template <class MATRIX, class VECTOR>
-PreconditionSelector<MATRIX,VECTOR>
-::PreconditionSelector(const std::string                 &preconditioning,
-                       const typename VECTOR::value_type &omega) :
+template <typename MatrixType, typename VectorType>
+PreconditionSelector<MatrixType,VectorType>
+::PreconditionSelector(const std::string                     &preconditioning,
+                       const typename VectorType::value_type &omega) :
   preconditioning(preconditioning),
   omega(omega)  {}
 
 
-template <class MATRIX, class VECTOR>
-PreconditionSelector<MATRIX,VECTOR>::~PreconditionSelector()
+template <typename MatrixType, typename VectorType>
+PreconditionSelector<MatrixType,VectorType>::~PreconditionSelector()
 {
   // release the matrix A
   A=0;
 }
 
 
-template <class MATRIX, class VECTOR>
-void PreconditionSelector<MATRIX,VECTOR>::use_matrix(const MATRIX &M)
+template <typename MatrixType, typename VectorType>
+void PreconditionSelector<MatrixType,VectorType>::use_matrix(const MatrixType &M)
 {
   A=&M;
 }
 
-template <class MATRIX, class VECTOR>
-void PreconditionSelector<MATRIX,VECTOR>::vmult (VECTOR &dst,
-                                                 const VECTOR &src) const
+
+template <typename MatrixType, typename VectorType>
+inline typename PreconditionSelector<MatrixType,VectorType>::size_type
+PreconditionSelector<MatrixType,VectorType>::m () const
+{
+  Assert(A!=0, ExcNoMatrixGivenToUse());
+  return A->m();
+}
+
+
+template <typename MatrixType, typename VectorType>
+inline typename PreconditionSelector<MatrixType,VectorType>::size_type
+PreconditionSelector<MatrixType,VectorType>::n () const
+{
+  Assert(A!=0, ExcNoMatrixGivenToUse());
+  return A->n();
+}
+
+
+
+template <typename MatrixType, typename VectorType>
+void PreconditionSelector<MatrixType,VectorType>::vmult (VectorType &dst,
+                                                         const VectorType &src) const
 {
   if (preconditioning=="none")
     {
@@ -221,8 +255,38 @@ void PreconditionSelector<MATRIX,VECTOR>::vmult (VECTOR &dst,
 }
 
 
-template <class MATRIX, class VECTOR>
-std::string PreconditionSelector<MATRIX,VECTOR>::get_precondition_names()
+template <typename MatrixType, typename VectorType>
+void PreconditionSelector<MatrixType,VectorType>::Tvmult (VectorType &dst,
+                                                          const VectorType &src) const
+{
+  if (preconditioning=="none")
+    {
+      dst=src;
+    }
+  else
+    {
+      Assert(A!=0, ExcNoMatrixGivenToUse());
+
+      if (preconditioning=="jacobi")
+        {
+          A->precondition_Jacobi(dst,src,omega); // Symmetric operation
+        }
+      else if (preconditioning=="sor")
+        {
+          A->precondition_TSOR(dst,src,omega);
+        }
+      else if (preconditioning=="ssor")
+        {
+          A->precondition_SSOR(dst,src,omega); // Symmetric operation
+        }
+      else
+        Assert(false,ExcNotImplemented());
+    }
+}
+
+
+template <typename MatrixType, typename VectorType>
+std::string PreconditionSelector<MatrixType,VectorType>::get_precondition_names()
 {
   return "none|jacobi|sor|ssor";
 }

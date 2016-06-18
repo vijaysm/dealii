@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2013 by the deal.II authors
+## Copyright (C) 2012 - 2016 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -34,17 +34,21 @@ IF(NOT DOXYGEN_FOUND)
     )
 ENDIF()
 
+########################################################################
 #
-# A glob. I'm sorry
+# Process the tutorial and code-gallery files into inputs for doxygen
 #
-file(GLOB DEAL_II_STEPS
-  ${CMAKE_SOURCE_DIR}/examples/step-*
-  )
+########################################################################
 
+ADD_SUBDIRECTORY(tutorial)
+ADD_SUBDIRECTORY(code-gallery)
+
+
+########################################################################
 #
-# Prepare the example steps for doxygen:
+# Set up all of the other input pieces we want to give to doxygen
 #
-ADD_SUBDIRECTORY(tutorial) # uses ${DEAL_II_STEPS}
+########################################################################
 
 #
 # Prepare auxiliary files for doxygen:
@@ -95,16 +99,17 @@ SET(_doxygen_input
 
 LIST(APPEND _doxygen_input
   ${CMAKE_SOURCE_DIR}/include/
+  ${CMAKE_SOURCE_DIR}/source/
   ${CMAKE_BINARY_DIR}/include/
   ${CMAKE_SOURCE_DIR}/doc/news/
   ${CMAKE_CURRENT_BINARY_DIR}/tutorial/tutorial.h
   ${CMAKE_SOURCE_DIR}/contrib/parameter_gui/
   )
 
+# Add other directories in which to find images
 SET(_doxygen_image_path
   ${CMAKE_CURRENT_SOURCE_DIR}/images
   ${CMAKE_SOURCE_DIR}/contrib/parameter_gui/images
-  ${CMAKE_CURRENT_BINARY_DIR}/images
   )
 
 file(GLOB _doxygen_depend
@@ -118,7 +123,12 @@ LIST(APPEND _doxygen_depend
   ${CMAKE_BINARY_DIR}/include/deal.II/base/config.h
   ${CMAKE_CURRENT_BINARY_DIR}/tutorial/tutorial.h
   )
-FOREACH(_step ${DEAL_II_STEPS})
+
+# find all tutorial programs so we can add dependencies as appropriate
+FILE(GLOB _deal_ii_steps
+  ${CMAKE_SOURCE_DIR}/examples/step-*
+  )
+FOREACH(_step ${_deal_ii_steps})
   GET_FILENAME_COMPONENT(_step "${_step}" NAME)
   LIST(APPEND _doxygen_depend
     ${CMAKE_CURRENT_BINARY_DIR}/tutorial/${_step}.h
@@ -127,6 +137,38 @@ FOREACH(_step ${DEAL_II_STEPS})
     ${CMAKE_CURRENT_BINARY_DIR}/tutorial/${_step}.h
     )
 ENDFOREACH()
+
+# Also find all code gallery programs (if available) for the same reason.
+# The logic here follows the same as in code-gallery/CMakeLists.txt
+SET_IF_EMPTY(DEAL_II_CODE_GALLERY_DIRECTORY ${CMAKE_SOURCE_DIR}/code-gallery)
+IF (EXISTS ${DEAL_II_CODE_GALLERY_DIRECTORY}/README.md)
+  FILE(GLOB _code_gallery_names
+       "${DEAL_II_CODE_GALLERY_DIRECTORY}/*/doc/author")
+  STRING(REGEX REPLACE "/+doc/+author" "" _code_gallery_names "${_code_gallery_names}")
+
+  FOREACH(_step ${_code_gallery_names})
+    GET_FILENAME_COMPONENT(_step "${_step}" NAME)
+
+    LIST(APPEND _doxygen_depend
+      ${CMAKE_CURRENT_BINARY_DIR}/code-gallery/${_step}.h
+      )
+    LIST(APPEND _doxygen_input
+      ${CMAKE_CURRENT_BINARY_DIR}/code-gallery/${_step}.h
+      )
+  ENDFOREACH()
+ENDIF()
+
+
+# always make the doxygen run depend on the code-gallery.h file
+# (whether generated from the code gallery or copied from
+# no-code-gallery.h; both happen in code-gallery/CMakeLists.txt)
+LIST(APPEND _doxygen_input
+  ${CMAKE_CURRENT_BINARY_DIR}/code-gallery/code-gallery.h
+)
+LIST(APPEND _doxygen_depend
+  ${CMAKE_CURRENT_BINARY_DIR}/code-gallery/code-gallery.h
+)
+
 
 TO_STRING(_doxygen_image_path_string ${_doxygen_image_path})
 TO_STRING(_doxygen_input_string ${_doxygen_input})
@@ -138,9 +180,12 @@ FILE(APPEND "${CMAKE_CURRENT_BINARY_DIR}/options.dox"
   "
   )
 
+########################################################################
 #
 # And, finally, call doxygen:
 #
+########################################################################
+
 ADD_CUSTOM_COMMAND(
   OUTPUT
     ${CMAKE_BINARY_DIR}/doxygen.log
@@ -150,9 +195,12 @@ ADD_CUSTOM_COMMAND(
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS
     tutorial
+    code-gallery
     ${CMAKE_CURRENT_BINARY_DIR}/options.dox
     ${CMAKE_CURRENT_BINARY_DIR}/header.html
     ${CMAKE_CURRENT_BINARY_DIR}/footer.html
+    ${CMAKE_CURRENT_SOURCE_DIR}/DoxygenLayout.xml
+    ${CMAKE_CURRENT_SOURCE_DIR}/scripts/filter
     ${_doxygen_depend}
   COMMENT "Generating documentation via doxygen."
   VERBATIM

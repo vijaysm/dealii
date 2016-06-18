@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -44,7 +44,7 @@
 #include <fstream>
 #include <string>
 
-#define PRECISION 2
+#define PRECISION 8
 
 
 std::ofstream logfile ("output");
@@ -78,7 +78,7 @@ test (const unsigned int degree)
           deallog << "    Quadrature point " << q << ": ";
           for (unsigned int i=0; i<fe_rt.dofs_per_cell; ++i)
             {
-              deallog << '[';
+              deallog << "[ ";
               for (unsigned int c=0; c<fe_rt.n_components(); ++c)
                 deallog << fe_values.shape_value_component(i,q,c) << ' ';
               deallog << ']';
@@ -95,7 +95,6 @@ main()
   deallog << std::setprecision(PRECISION);
   deallog << std::fixed;
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   for (unsigned int i=0; i<4; ++i)
@@ -103,6 +102,3 @@ main()
 
   return 0;
 }
-
-
-

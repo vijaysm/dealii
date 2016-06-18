@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,16 +31,20 @@
 #include <deal.II/lac/vector_memory.h>
 #include <typeinfo>
 
-template<class SOLVER, class MATRIX, class VECTOR, class PRECONDITION>
+template<typename SolverType, typename MatrixType, typename VectorType, class PRECONDITION>
 void
-check_solve( SOLVER &solver, const MATRIX &A,
-             VECTOR &u, VECTOR &f, const PRECONDITION &P)
+check_solve(SolverType          &solver,
+            const SolverControl &solver_control,
+            const MatrixType    &A,
+            VectorType          &u,
+            VectorType          &f,
+            const PRECONDITION  &P)
 {
   deallog << "Solver type: " << typeid(solver).name() << std::endl;
 
   solver.solve(A,u,f,P);
 
-  deallog << "Solver stopped after " << solver.control().last_step()
+  deallog << "Solver stopped after " << solver_control.last_step()
           << " iterations" << std::endl;
 }
 
@@ -50,10 +54,9 @@ int main(int argc, char **argv)
   std::ofstream logfile("output");
   deallog.attach(logfile);
   deallog << std::setprecision(4);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
   {
     SolverControl control(100, 1.e-3);
 
@@ -71,20 +74,18 @@ int main(int argc, char **argv)
     PETScWrappers::Vector  u(dim);
     u = 0.;
     f = 1.;
-    A.compress (VectorOperation::add);
-    f.compress (VectorOperation::add);
-    u.compress (VectorOperation::add);
+    A.compress (VectorOperation::insert);
     PETScWrappers::Vector t=u;
 
     PETScWrappers::SolverPreOnly solver(control);
 
     PETScWrappers::PreconditionJacobi preconditioner(A);
 
-    check_solve (solver, A,u,f, preconditioner);
+    check_solve (solver, control, A,u,f, preconditioner);
 
     deallog << u.l2_norm() << std::endl;
 
-    check_solve (solver, A,t,u, preconditioner);
+    check_solve (solver, control, A,t,u, preconditioner);
 
     deallog << t.l2_norm() << std::endl;
 
@@ -96,4 +97,3 @@ int main(int argc, char **argv)
   }
 
 }
-

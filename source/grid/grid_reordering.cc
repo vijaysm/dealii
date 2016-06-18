@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2014 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -767,9 +767,9 @@ GridReordering<2>::invert_all_cells_of_negative_grid(const std::vector<Point<2> 
                                      "negative volume. You need to check your mesh which "
                                      "cells these are and how they got there.\n"
                                      "As a hint, of the total ")
-                         + Utilities::int_to_string (cells.size())
+                         + Utilities::to_string (cells.size())
                          + " cells in the mesh, "
-                         + Utilities::int_to_string (n_negative_cells)
+                         + Utilities::to_string (n_negative_cells)
                          + " appear to have a negative volume."));
 }
 
@@ -974,6 +974,7 @@ namespace internal
     Mesh::sanity_check_node (const Cell         &c,
                              const unsigned int local_node_num) const
     {
+#ifdef DEBUG
       // check that every edge
       // coming into a node has the
       // same node value
@@ -1009,6 +1010,10 @@ namespace internal
                edge_list[ge2].nodes[or2 == forward_edge ? 0 : 1]),
               ExcMessage ("This message does not satisfy the internal "
                           "consistency check"));
+#else
+      (void)c;
+      (void)local_node_num;
+#endif
     }
 
 

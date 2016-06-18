@@ -48,7 +48,7 @@
  *   mesh refinement. Several classes already exist to support the most common
  *   geometries, e.g., CylinderManifold, or PolarManifold, which represent
  *   respectively the geometry obtained when describing your space in
- *   cylindrical coordintes or in polar coordinates.
+ *   cylindrical coordinates or in polar coordinates.
  *
  *   <li> Integration: When using higher order finite element methods, it is
  *   often necessary to compute cell terms (like cell contributions to the
@@ -77,7 +77,7 @@
  * While this process is non trivial in most cases of interest, for most of
  * the trivial geometries, like cylinders, spheres or shells, deal.II provides
  * reasonable implementations. More complicated examples can be described
- * using the techniques shown in step-53.
+ * using the techniques shown in step-53 and step-54.
  *
  * The boundary of a Triangulation is a special case of Manifold, for
  * which additional information can be useful in user codes, such as
@@ -254,7 +254,7 @@
  *
  * Here, even starting with an initial, inappropriately chosen mesh retains
  * our ability to adequately refine the mesh into one that will serve us
- * well. This example may be manifactured here, but it is relevant, for example
+ * well. This example may be manufactured here, but it is relevant, for example
  * in the context of what GridGenerator::hyper_shell() produces in 3d
  * (see the documentation of this function). It is also germane to the
  * cases discussed in the @ref GlossDistorted "glossary entry on distorted cells".

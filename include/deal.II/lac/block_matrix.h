@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__block_matrix_h
-#define __deal2__block_matrix_h
+#ifndef dealii__block_matrix_h
+#define dealii__block_matrix_h
 
 
 #include <deal.II/base/config.h>
@@ -31,27 +31,31 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * A matrix with several copies of the same block on the diagonal.
  *
- * This matrix implements an @p m by @p m block matrix. Each
- * diagonal block consists of the same (non-block) matrix, while
- * off-diagonal blocks are void.
+ * This matrix implements an @p m by @p m block matrix. Each diagonal block
+ * consists of the same (non-block) matrix, while off-diagonal blocks are
+ * void.
  *
- * One special application is a one by one block matrix, allowing to
- * apply the @p vmult of the original matrix (or preconditioner) to a
- * block vector.
+ * One special application is a one by one block matrix, allowing to apply the
+ * @p vmult of the original matrix (or preconditioner) to a block vector.
  *
- * @see @ref GlossBlockLA "Block (linear algebra)"
+ * @deprecated If deal.II was configured with C++11 support, use the
+ * LinearOperator class instead, see the module on
+ * @ref LAOperators "linear operators"
+ * for further details.
+ *
+ * @see
+ * @ref GlossBlockLA "Block (linear algebra)"
  * @author Guido Kanschat, 2000
  */
-template <class MATRIX>
+template <typename MatrixType>
 class BlockDiagonalMatrix : public Subscriptor
 {
 public:
   /**
-   * Constructor for an @p n_blocks
-   * by @p n_blocks matrix with
-   * diagonal blocks @p M.
+   * Constructor for an @p n_blocks by @p n_blocks matrix with diagonal blocks
+   * @p M.
    */
-  BlockDiagonalMatrix (const MATRIX       &M,
+  BlockDiagonalMatrix (const MatrixType   &M,
                        const unsigned int  n_blocks);
 
   /**
@@ -76,26 +80,26 @@ private:
   /**
    * Diagonal entry.
    */
-  SmartPointer<const MATRIX,BlockDiagonalMatrix<MATRIX> > matrix;
+  SmartPointer<const MatrixType,BlockDiagonalMatrix<MatrixType> > matrix;
 };
 
 /*@}*/
 //---------------------------------------------------------------------------
 
-template <class MATRIX>
-BlockDiagonalMatrix<MATRIX>::BlockDiagonalMatrix (const MATRIX &M,
-                                                  const unsigned int num_blocks)
+template <typename MatrixType>
+BlockDiagonalMatrix<MatrixType>::BlockDiagonalMatrix (const MatrixType &M,
+                                                      const unsigned int num_blocks)
   :
   num_blocks (num_blocks),
   matrix(&M)
 {}
 
 
-template <class MATRIX>
+template <typename MatrixType>
 template <typename number1, typename number2>
 void
-BlockDiagonalMatrix<MATRIX>::vmult (BlockVector<number1> &dst,
-                                    const BlockVector<number2> &src) const
+BlockDiagonalMatrix<MatrixType>::vmult (BlockVector<number1>       &dst,
+                                        const BlockVector<number2> &src) const
 {
   Assert (dst.n_blocks()==num_blocks,
           ExcDimensionMismatch(dst.n_blocks(),num_blocks));
@@ -107,11 +111,11 @@ BlockDiagonalMatrix<MATRIX>::vmult (BlockVector<number1> &dst,
 }
 
 
-template <class MATRIX>
+template <typename MatrixType>
 template <typename number1, typename number2>
 void
-BlockDiagonalMatrix<MATRIX>::Tvmult (BlockVector<number1> &dst,
-                                     const BlockVector<number2> &src) const
+BlockDiagonalMatrix<MatrixType>::Tvmult (BlockVector<number1>       &dst,
+                                         const BlockVector<number2> &src) const
 {
   Assert (dst.n_blocks()==num_blocks,
           ExcDimensionMismatch(dst.n_blocks(),num_blocks));

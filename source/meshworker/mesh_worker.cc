@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -56,7 +56,6 @@ namespace MeshWorker
 
   template class LocalResults<float>;
   template class LocalResults<double>;
-  template class LocalResults<long double>;
 
   template <int dim, int spacedim, typename number>
   LocalIntegrator<dim, spacedim, number>::LocalIntegrator ()

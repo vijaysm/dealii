@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2013 by the deal.II authors
+## Copyright (C) 2012 - 2015 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -26,8 +26,13 @@ SET(_src
   dof_output_operator.cc
   error_estimator_1d.cc
   error_estimator.cc
+  error_estimator_inst2.cc
   fe_field_function.cc
   histogram.cc
+  matrix_creator.cc
+  matrix_creator_inst2.cc
+  matrix_creator_inst3.cc
+  matrix_tools_once.cc
   matrix_tools.cc
   point_value_history.cc
   solution_transfer.cc
@@ -41,6 +46,7 @@ SET(_src
   vector_tools_interpolate.cc
   vector_tools_mean_value.cc
   vector_tools_point_value.cc
+  vector_tools_point_gradient.cc
   vector_tools_project.cc
   vector_tools_rhs.cc
   )
@@ -57,6 +63,7 @@ SET(_inst
   error_estimator_1d.inst.in
   error_estimator.inst.in
   fe_field_function.inst.in
+  matrix_creator.inst.in
   matrix_tools.inst.in
   point_value_history.inst.in
   solution_transfer.inst.in
@@ -67,6 +74,7 @@ SET(_inst
   vector_tools_interpolate.inst.in
   vector_tools_mean_value.inst.in
   vector_tools_point_value.inst.in
+  vector_tools_point_gradient.inst.in
   vector_tools_project.inst.in
   vector_tools_rhs.inst.in
   )

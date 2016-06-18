@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2013 by the deal.II authors
+// Copyright (C) 1999 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -666,6 +666,20 @@ void TableHandler::write_tex (std::ostream &out, const bool with_header) const
 }
 
 
+void TableHandler::clear()
+{
+
+  columns.clear();
+  supercolumns.clear();
+  column_order.clear();
+  tex_supercaptions.clear();
+
+  tex_table_label.clear();
+  tex_table_caption.clear();
+
+}
+
+
 unsigned int TableHandler::n_rows() const
 {
   if (columns.size() == 0)
@@ -713,6 +727,22 @@ void TableHandler::get_selected_columns(std::vector<std::string> &sel_columns) c
           sel_columns.push_back(key);
         }
     }
+}
+
+
+void TableHandler::clear_current_row ()
+{
+  // Figure out what is the currect (max) length of the columns
+  // so that we "shave" one off.
+  std::vector<internal::TableEntry>::size_type n = 0;
+  for (std::map< std::string, Column >::iterator p = columns.begin(); p != columns.end(); ++p)
+    n = std::max(n, p->second.entries.size());
+
+  // shave the top most element
+  if (n != 0)
+    for (std::map< std::string, Column >::iterator p = columns.begin(); p != columns.end(); ++p)
+      if (p->second.entries.size() == n)
+        p->second.entries.pop_back();
 }
 
 

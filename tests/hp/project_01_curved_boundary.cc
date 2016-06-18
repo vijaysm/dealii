@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,6 +30,7 @@
 #include <deal.II/hp/q_collection.h>
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/mapping_q.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/dofs/dof_accessor.h>
 
@@ -93,7 +94,7 @@ void test()
 
   // use an explicit Q1 mapping. this will yield a zero solution
   {
-    VectorTools::project (hp::MappingCollection<dim>(MappingQ1<dim>()),
+    VectorTools::project (hp::MappingCollection<dim>(MappingQGeneric<dim>(1)),
                           dh, cm, hp::QCollection<dim>(QGauss<dim>(3)), F<dim>(),
                           v);
     deallog << v.l2_norm() << std::endl;
@@ -167,7 +168,6 @@ int main()
 {
   std::ofstream logfile ("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<2>();

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -74,8 +74,8 @@ void test ()
   // check local values
   if (myid==0)
     {
-      deallog << "1,1 : " << mat(1,1) << std::endl;
-      deallog << "0,1 : " << mat(0,1) << std::endl;
+      deallog << "1,1 : " << get_real_assert_zero_imag(mat(1,1)) << std::endl;
+      deallog << "0,1 : " << get_real_assert_zero_imag(mat(0,1)) << std::endl;
     }
 
   // done
@@ -87,7 +87,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
   MPILogInitAll log;
   {
     deallog.push("PETSc");

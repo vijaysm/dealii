@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2006 - 2013 by the deal.II authors
+ * Copyright (C) 2006 - 2015 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -46,11 +46,11 @@
 #include <deal.II/numerics/error_estimator.h>
 
 // These are the new files we need. The first one provides an alternative to
-// the usual SparsityPattern class and the CompressedSparsityPattern class
+// the usual SparsityPattern class and the DynamicSparsityPattern class
 // already discussed in step-11 and step-18. The last two provide <i>hp</i>
 // versions of the DoFHandler and FEValues classes as described in the
 // introduction of this program.
-#include <deal.II/lac/compressed_set_sparsity_pattern.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/hp/dof_handler.h>
 #include <deal.II/hp/fe_values.h>
 
@@ -212,10 +212,10 @@ namespace Step27
                                               constraints);
     constraints.close ();
 
-    CompressedSetSparsityPattern csp (dof_handler.n_dofs(),
-                                      dof_handler.n_dofs());
-    DoFTools::make_sparsity_pattern (dof_handler, csp, constraints, false);
-    sparsity_pattern.copy_from (csp);
+    DynamicSparsityPattern dsp (dof_handler.n_dofs(),
+                                dof_handler.n_dofs());
+    DoFTools::make_sparsity_pattern (dof_handler, dsp, constraints, false);
+    sparsity_pattern.copy_from (dsp);
 
     system_matrix.reinit (sparsity_pattern);
   }
@@ -382,8 +382,8 @@ namespace Step27
         typename hp::DoFHandler<dim>::active_cell_iterator
         cell = dof_handler.begin_active(),
         endc = dof_handler.end();
-        for (unsigned int index=0; cell!=endc; ++cell, ++index)
-          fe_degrees(index)
+        for (; cell!=endc; ++cell)
+          fe_degrees(cell->active_cell_index())
             = fe_collection[cell->active_fe_index()].degree;
       }
 
@@ -443,13 +443,13 @@ namespace Step27
         typename hp::DoFHandler<dim>::active_cell_iterator
         cell = dof_handler.begin_active(),
         endc = dof_handler.end();
-        for (unsigned int index=0; cell!=endc; ++cell, ++index)
+        for (; cell!=endc; ++cell)
           if (cell->refine_flag_set())
             {
               max_smoothness = std::max (max_smoothness,
-                                         smoothness_indicators(index));
+                                         smoothness_indicators(cell->active_cell_index()));
               min_smoothness = std::min (min_smoothness,
-                                         smoothness_indicators(index));
+                                         smoothness_indicators(cell->active_cell_index()));
             }
       }
       const float threshold_smoothness = (max_smoothness + min_smoothness) / 2;
@@ -466,10 +466,10 @@ namespace Step27
         typename hp::DoFHandler<dim>::active_cell_iterator
         cell = dof_handler.begin_active(),
         endc = dof_handler.end();
-        for (unsigned int index=0; cell!=endc; ++cell, ++index)
+        for (; cell!=endc; ++cell)
           if (cell->refine_flag_set()
               &&
-              (smoothness_indicators(index) > threshold_smoothness)
+              (smoothness_indicators(cell->active_cell_index()) > threshold_smoothness)
               &&
               (cell->active_fe_index()+1 < fe_collection.size()))
             {
@@ -753,7 +753,7 @@ namespace Step27
     typename hp::DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
-    for (unsigned int index=0; cell!=endc; ++cell, ++index)
+    for (; cell!=endc; ++cell)
       {
         // Inside the loop, we first need to get the values of the local
         // degrees of freedom (which we put into the
@@ -829,7 +829,7 @@ namespace Step27
 
         // The final step is to compute the Sobolev index $s=\mu-\frac d2$ and
         // store it in the vector of estimated values for each cell:
-        smoothness_indicators(index) = mu - 1.*dim/2;
+        smoothness_indicators(cell->active_cell_index()) = mu - 1.*dim/2;
       }
   }
 }
@@ -847,8 +847,6 @@ int main ()
     {
       using namespace dealii;
       using namespace Step27;
-
-      deallog.depth_console (0);
 
       LaplaceProblem<2> laplace_problem;
       laplace_problem.run ();

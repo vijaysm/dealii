@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -63,10 +63,10 @@ void run (bool random_p,
   hp::DoFHandler<dim>        dof_handler(triangulation);
   ConstraintMatrix     hanging_node_constraints;
 
-  FE_Q<dim> fe_1 (indx[0]),
-       fe_2 (indx[1]),
-       fe_3 (indx[2]),
-       fe_4 (indx[3]);
+  FE_Q<dim> fe_1 (QIterated<1>(QTrapez<1>(),indx[0])),
+       fe_2 (QIterated<1>(QTrapez<1>(),indx[1])),
+       fe_3 (QIterated<1>(QTrapez<1>(),indx[2])),
+       fe_4 (QIterated<1>(QTrapez<1>(),indx[3]));
 
   fe.push_back (fe_1);
   fe.push_back (fe_2);
@@ -138,10 +138,9 @@ void run_test (unsigned int *indx)
 
 int main ()
 {
-  logfile.precision(2);
+  logfile.precision(8);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   unsigned int index[] =

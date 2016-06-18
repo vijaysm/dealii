@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2014 by the deal.II authors
+## Copyright (C) 2012 - 2015 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -37,6 +37,15 @@
 
 MACRO(DEAL_II_INVOKE_AUTOPILOT)
 
+  # Set CMAKE_BUILD_TYPE=Debug if both 
+  # Debug and Release mode are given
+  IF("${CMAKE_BUILD_TYPE}" STREQUAL "DebugRelease")
+    SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING
+      "Choose the type of build, options are: Debug, Release"
+      FORCE)
+  ENDIF()
+
+
   # Generator specific values:
   IF(CMAKE_GENERATOR MATCHES "Ninja")
     SET(_make_command "$ ninja")
@@ -67,7 +76,7 @@ MACRO(DEAL_II_INVOKE_AUTOPILOT)
     ENDIF()
     FILE(WRITE ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/run_target.cmake
       "SET(ENV{PATH} \"${CMAKE_CURRENT_BINARY_DIR}${_delim}${DEAL_II_PATH}/${DEAL_II_EXECUTABLE_RELDIR}${_delim}\$ENV{PATH}\")\n"
-      "EXECUTE_PROCESS(COMMAND ${TARGET_RUN}\n"
+      "EXECUTE_PROCESS(COMMAND ${CMAKE_BUILD_TYPE}\\\\${TARGET_RUN}\n"
       "  RESULT_VARIABLE _return_value\n"
       "  )\n"
       "IF(NOT \"\${_return_value}\" STREQUAL \"0\")\n"
@@ -119,8 +128,8 @@ MACRO(DEAL_II_INVOKE_AUTOPILOT)
         COMMAND
            ${CMAKE_COMMAND} -E echo ''
         && ${CMAKE_COMMAND} -E echo '***************************************************************************'
-        && ${CMAKE_COMMAND} -E echo '**  Error: No Mac OSX developer certificate specified'
-        && ${CMAKE_COMMAND} -E echo '**  Please reconfigure with -DOSX_CERTIFICATE_NAME="<...>"'
+        && ${CMAKE_COMMAND} -E echo '**           Error: No Mac OSX developer certificate specified           **'
+        && ${CMAKE_COMMAND} -E echo '**         Please reconfigure with -DOSX_CERTIFICATE_NAME="<...>"        **'
         && ${CMAKE_COMMAND} -E echo '***************************************************************************'
         && ${CMAKE_COMMAND} -E echo ''
         COMMENT "Digitally signing ${TARGET}"
@@ -145,7 +154,7 @@ MACRO(DEAL_II_INVOKE_AUTOPILOT)
     COMMENT "Switch CMAKE_BUILD_TYPE to Release"
     )
 
-  # Only mention release and debug targets if it is actuallay possible to
+  # Only mention release and debug targets if it is actually possible to
   # switch between them:
   IF(${DEAL_II_BUILD_TYPE} MATCHES "DebugRelease")
     SET(_switch_targets

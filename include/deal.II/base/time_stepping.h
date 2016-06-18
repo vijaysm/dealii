@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 by the deal.II authors
+// Copyright (C) 2014 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__time_stepping_h
-#define __deal2__time_stepping_h
+#ifndef dealii__time_stepping_h
+#define dealii__time_stepping_h
 
 
 #include <deal.II/base/config.h>
@@ -34,22 +34,23 @@ DEAL_II_NAMESPACE_OPEN
 namespace TimeStepping
 {
   /**
-   * Runge-Kutta methods available:
-   *   - Explicit methods:
-   *     - FORWARD_EULER: first order
-   *     - RK_THIRD_ORDER: third order Runge-Kutta
-   *     - RK_CLASSIC_FOURTH_ORDER: classical fourth order Runge-Kutta
-   *   - Implicit methods:
-   *     - BACKWARD_EULER: first order
-   *     - IMPLICIT_MIDPOINT: second order
-   *     - CRANK_NICOLSON: second order
-   *     - SDIRK_TWO_STAGES: second order
-   *   - Embedded explicit methods:
-   *     - HEUN_EULER: second order
-   *     - BOGACKI_SHAMPINE: third order
-   *     - DOPRI: Dormand-Prince fifth order (method used by ode45 in MATLAB)
-   *     - FEHLBERG: fifth order
-   *     - CASH_KARP: firth order
+   * The following Runge-Kutta methods are available:
+   * - Explicit methods (see ExplicitRungeKutta::initialize):
+   *   - FORWARD_EULER (first order)
+   *   - RK_THIRD_ORDER (third order Runge-Kutta)
+   *   - RK_CLASSIC_FOURTH_ORDER (classical fourth order Runge-Kutta)
+   * - Implicit methods (see ImplicitRungeKutta::initialize):
+   *   - BACKWARD_EULER (first order)
+   *   - IMPLICIT_MIDPOINT (second order)
+   *   - CRANK_NICOLSON (second order)
+   *   - SDIRK_TWO_STAGES (second order)
+   * - Embedded explicit methods (see EmbeddedExplicitRungeKutta::initialize):
+   *   - HEUN_EULER (second order)
+   *   - BOGACKI_SHAMPINE (third order)
+   *   - DOPRI: Dormand-Prince (fifth order, method used by ode45 in
+   * MATLAB)
+   *   - FEHLBERG (fifth order)
+   *   - CASH_KARP (firth order)
    */
   enum runge_kutta_method { FORWARD_EULER, RK_THIRD_ORDER, RK_CLASSIC_FOURTH_ORDER,
                             BACKWARD_EULER, IMPLICIT_MIDPOINT, CRANK_NICOLSON,
@@ -60,10 +61,10 @@ namespace TimeStepping
 
 
   /**
-   * Reason for exiting evolve_one_time_step when using an embedded
-   * method: DELTA_T (the time step is in the valid range), MIN_DELTA_T (the
-   * time step was increased to the minimum acceptable time step), MAX_DELTA_T
-   * (the time step was reduced to the maximum acceptable time step).
+   * Reason for exiting evolve_one_time_step when using an embedded method:
+   * DELTA_T (the time step is in the valid range), MIN_DELTA_T (the time step
+   * was increased to the minimum acceptable time step), MAX_DELTA_T (the time
+   * step was reduced to the maximum acceptable time step).
    */
   enum embedded_runge_kutta_time_step { DELTA_T, MIN_DELTA_T, MAX_DELTA_T };
 
@@ -73,35 +74,34 @@ namespace TimeStepping
    * Abstract class for time stepping methods. These methods assume that the
    * equation has the form: $ \frac{\partial y}{\partial t} = f(t,y) $.
    */
-  template <typename VECTOR>
+  template <typename VectorType>
   class TimeStepping
   {
   public:
     /**
      * Virtual destructor.
      */
-    virtual ~TimeStepping() {};
+    virtual ~TimeStepping() {}
 
     /**
      * Purely virtual function. This function is used to advance from time @p
-     * t to t+ @p delta_t. @p F is a vector of functions $ f(t,y) $ that should be
-     * integrated, the input parameters are the time t and the vector y and the
-     * output is value of f at this point. @p J_inverse is a vector
-     * functions that compute the inverse of the Jacobians associated to the
-     * implicit problems. The input parameters are the
-     * time, $ \tau $, and a vector. The output is the value of function
-     * at this point. This function returns the time at the end of the
-     * time step.
+     * t to t+ @p delta_t. @p F is a vector of functions $ f(t,y) $ that
+     * should be integrated, the input parameters are the time t and the
+     * vector y and the output is value of f at this point. @p J_inverse is a
+     * vector functions that compute the inverse of the Jacobians associated
+     * to the implicit problems. The input parameters are the time, $ \tau $,
+     * and a vector. The output is the value of function at this point. This
+     * function returns the time at the end of the time step.
      */
-    virtual double evolve_one_time_step(
-      std::vector<std_cxx11::function<VECTOR (const double, const VECTOR &)> > &F,
-      std::vector<std_cxx11::function<VECTOR (const double, const double, const VECTOR &)> > &J_inverse,
-      double t,
-      double delta_t,
-      VECTOR &y) = 0;
+    virtual double evolve_one_time_step
+    (std::vector<std_cxx11::function<VectorType (const double, const VectorType &)> >               &F,
+     std::vector<std_cxx11::function<VectorType (const double, const double, const VectorType &)> > &J_inverse,
+     double                                                                                         t,
+     double                                                                                         delta_t,
+     VectorType                                                                                     &y) = 0;
 
     /**
-     * Empty structure used to store informations.
+     * Empty structure used to store information.
      */
     struct Status {};
 
@@ -119,55 +119,54 @@ namespace TimeStepping
    * @author Damien Lebrun-Grandie, Bruno Turcksin
    * @date 2014
    */
-  template <typename VECTOR>
-  class RungeKutta : public TimeStepping<VECTOR>
+  template <typename VectorType>
+  class RungeKutta : public TimeStepping<VectorType>
   {
   public:
     /**
      * Virtual destructor.
      */
-    virtual ~RungeKutta() {};
+    virtual ~RungeKutta() {}
 
     /**
      * Purely virtual method used to initialize the Runge-Kutta method.
      */
     virtual void initialize(runge_kutta_method method) = 0;
     /**
-     * This function is used to advance from time @p
-     * t to t+ @p delta_t. @p F is a vector of functions $ f(t,y) $ that should be
-     * integrated, the input parameters are the time t and the vector y and the
-     * output is value of f at this point. @p J_inverse is a vector
-     * functions that compute the inverse of the Jacobians associated to the
-     * implicit problems. The input parameters are the
-     * time, $ \tau $, and a vector. The output is the value of function
-     * at this point. This function returns the time at the end of the
-     * time step. When using Runge-Kutta methods, @p F and @ J_inverse can
-     * only contain one element.
+     * This function is used to advance from time @p t to t+ @p delta_t. @p F
+     * is a vector of functions $ f(t,y) $ that should be integrated, the
+     * input parameters are the time t and the vector y and the output is
+     * value of f at this point. @p J_inverse is a vector functions that
+     * compute the inverse of the Jacobians associated to the implicit
+     * problems. The input parameters are the time, $ \tau $, and a vector.
+     * The output is the value of function at this point. This function
+     * returns the time at the end of the time step. When using Runge-Kutta
+     * methods, @p F and @ J_inverse can only contain one element.
      */
-    double evolve_one_time_step(
-      std::vector<std_cxx11::function<VECTOR (const double, const VECTOR &)> > &F,
-      std::vector<std_cxx11::function<VECTOR (const double, const double, const VECTOR &)> > &J_inverse,
-      double t,
-      double delta_t,
-      VECTOR &y);
+    double evolve_one_time_step
+    (std::vector<std_cxx11::function<VectorType (const double, const VectorType &)> >               &F,
+     std::vector<std_cxx11::function<VectorType (const double, const double, const VectorType &)> > &J_inverse,
+     double                                                                                         t,
+     double                                                                                         delta_t,
+     VectorType &y);
 
     /**
-     * Purely virtual function. This function is used to advance from time @p t
-     * to t+ @p delta_t. @p f  is the function $ f(t,y) $ that should be
-     * integrated, the input parameters are the time t and the vector y and the
-     * output is value of f at this point. @p id_minus_tau_J_inverse is a function
-     * that computes $ inv(I-\tau J)$ where $ I $ is the identity matrix,
-     * $ \tau $ is given, and $ J $ is the Jacobian $ \frac{\partial
-     * J}{\partial y} $. The input parameters are the time, $ \tau $, and
-     * a vector. The output is the value of function at this point.
+     * Purely virtual function. This function is used to advance from time @p
+     * t to t+ @p delta_t. @p f  is the function $ f(t,y) $ that should be
+     * integrated, the input parameters are the time t and the vector y and
+     * the output is value of f at this point. @p id_minus_tau_J_inverse is a
+     * function that computes $ inv(I-\tau J)$ where $ I $ is the identity
+     * matrix, $ \tau $ is given, and $ J $ is the Jacobian $ \frac{\partial
+     * J}{\partial y} $. The input parameters are the time, $ \tau $, and a
+     * vector. The output is the value of function at this point.
      * evolve_one_time_step returns the time at the end of the time step.
      */
-    virtual double evolve_one_time_step(
-      std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-      std_cxx11::function<VECTOR (const double, const double, const VECTOR &)> id_minus_tau_J_inverse,
-      double t,
-      double delta_t,
-      VECTOR &y) = 0;
+    virtual double evolve_one_time_step
+    (std_cxx11::function<VectorType (const double, const VectorType &)>               f,
+     std_cxx11::function<VectorType (const double, const double, const VectorType &)> id_minus_tau_J_inverse,
+     double                                                                           t,
+     double                                                                           delta_t,
+     VectorType                                                                       &y) = 0;
 
   protected:
     /**
@@ -194,19 +193,20 @@ namespace TimeStepping
 
 
   /**
-   * ExplicitRungeKutta is derived from RungeKutta and implement the explicit methods.
+   * ExplicitRungeKutta is derived from RungeKutta and implement the explicit
+   * methods.
    */
-  template <typename VECTOR>
-  class ExplicitRungeKutta : public RungeKutta<VECTOR>
+  template <typename VectorType>
+  class ExplicitRungeKutta : public RungeKutta<VectorType>
   {
   public:
-    using RungeKutta<VECTOR>::evolve_one_time_step;
+    using RungeKutta<VectorType>::evolve_one_time_step;
 
     /**
      * Default constructor. initialize(runge_kutta_method) needs to be called
      * before the object can be used.
      */
-    ExplicitRungeKutta() {};
+    ExplicitRungeKutta() {}
 
     /**
      * Constructor. This function calls initialize(runge_kutta_method).
@@ -221,37 +221,38 @@ namespace TimeStepping
     /**
      * This function is used to advance from time @p t to t+ @p delta_t. @p f
      * is the function $ f(t,y) $ that should be integrated, the input
-     * parameters are the time t and the vector y and the output is value of
-     * f at this point. @p id_minus_tau_J_inverse is a function that computes
-     * $ inv(I-\tau J)$ where $ I $ is the identity matrix, $ \tau
-     * $ is given, and $ J $ is the Jacobian $ \frac{\partial
-     * J}{\partial y} $. The input parameter are the time, $ \tau $, and
-     * a vector. The output is the value of function at this point.
-     * evolve_one_time_step returns the time at the end of the time step.
+     * parameters are the time t and the vector y and the output is value of f
+     * at this point. @p id_minus_tau_J_inverse is a function that computes $
+     * inv(I-\tau J)$ where $ I $ is the identity matrix, $ \tau $ is given,
+     * and $ J $ is the Jacobian $ \frac{\partial J}{\partial y} $. The input
+     * parameter are the time, $ \tau $, and a vector. The output is the value
+     * of function at this point. evolve_one_time_step returns the time at the
+     * end of the time step.
      */
-    double evolve_one_time_step(
-      std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-      std_cxx11::function<VECTOR (const double, const double, const VECTOR &)> id_minus_tau_J_inverse,
-      double t,
-      double delta_t,
-      VECTOR &y);
+    double evolve_one_time_step
+    (std_cxx11::function<VectorType (const double, const VectorType &)>               f,
+     std_cxx11::function<VectorType (const double, const double, const VectorType &)> id_minus_tau_J_inverse,
+     double                                                                           t,
+     double                                                                           delta_t,
+     VectorType &y);
 
     /**
-     * This function is used to advance from time @p t to t+ @p delta_t.
-     * This function is similar to the one derived from RungeKutta, but
-     * does not required id_minus_tau_J_inverse because it is not used for
-     * explicit methods. evolve_one_time_step returns the time at the end of the
-     * time step.
+     * This function is used to advance from time @p t to t+ @p delta_t. This
+     * function is similar to the one derived from RungeKutta, but does not
+     * required id_minus_tau_J_inverse because it is not used for explicit
+     * methods. evolve_one_time_step returns the time at the end of the time
+     * step.
      */
-    double evolve_one_time_step(std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-                                double t,
-                                double delta_t,
-                                VECTOR &y);
+    double evolve_one_time_step
+    (std_cxx11::function<VectorType (const double, const VectorType &)> f,
+     double                                                             t,
+     double                                                             delta_t,
+     VectorType                                                         &y);
 
     /**
      * This structure stores the name of the method used.
      */
-    struct Status : public TimeStepping<VECTOR>::Status
+    struct Status : public TimeStepping<VectorType>::Status
     {
       runge_kutta_method method;
     };
@@ -265,11 +266,12 @@ namespace TimeStepping
     /**
      * Compute the different stages needed.
      */
-    void compute_stages(std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-                        const double t,
-                        const double delta_t,
-                        const VECTOR &y,
-                        std::vector<VECTOR> &f_stages) const;
+    void compute_stages
+    (std_cxx11::function<VectorType (const double, const VectorType &)> f,
+     const double                                                       t,
+     const double                                                       delta_t,
+     const VectorType                                                   &y,
+     std::vector<VectorType>                                            &f_stages) const;
 
     /**
      * Status structure of the object.
@@ -280,22 +282,21 @@ namespace TimeStepping
 
 
   /**
-   * This class is derived from RungeKutta and implement the implicit
-   * methods. This class works only for Diagonal Implicit Runge-Kutta
-   * (DIRK) methods.
+   * This class is derived from RungeKutta and implement the implicit methods.
+   * This class works only for Diagonal Implicit Runge-Kutta (DIRK) methods.
    */
-  template <typename VECTOR>
-  class ImplicitRungeKutta : public RungeKutta<VECTOR>
+  template <typename VectorType>
+  class ImplicitRungeKutta : public RungeKutta<VectorType>
   {
   public:
-    using RungeKutta<VECTOR>::evolve_one_time_step;
+    using RungeKutta<VectorType>::evolve_one_time_step;
 
     /**
      * Default constructor. initialize(runge_kutta_method) and
-     * set_newton_solver_parameters(unsigned int,double)
-     * need to be called before the object can be used.
+     * set_newton_solver_parameters(unsigned int,double) need to be called
+     * before the object can be used.
      */
-    ImplicitRungeKutta() {};
+    ImplicitRungeKutta() {}
 
     /**
      * Constructor. This function calls initialize(runge_kutta_method) and
@@ -312,20 +313,20 @@ namespace TimeStepping
     /**
      * This function is used to advance from time @p t to t+ @p delta_t. @p f
      * is the function $ f(t,y) $ that should be integrated, the input
-     * parameters are the time t and the vector y and the output is value of
-     * f at this point. @p id_minus_tau_J_inverse is a function that computes
-     * $ inv(I-\tau J)$ where $ I $ is the identity matrix, $ \tau
-     * $ is given, and $ J $ is the Jacobian $ \frac{\partial
-     * J}{\partial y} $. The input parameters are the time, $ \tau $, and
-     * a vector. The output is the value of function at this point.
-     * evolve_one_time_step returns the time at the end of the time step.
+     * parameters are the time t and the vector y and the output is value of f
+     * at this point. @p id_minus_tau_J_inverse is a function that computes $
+     * (I-\tau J)^{-1}$ where $ I $ is the identity matrix, $ \tau $ is given,
+     * and $ J $ is the Jacobian $ \frac{\partial J}{\partial y} $. The input
+     * parameters this function receives are the time, $ \tau $, and a vector.
+     * The output is the value of function at this point. evolve_one_time_step
+     * returns the time at the end of the time step.
      */
-    double evolve_one_time_step(
-      std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-      std_cxx11::function<VECTOR (const double, const double, const VECTOR &)> id_minus_tau_J_inverse,
-      double t,
-      double delta_t,
-      VECTOR &y);
+    double evolve_one_time_step
+    (std_cxx11::function<VectorType (const double, const VectorType &)>               f,
+     std_cxx11::function<VectorType (const double, const double, const VectorType &)> id_minus_tau_J_inverse,
+     double                                                                           t,
+     double                                                                           delta_t,
+     VectorType                                                                       &y);
 
     /**
      * Set the maximum number of iterations and the tolerance used by the
@@ -334,11 +335,10 @@ namespace TimeStepping
     void set_newton_solver_parameters(unsigned int max_it, double tolerance);
 
     /**
-     * Structure that stores the name of the method, the number of
-     * Newton iterations and the norm of the residual when exiting the
-     * Newton solver.
+     * Structure that stores the name of the method, the number of Newton
+     * iterations and the norm of the residual when exiting the Newton solver.
      */
-    struct Status : public TimeStepping<VECTOR>::Status
+    struct Status : public TimeStepping<VectorType>::Status
     {
       runge_kutta_method method;
       unsigned int       n_iterations;
@@ -354,36 +354,36 @@ namespace TimeStepping
     /**
      * Compute the different stages needed.
      */
-    void compute_stages(
-      std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-      std_cxx11::function<VECTOR (const double, const double, const VECTOR &)> id_minus_tau_J_inverse,
-      double t,
-      double delta_t,
-      VECTOR &y,
-      std::vector<VECTOR> &f_stages);
+    void compute_stages
+    (std_cxx11::function<VectorType (const double, const VectorType &)>               f,
+     std_cxx11::function<VectorType (const double, const double, const VectorType &)> id_minus_tau_J_inverse,
+     double                                                                           t,
+     double                                                                           delta_t,
+     VectorType                                                                       &y,
+     std::vector<VectorType> &f_stages);
 
     /**
      * Newton solver used for the implicit stages.
      */
-    void newton_solve(std_cxx11::function<void (const VECTOR &,VECTOR &)> get_residual,
-                      std_cxx11::function<VECTOR (const VECTOR &)> id_minus_tau_J_inverse,
-                      VECTOR &y);
+    void newton_solve(std_cxx11::function<void (const VectorType &,VectorType &)> get_residual,
+                      std_cxx11::function<VectorType (const VectorType &)>        id_minus_tau_J_inverse,
+                      VectorType                                                  &y);
 
     /**
      * Compute the residual needed by the Newton solver.
      */
-    void compute_residual(std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-                          double t,
-                          double delta_t,
-                          const VECTOR &old_y,
-                          const VECTOR &y,
-                          VECTOR &tendency,
-                          VECTOR &residual) const;
+    void compute_residual(std_cxx11::function<VectorType (const double, const VectorType &)> f,
+                          double                                                             t,
+                          double                                                             delta_t,
+                          const VectorType                                                   &old_y,
+                          const VectorType                                                   &y,
+                          VectorType                                                         &tendency,
+                          VectorType                                                         &residual) const;
 
     /**
-     * When using SDIRK, there is no need to compute the linear combination
-     * of the stages. Thus, when this flag is true, the linear combination
-     * is skipped.
+     * When using SDIRK, there is no need to compute the linear combination of
+     * the stages. Thus, when this flag is true, the linear combination is
+     * skipped.
      */
     bool skip_linear_combi;
 
@@ -409,18 +409,18 @@ namespace TimeStepping
    * This is class is derived from RungeKutta and implement embedded explicit
    * methods.
    */
-  template <typename VECTOR>
-  class EmbeddedExplicitRungeKutta : public RungeKutta<VECTOR>
+  template <typename VectorType>
+  class EmbeddedExplicitRungeKutta : public RungeKutta<VectorType>
   {
   public:
-    using RungeKutta<VECTOR>::evolve_one_time_step;
+    using RungeKutta<VectorType>::evolve_one_time_step;
 
     /**
      * Default constructor. initialize(runge_kutta_method) and
-     * set_time_adaptation_parameters(double, double, double, double, double, double)
-     * need to be called before the object can be used.
+     * set_time_adaptation_parameters(double, double, double, double, double,
+     * double) need to be called before the object can be used.
      */
-    EmbeddedExplicitRungeKutta() {};
+    EmbeddedExplicitRungeKutta() {}
 
     /**
      * Constructor. This function calls initialize(runge_kutta_method) and
@@ -455,32 +455,33 @@ namespace TimeStepping
     /**
      * This function is used to advance from time @p t to t+ @p delta_t. @p f
      * is the function $ f(t,y) $ that should be integrated, the input
-     * parameters are the time t and the vector y and the output is value of
-     * f at this point. @p id_minus_tau_J_inverse is a function that computes
-     * $ inv(I-\tau J)$ where $ I $ is the identity matrix, $ \tau
-     * $ is given, and $ J $ is the Jacobian $ \frac{\partial
-     * J}{\partial y} $. The input parameters are the time, $ \tau $, and
-     * a vector. The output is the value of function at this point.
-     * evolve_one_time_step returns the time at the end of the time step.
+     * parameters are the time t and the vector y and the output is value of f
+     * at this point. @p id_minus_tau_J_inverse is a function that computes $
+     * inv(I-\tau J)$ where $ I $ is the identity matrix, $ \tau $ is given,
+     * and $ J $ is the Jacobian $ \frac{\partial J}{\partial y} $. The input
+     * parameters are the time, $ \tau $, and a vector. The output is the
+     * value of function at this point. evolve_one_time_step returns the time
+     * at the end of the time step.
      */
-    double evolve_one_time_step(
-      std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-      std_cxx11::function<VECTOR (const double, const double, const VECTOR &)> id_minus_tau_J_inverse,
-      double t,
-      double delta_t,
-      VECTOR &y);
+    double evolve_one_time_step
+    (std_cxx11::function<VectorType (const double, const VectorType &)>               f,
+     std_cxx11::function<VectorType (const double, const double, const VectorType &)> id_minus_tau_J_inverse,
+     double                                                                           t,
+     double                                                                           delta_t,
+     VectorType &y);
 
     /**
-     * This function is used to advance from time @p t to t+ @p delta_t.
-     * This function is similar to the one derived from TimeStepping, but
-     * does not required id_minus_tau_J_inverse because it is not used for
-     * explicit methods. evolve_one_time_step returns the time at the end of the
-     * time step.
+     * This function is used to advance from time @p t to t+ @p delta_t. This
+     * function is similar to the one derived from TimeStepping, but does not
+     * required id_minus_tau_J_inverse because it is not used for explicit
+     * methods. evolve_one_time_step returns the time at the end of the time
+     * step.
      */
-    double evolve_one_time_step(std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-                                double t,
-                                double delta_t,
-                                VECTOR &y);
+    double evolve_one_time_step
+    (std_cxx11::function<VectorType (const double, const VectorType &)> f,
+     double                                                             t,
+     double                                                             delta_t,
+     VectorType &y);
 
     /**
      * Set the parameters necessary for the time adaptation.
@@ -494,11 +495,11 @@ namespace TimeStepping
 
     /**
      * Structure that stores the name of the method, the reason to exit
-     * evolve_one_time_step, the number of iteration inside n_iterations, a guess
-     * of what the next time step should be, and an estimate of the norm of
-     * the error.
+     * evolve_one_time_step, the number of iteration inside n_iterations, a
+     * guess of what the next time step should be, and an estimate of the norm
+     * of the error.
      */
-    struct Status : public TimeStepping<VECTOR>::Status
+    struct Status : public TimeStepping<VectorType>::Status
     {
       runge_kutta_method method;
       embedded_runge_kutta_time_step exit_delta_t;
@@ -516,21 +517,21 @@ namespace TimeStepping
     /**
      * Compute the different stages needed.
      */
-    void compute_stages(std_cxx11::function<VECTOR (const double, const VECTOR &)> f,
-                        const double t,
-                        const double delta_t,
-                        const VECTOR &y,
-                        std::vector<VECTOR> &f_stages);
+    void compute_stages(std_cxx11::function<VectorType (const double, const VectorType &)> f,
+                        const double                                                       t,
+                        const double                                                       delta_t,
+                        const VectorType                                                   &y,
+                        std::vector<VectorType>                                            &f_stages);
 
     /**
-     * This parameter is the factor (>1) by which the time step is
-     * multiplied when the time stepping can be coarsen.
+     * This parameter is the factor (>1) by which the time step is multiplied
+     * when the time stepping can be coarsen.
      */
     double coarsen_param;
 
     /**
-     * This parameter is the factor (<1) by which the time step is
-     * multiplied when the time stepping must be refined.
+     * This parameter is the factor (<1) by which the time step is multiplied
+     * when the time stepping must be refined.
      */
     double refine_param;
 
@@ -545,20 +546,20 @@ namespace TimeStepping
     double max_delta_t;
 
     /**
-     * Refinement tolerance: if the error estimate is larger than
-     * refine_tol, the time step is refined.
+     * Refinement tolerance: if the error estimate is larger than refine_tol,
+     * the time step is refined.
      */
     double refine_tol;
 
     /**
-     * Coarsening tolerance: if the error estimate is smaller than
-     * coarse_tol, the time step is coarsen.
+     * Coarsening tolerance: if the error estimate is smaller than coarse_tol,
+     * the time step is coarsen.
      */
     double coarsen_tol;
 
     /**
-     * If the flag is true, the last stage is the same as the first stage
-     * and one evaluation of f can be saved.
+     * If the flag is true, the last stage is the same as the first stage and
+     * one evaluation of f can be saved.
      */
     bool last_same_as_first;
 
@@ -573,10 +574,10 @@ namespace TimeStepping
     std::vector<double> b2;
 
     /**
-     * If the last_same_as_first flag is set to true, the last stage is
-     * saved and reused as the first stage of the next time step.
+     * If the last_same_as_first flag is set to true, the last stage is saved
+     * and reused as the first stage of the next time step.
      */
-    VECTOR *last_stage;
+    VectorType *last_stage;
 
     /**
      * Status structure of the object.

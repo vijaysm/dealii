@@ -1,6 +1,6 @@
-// ---------------------------------------------------------------------
+﻿// ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2014 by the deal.II authors
+// Copyright (C) 1998 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -96,7 +96,7 @@ namespace
 
     const bool first_child_has_children=face->child(0)->has_children();
 
-    static const unsigned int e = deal_II_numbers::invalid_unsigned_int;
+    static const unsigned int e = numbers::invalid_unsigned_int;
 
     // array containing the translation of the
     // numbers,
@@ -903,7 +903,7 @@ namespace
   {
     // remember that we use (dim-)linear
     // mappings
-    return std::sqrt((accessor.vertex(1)-accessor.vertex(0)).square());
+    return (accessor.vertex(1)-accessor.vertex(0)).norm();
   }
 
 
@@ -978,13 +978,12 @@ namespace
     // v_03, should be in the plane P_012 of vertices 0, 1 and 2.  Get
     // the normal vector of P_012 and test if v_03 is orthogonal to
     // that. If so, the face is planar and computing its area is simple.
-    const Point<3> v01 = accessor.vertex(1) - accessor.vertex(0);
-    const Point<3> v02 = accessor.vertex(2) - accessor.vertex(0);
+    const Tensor<1,3> v01 = accessor.vertex(1) - accessor.vertex(0);
+    const Tensor<1,3> v02 = accessor.vertex(2) - accessor.vertex(0);
 
-    Point<3> normal;
-    cross_product(normal, v01, v02);
+    Tensor<1,3> normal = cross_product_3d(v01, v02);
 
-    const Point<3> v03 = accessor.vertex(3) - accessor.vertex(0);
+    const Tensor<1,3> v03 = accessor.vertex(3) - accessor.vertex(0);
 
     // check whether v03 does not lie in the plane of v01 and v02
     // (i.e., whether the face is not planar). we do so by checking
@@ -992,7 +991,7 @@ namespace
     // volume relative to |v01|*|v02|*|v03|. the test checks the
     // squares of these to avoid taking norms/square roots:
     if (std::abs((v03 * normal) * (v03 * normal) /
-                 (v03.square() * v01.square() * v02.square()))
+                 ((v03 * v03) * (v01 * v01) * (v02 * v02)))
         >=
         1e-24)
       {
@@ -1003,9 +1002,8 @@ namespace
 
     // the face is planar. then its area is 1/2 of the norm of the
     // cross product of the two diagonals
-    const Point<3> v12 = accessor.vertex(2) - accessor.vertex(1);
-    Point<3> twice_area;
-    cross_product(twice_area, v03, v12);
+    const Tensor<1,3> v12 = accessor.vertex(2) - accessor.vertex(1);
+    Tensor<1,3> twice_area = cross_product_3d(v03, v12);
     return 0.5 * twice_area.norm();
   }
 
@@ -1111,6 +1109,7 @@ measure () const
 template <>
 double TriaAccessor<1,1,1>::extent_in_direction(const unsigned int axis) const
 {
+  (void)axis;
   Assert (axis == 0, ExcIndexRange (axis, 0, 1));
 
   return this->diameter();
@@ -1120,6 +1119,7 @@ double TriaAccessor<1,1,1>::extent_in_direction(const unsigned int axis) const
 template <>
 double TriaAccessor<1,1,2>::extent_in_direction(const unsigned int axis) const
 {
+  (void)axis;
   Assert (axis == 0, ExcIndexRange (axis, 0, 1));
 
   return this->diameter();
@@ -1283,12 +1283,12 @@ bool CellAccessor<2>::point_inside (const Point<2> &p) const
     {
       // vector from the first vertex
       // of the line to the point
-      const Point<2> to_p = p-this->vertex(
-                              GeometryInfo<2>::face_to_cell_vertices(f,0));
+      const Tensor<1,2> to_p = p-this->vertex(
+                                 GeometryInfo<2>::face_to_cell_vertices(f,0));
       // vector describing the line
-      const Point<2> face = direction[f]*(
-                              this->vertex(GeometryInfo<2>::face_to_cell_vertices(f,1)) -
-                              this->vertex(GeometryInfo<2>::face_to_cell_vertices(f,0)));
+      const Tensor<1,2> face = direction[f]*(
+                                 this->vertex(GeometryInfo<2>::face_to_cell_vertices(f,1)) -
+                                 this->vertex(GeometryInfo<2>::face_to_cell_vertices(f,0)));
 
       // if we rotate the face vector
       // by 90 degrees to the left
@@ -1302,7 +1302,7 @@ bool CellAccessor<2>::point_inside (const Point<2> &p) const
       // is not the case, we can be
       // sure that the point is
       // outside
-      if ((-face(1)*to_p(0)+face(0)*to_p(1))<0)
+      if ((-face[1]*to_p[0]+face[0]*to_p[1])<0)
         return false;
     };
 
@@ -1475,7 +1475,8 @@ void
 CellAccessor<dim, spacedim>::set_subdomain_id (const types::subdomain_id new_subdomain_id) const
 {
   Assert (this->used(), TriaAccessorExceptions::ExcCellNotUsed());
-  Assert (this->active(), ExcMessage("subdomains only work on active cells!"));
+  Assert (this->active(),
+          ExcMessage("set_subdomain_id() can only be called on active cells!"));
   this->tria->levels[this->present_level]->subdomain_ids[this->present_index]
     = new_subdomain_id;
 }
@@ -1530,6 +1531,18 @@ CellAccessor<dim, spacedim>::set_direction_flag (const bool new_direction_flag) 
 
 template <int dim, int spacedim>
 void
+CellAccessor<dim, spacedim>::set_active_cell_index (const unsigned int active_cell_index)
+{
+  // set the active cell index. allow setting it also for non-active (and unused)
+  // cells to allow resetting the index after refinement
+  this->tria->levels[this->present_level]->active_cell_indices[this->present_index]
+    = active_cell_index;
+}
+
+
+
+template <int dim, int spacedim>
+void
 CellAccessor<dim, spacedim>::set_parent (const unsigned int parent_index)
 {
   Assert (this->used(), TriaAccessorExceptions::ExcCellNotUsed());
@@ -1552,6 +1565,18 @@ parent_index () const
   // the same
   return this->tria->levels[this->present_level]->parents[this->present_index / 2];
 }
+
+
+
+template <int dim, int spacedim>
+unsigned int
+CellAccessor<dim, spacedim>::
+active_cell_index () const
+{
+  Assert (this->has_children()==false, TriaAccessorExceptions::ExcCellNotActive());
+  return this->tria->levels[this->present_level]->active_cell_indices[this->present_index];
+}
+
 
 
 template <int dim, int spacedim>
@@ -1616,7 +1641,7 @@ unsigned int CellAccessor<dim,spacedim>::neighbor_of_neighbor_internal (const un
 
   // if we have a 1d mesh in 1d, we
   // can assume that the left
-  // neighbor of the right neigbor is
+  // neighbor of the right neighbor is
   // the current cell. but that is an
   // invariant that isn't true if the
   // mesh is embedded in a higher
@@ -1754,8 +1779,8 @@ CellAccessor<dim, spacedim>::neighbor_of_coarser_neighbor (const unsigned int ne
       // since then we did not find
       // our way back...
       Assert (false, ExcInternalError());
-      return std::make_pair (deal_II_numbers::invalid_unsigned_int,
-                             deal_II_numbers::invalid_unsigned_int);
+      return std::make_pair (numbers::invalid_unsigned_int,
+                             numbers::invalid_unsigned_int);
     }
 
     case 3:
@@ -1764,19 +1789,12 @@ CellAccessor<dim, spacedim>::neighbor_of_coarser_neighbor (const unsigned int ne
       const TriaIterator<CellAccessor<3, spacedim> >
       neighbor_cell = this->neighbor(neighbor);
 
-      // usually, on regular patches of
-      // the grid, this cell is just on
-      // the opposite side of the
-      // neighbor that the neighbor is of
-      // this cell. for example in 2d, if
-      // we want to know the
-      // neighbor_of_neighbor if
-      // neighbor==1 (the right
-      // neighbor), then we will get 0
-      // (the left neighbor) in most
-      // cases. look up this relationship
-      // in the table provided by
-      // GeometryInfo and try it
+      // usually, on regular patches of the grid, this cell is just on the
+      // opposite side of the neighbor that the neighbor is of this cell.
+      // for example in 2d, if we want to know the neighbor_of_neighbor if
+      // neighbor==1 (the right neighbor), then we will get 0 (the left
+      // neighbor) in most cases. look up this relationship in the table
+      // provided by GeometryInfo and try it
       const unsigned int face_no_guess
         = GeometryInfo<3>::opposite_face[neighbor];
 
@@ -1785,57 +1803,55 @@ CellAccessor<dim, spacedim>::neighbor_of_coarser_neighbor (const unsigned int ne
 
       if (face_guess->has_children())
         for (unsigned int subface_no=0; subface_no<face_guess->n_children(); ++subface_no)
-          if (face_guess->child_index(subface_no)==this_face_index)
-            // call a helper function, that
-            // translates the current subface
-            // number to a subface number for
-            // the current FaceRefineCase
-            return std::make_pair (face_no_guess, translate_subface_no(face_guess, subface_no));
-          else if (face_guess->child(subface_no)->has_children())
-            for (unsigned int subsub_no=0; subsub_no<face_guess->child(subface_no)->n_children(); ++subsub_no)
-              if (face_guess->child(subface_no)->child_index(subsub_no)==this_face_index)
-                // call a helper function, that
-                // translates the current subface
-                // number and subsubface number to
-                // a subface number for the current
-                // FaceRefineCase
-                return std::make_pair (face_no_guess, translate_subface_no(face_guess, subface_no, subsub_no));
+          {
+            if (face_guess->child_index(subface_no)==this_face_index)
+              // call a helper function, that translates the current
+              // subface number to a subface number for the current
+              // FaceRefineCase
+              return std::make_pair (face_no_guess, translate_subface_no(face_guess, subface_no));
 
+            if (face_guess->child(subface_no)->has_children())
+              for (unsigned int subsub_no=0; subsub_no<face_guess->child(subface_no)->n_children(); ++subsub_no)
+                if (face_guess->child(subface_no)->child_index(subsub_no)==this_face_index)
+                  // call a helper function, that translates the current
+                  // subface number and subsubface number to a subface
+                  // number for the current FaceRefineCase
+                  return std::make_pair (face_no_guess, translate_subface_no(face_guess, subface_no, subsub_no));
+          }
 
-
-      // if the guess was false, then
-      // we need to loop over all faces
-      // and subfaces and find the
-      // number the hard way
+      // if the guess was false, then we need to loop over all faces and
+      // subfaces and find the number the hard way
       for (unsigned int face_no=0; face_no<GeometryInfo<3>::faces_per_cell; ++face_no)
         {
-          if (face_no!=face_no_guess)
+          if (face_no==face_no_guess)
+            continue;
+
+          const TriaIterator<TriaAccessor<3-1, 3, spacedim> > face
+            =neighbor_cell->face(face_no);
+
+          if (!face->has_children())
+            continue;
+
+          for (unsigned int subface_no=0; subface_no<face->n_children(); ++subface_no)
             {
-              const TriaIterator<TriaAccessor<3-1, 3, spacedim> > face
-                =neighbor_cell->face(face_no);
-              if (face->has_children())
-                for (unsigned int subface_no=0; subface_no<face->n_children(); ++subface_no)
-                  if (face->child_index(subface_no)==this_face_index)
-                    // call a helper function, that
-                    // translates the current subface
-                    // number to a subface number for
-                    // the current FaceRefineCase
-                    return std::make_pair (face_no, translate_subface_no(face, subface_no));
-                  else if (face->child(subface_no)->has_children())
-                    for (unsigned int subsub_no=0; subsub_no<face->child(subface_no)->n_children(); ++subsub_no)
-                      if (face->child(subface_no)->child_index(subsub_no)==this_face_index)
-                        // call a helper function, that
-                        // translates the current subface
-                        // number and subsubface number to
-                        // a subface number for the current
-                        // FaceRefineCase
-                        return std::make_pair (face_no, translate_subface_no(face, subface_no, subsub_no));
+              if (face->child_index(subface_no)==this_face_index)
+                // call a helper function, that translates the current
+                // subface number to a subface number for the current
+                // FaceRefineCase
+                return std::make_pair (face_no, translate_subface_no(face, subface_no));
+
+              if (face->child(subface_no)->has_children())
+                for (unsigned int subsub_no=0; subsub_no<face->child(subface_no)->n_children(); ++subsub_no)
+                  if (face->child(subface_no)->child_index(subsub_no)==this_face_index)
+                    // call a helper function, that translates the current
+                    // subface number and subsubface number to a subface
+                    // number for the current FaceRefineCase
+                    return std::make_pair (face_no, translate_subface_no(face, subface_no, subsub_no));
             }
         }
 
-      // we should never get here,
-      // since then we did not find
-      // our way back...
+      // we should never get here, since then we did not find our way
+      // back...
       Assert (false, ExcInternalError());
       return std::make_pair (numbers::invalid_unsigned_int,
                              numbers::invalid_unsigned_int);
@@ -1848,6 +1864,314 @@ CellAccessor<dim, spacedim>::neighbor_of_coarser_neighbor (const unsigned int ne
                              numbers::invalid_unsigned_int);
     }
     }
+}
+
+
+
+template <int dim, int spacedim>
+bool
+CellAccessor<dim, spacedim>::has_periodic_neighbor (const unsigned int i_face) const
+{
+  /*
+   * Implementation note: In all of the functions corresponding to periodic faces
+   * we mainly use the Triangulation::periodic_face_map to find the
+   * information about periodically connected faces. So, we actually search in
+   * this std::map and return the cell_face on the other side of the periodic
+   * boundary. For this search process, we have two options:
+   *
+   * 1- Using the [] operator of std::map: This option results in a more readalbe
+   *    code, but requires an extra iteration in the map. Because when we call [] on
+   *    std::map, with a key which does not exist in the std::map, that key will be
+   *    created and the default value will be returned by []. This is not desirable.
+   *    So, one has to first check if the key exists in the std::map and if it exists,
+   *    then use the [] operator. The existence check is possible using std::map::find()
+   *    or std::map::count(). Using this option will result in two iteration cycles
+   *    through the map. First, existence check, then returning the value.
+   *
+   * 2- Using std::map::find(): This option is less readble, but theoretically
+   *    faster, because it results in one iteration through std::map object.
+   *
+   * We decided to use the 2nd option.
+   */
+  AssertIndexRange (i_face, GeometryInfo<dim>::faces_per_cell);
+  typedef TriaIterator<CellAccessor<dim, spacedim> > cell_iterator;
+  // my_it : is the iterator to the current cell.
+  cell_iterator my_it(*this);
+  if (this->tria->periodic_face_map.find(std::pair<cell_iterator, unsigned int>(my_it, i_face))
+      != this->tria->periodic_face_map.end())
+    return true;
+  return false;
+}
+
+
+
+template <int dim, int spacedim>
+TriaIterator<CellAccessor<dim,spacedim> >
+CellAccessor<dim, spacedim>::
+periodic_neighbor (const unsigned int i_face) const
+{
+  /*
+   * To know, why we are using std::map::find() instead of [] operator, refer
+   * to the implementation note in has_periodic_neighbor() function.
+   *
+   * my_it        : the iterator to the current cell.
+   * my_face_pair : the pair reported by periodic_face_map as its first pair being
+   *                the current cell_face.
+   */
+  AssertIndexRange (i_face, GeometryInfo<dim>::faces_per_cell);
+  typedef TriaIterator<CellAccessor<dim, spacedim> > cell_iterator;
+  cell_iterator my_it(*this);
+
+  const typename std::map<std::pair<cell_iterator, unsigned int>,
+        std::pair<std::pair<cell_iterator, unsigned int>, std::bitset<3> > >::const_iterator
+        my_face_pair =
+          this->tria->periodic_face_map.find(std::pair<cell_iterator, unsigned int>(my_it, i_face));
+  // Assertion is required to check that we are actually on a periodic boundary.
+  Assert (my_face_pair != this->tria->periodic_face_map.end(),
+          TriaAccessorExceptions::ExcNoPeriodicNeighbor());
+  return my_face_pair->second.first.first;
+}
+
+
+
+template <int dim, int spacedim>
+TriaIterator<CellAccessor<dim,spacedim> >
+CellAccessor<dim, spacedim>::
+neighbor_or_periodic_neighbor (const unsigned int i_face) const
+{
+  if (!(this->face(i_face)->at_boundary()))
+    return this->neighbor(i_face);
+  else if (this->has_periodic_neighbor(i_face))
+    return this->periodic_neighbor(i_face);
+  else
+    AssertThrow (false, TriaAccessorExceptions::ExcNoPeriodicNeighbor());
+  // we can't come here
+  return this->neighbor(i_face);
+}
+
+
+
+template <int dim, int spacedim>
+TriaIterator<CellAccessor<dim, spacedim> >
+CellAccessor<dim, spacedim>::
+periodic_neighbor_child_on_subface (const unsigned int i_face,
+                                    const unsigned int i_subface) const
+{
+  /*
+   * To know, why we are using std::map::find() instead of [] operator, refer
+   * to the implementation note in has_periodic_neighbor() function.
+   *
+   * my_it            : the iterator to the current cell.
+   * my_face_pair     : the pair reported by periodic_face_map as its first pair being
+   *                    the current cell_face.
+   * nb_it            : the iterator to the neighbor of current cell at i_face.
+   * face_num_of_nb   : the face number of the periodically neighboring face in the
+   *                    relevant element.
+   * nb_parent_face_it: the iterator to the parent face of the periodically
+   *                    neighboring face.
+   */
+  AssertIndexRange (i_face, GeometryInfo<dim>::faces_per_cell);
+  typedef TriaIterator<CellAccessor<dim, spacedim> > cell_iterator;
+  cell_iterator my_it(*this);
+  const typename std::map<std::pair<cell_iterator, unsigned int>,
+        std::pair<std::pair<cell_iterator, unsigned int>, std::bitset<3> > >::const_iterator
+        my_face_pair =
+          this->tria->periodic_face_map.find(std::pair<cell_iterator, unsigned int>(my_it, i_face));
+  /*
+   * There should be an assertion, which tells the user that this function should not be
+   * used for a cell which is not located at a periodic boundary.
+   */
+  Assert (my_face_pair != this->tria->periodic_face_map.end(),
+          TriaAccessorExceptions::ExcNoPeriodicNeighbor());
+  cell_iterator parent_nb_it = my_face_pair->second.first.first;
+  unsigned int nb_face_num = my_face_pair->second.first.second;
+  TriaIterator<TriaAccessor<dim - 1, dim, spacedim> > nb_parent_face_it = parent_nb_it->face(nb_face_num);
+  /*
+   * We should check if the parent face of the neighbor has at least the same number of
+   * children as i_subface.
+   */
+  AssertIndexRange (i_subface, nb_parent_face_it->n_children());
+  unsigned int sub_neighbor_num =
+    GeometryInfo<dim>::child_cell_on_face(parent_nb_it->refinement_case(),
+                                          nb_face_num,
+                                          i_subface,
+                                          my_face_pair->second.second[0],
+                                          my_face_pair->second.second[1],
+                                          my_face_pair->second.second[2],
+                                          nb_parent_face_it->refinement_case());
+  return parent_nb_it->child(sub_neighbor_num);
+}
+
+
+
+template <int dim, int spacedim>
+std::pair<unsigned int, unsigned int>
+CellAccessor<dim, spacedim>::
+periodic_neighbor_of_coarser_periodic_neighbor (const unsigned int i_face) const
+{
+  /*
+   * To know, why we are using std::map::find() instead of [] operator, refer
+   * to the implementation note in has_periodic_neighbor() function.
+   *
+   * my_it        : the iterator to the current cell.
+   * my_face_pair : the pair reported by periodic_face_map as its first pair being
+   *                the current cell_face.
+   * nb_it        : the iterator to the periodic neighbor.
+   * nb_face_pair : the pair reported by periodic_face_map as its first pair being
+   *                the periodic neighbor cell_face.
+   * p_nb_of_p_nb : the iterator of the periodic neighbor of the periodic neighbor
+   *                of the current cell.
+   */
+  AssertIndexRange (i_face, GeometryInfo<dim>::faces_per_cell);
+  typedef TriaIterator<CellAccessor<dim, spacedim> > cell_iterator;
+  const int my_face_index = this->face_index(i_face);
+  cell_iterator my_it(*this);
+  const typename std::map<std::pair<cell_iterator, unsigned int>,
+        std::pair<std::pair<cell_iterator, unsigned int>, std::bitset<3> > >::const_iterator
+        my_face_pair =
+          this->tria->periodic_face_map.find(std::pair<cell_iterator, unsigned int>(my_it, i_face));
+  /*
+   * There should be an assertion, which tells the user that this function should not be
+   * used for a cell which is not located at a periodic boundary.
+   */
+  Assert (my_face_pair != this->tria->periodic_face_map.end(),
+          TriaAccessorExceptions::ExcNoPeriodicNeighbor());
+  cell_iterator nb_it = my_face_pair->second.first.first;
+  unsigned int face_num_of_nb = my_face_pair->second.first.second;
+  const typename std::map<std::pair<cell_iterator, unsigned int>,
+        std::pair<std::pair<cell_iterator, unsigned int>, std::bitset<3> > >::const_iterator
+        nb_face_pair =
+          this->tria->periodic_face_map.find(std::pair<cell_iterator, unsigned int>(nb_it, face_num_of_nb));
+  /*
+   * Since, we store periodic neighbors for every cell (either active or artificial or inactive)
+   * the nb_face_pair should also be mapped to some cell_face pair. We assert this here.
+   */
+  Assert (nb_face_pair != this->tria->periodic_face_map.end(),
+          TriaAccessorExceptions::ExcNoPeriodicNeighbor());
+  cell_iterator p_nb_of_p_nb = nb_face_pair->second.first.first;
+  TriaIterator<TriaAccessor<dim - 1, dim, spacedim> > parent_face_it = p_nb_of_p_nb->face(nb_face_pair->second.first.second);
+  for (unsigned int i_subface = 0; i_subface < parent_face_it->n_children(); ++i_subface)
+    if (parent_face_it->child_index(i_subface) == my_face_index)
+      return (std::pair<unsigned int, unsigned int>(face_num_of_nb, i_subface));
+  /*
+   * Obviously, if the execution reaches to this point, some of our assumptions should have
+   * been false. The most important one is, the user has called this function on a face
+   * which does not have a coarser periodic neighbor.
+   */
+  Assert (false, TriaAccessorExceptions::ExcNeighborIsNotCoarser());
+  return std::pair<unsigned int, unsigned int>(numbers::invalid_unsigned_int,
+                                               numbers::invalid_unsigned_int);
+}
+
+
+
+template <int dim, int spacedim>
+int CellAccessor<dim, spacedim>::
+periodic_neighbor_index(const unsigned int i_face) const
+{
+  return periodic_neighbor(i_face)->index();
+}
+
+
+
+template <int dim, int spacedim>
+int CellAccessor<dim, spacedim>::
+periodic_neighbor_level(const unsigned int i_face) const
+{
+  return periodic_neighbor(i_face)->level();
+}
+
+
+
+template <int dim, int spacedim>
+unsigned int CellAccessor<dim, spacedim>::
+periodic_neighbor_of_periodic_neighbor(const unsigned int i_face) const
+{
+  return periodic_neighbor_face_no(i_face);
+}
+
+
+
+template <int dim, int spacedim>
+unsigned int
+CellAccessor<dim, spacedim>::periodic_neighbor_face_no (const unsigned int i_face) const
+{
+  /*
+   * To know, why we are using std::map::find() instead of [] operator, refer
+   * to the implementation note in has_periodic_neighbor() function.
+   *
+   * my_it        : the iterator to the current cell.
+   * my_face_pair : the pair reported by periodic_face_map as its first pair being
+   *                the current cell_face.
+   */
+  AssertIndexRange (i_face, GeometryInfo<dim>::faces_per_cell);
+  typedef TriaIterator<CellAccessor<dim, spacedim> > cell_iterator;
+  cell_iterator my_it(*this);
+  const typename std::map<std::pair<cell_iterator, unsigned int>,
+        std::pair<std::pair<cell_iterator, unsigned int>, std::bitset<3> > >::const_iterator
+        my_face_pair =
+          this->tria->periodic_face_map.find(std::pair<cell_iterator, unsigned int>(my_it, i_face));
+  /*
+   * There should be an assertion, which tells the user that this function should not be
+   * called for a cell which is not located at a periodic boundary !
+   */
+  Assert (my_face_pair != this->tria->periodic_face_map.end(),
+          TriaAccessorExceptions::ExcNoPeriodicNeighbor());
+  return my_face_pair->second.first.second;
+}
+
+
+
+template <int dim, int spacedim>
+bool
+CellAccessor<dim, spacedim>::periodic_neighbor_is_coarser (const unsigned int i_face) const
+{
+  /*
+   * To know, why we are using std::map::find() instead of [] operator, refer
+   * to the implementation note in has_periodic_neighbor() function.
+   *
+   * Implementation note: Let p_nb_of_p_nb be the periodic neighbor of the periodic
+   * neighbor of the current cell. Also, let p_face_of_p_nb_of_p_nb be the periodic
+   * face of the p_nb_of_p_nb. If p_face_of_p_nb_of_p_nb has children , then the
+   * periodic neighbor of the current cell is coarser than itself. Although not tested,
+   * this implementation should work for anisotropic refinement as well.
+   *
+   * my_it        : the iterator to the current cell.
+   * my_face_pair : the pair reported by periodic_face_map as its first pair being
+   *                the current cell_face.
+   * nb_it        : the iterator to the periodic neighbor.
+   * nb_face_pair : the pair reported by periodic_face_map as its first pair being
+   *                the periodic neighbor cell_face.
+   */
+  AssertIndexRange (i_face, GeometryInfo<dim>::faces_per_cell);
+  typedef TriaIterator<CellAccessor<dim, spacedim> > cell_iterator;
+  cell_iterator my_it(*this);
+  const typename std::map<std::pair<cell_iterator, unsigned int>,
+        std::pair<std::pair<cell_iterator, unsigned int>, std::bitset<3> > >::const_iterator
+        my_face_pair =
+          this->tria->periodic_face_map.find(std::pair<cell_iterator, unsigned int>(my_it, i_face));
+  /*
+   * There should be an assertion, which tells the user that this function should not be
+   * used for a cell which is not located at a periodic boundary.
+   */
+  Assert (my_face_pair != this->tria->periodic_face_map.end(),
+          TriaAccessorExceptions::ExcNoPeriodicNeighbor());
+  cell_iterator nb_it = my_face_pair->second.first.first;
+  unsigned int face_num_of_nb = my_face_pair->second.first.second;
+  const typename std::map<std::pair<cell_iterator, unsigned int>,
+        std::pair<std::pair<cell_iterator, unsigned int>, std::bitset<3> > >::const_iterator
+        nb_face_pair =
+          this->tria->periodic_face_map.find(std::pair<cell_iterator, unsigned int>(nb_it, face_num_of_nb));
+  /*
+   * Since, we store periodic neighbors for every cell (either active or artificial or inactive)
+   * the nb_face_pair should also be mapped to some cell_face pair. We assert this here.
+   */
+  Assert (nb_face_pair != this->tria->periodic_face_map.end(),
+          TriaAccessorExceptions::ExcNoPeriodicNeighbor());
+  const unsigned int my_level = this->level();
+  const unsigned int neighbor_level = nb_face_pair->second.first.first->level();
+  Assert (my_level >= neighbor_level, ExcInternalError());
+  return my_level > neighbor_level;
 }
 
 
@@ -2259,13 +2583,7 @@ neighbor_child_on_subface (const unsigned int face,
 
 
 
-// Remark: The explicit instantiations for "TriaAccessor" were moved
-// to the top of this source file. The reason is a slightly buggy version
-// of the Apple gcc v.3.3.
-// For more information, see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=24331
-
 // explicit instantiations
 #include "tria_accessor.inst"
 
 DEAL_II_NAMESPACE_CLOSE
-

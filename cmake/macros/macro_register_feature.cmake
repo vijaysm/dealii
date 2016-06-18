@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2013 - 2014 by the deal.II authors
+## Copyright (C) 2013 - 2015 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -37,7 +37,7 @@ MACRO(REGISTER_FEATURE _feature)
     #   DEAL_II_LIBRARIES
     #   DEAL_II_LIBRARIES_DEBUG
     #   DEAL_II_LIBRARIES_RELEASE
-    # depending on the "optmized", "debug" or "general" keyword
+    # depending on the "optimized", "debug" or "general" keyword
     #
     SET(_toggle "general")
     FOREACH(_tmp ${${_feature}_LIBRARIES})

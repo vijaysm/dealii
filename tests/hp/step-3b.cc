@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -249,10 +249,10 @@ void LaplaceProblem::run ()
 {
   FE_Q<2> fe_1 (1),
        fe_2 (2),
-       fe_3 (3),
-       fe_4 (4),
-       fe_5 (5),
-       fe_6 (6);
+       fe_3 (QIterated<1>(QTrapez<1>(),3)),
+       fe_4 (QIterated<1>(QTrapez<1>(),4)),
+       fe_5 (QIterated<1>(QTrapez<1>(),5)),
+       fe_6 (QIterated<1>(QTrapez<1>(),6));
 
   fe.push_back (fe_1);
   fe.push_back (fe_2);
@@ -273,7 +273,6 @@ int main ()
   logfile.precision(6);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   LaplaceProblem laplace_problem;

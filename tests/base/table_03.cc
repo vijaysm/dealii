@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,7 +34,6 @@ main ()
   deallog << std::fixed;
   deallog << std::setprecision(0);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   const std::string elements = "1 2 3 4 5 6";
@@ -43,25 +42,25 @@ main ()
     Table<2,double> t (2,3);
     std::istringstream in1(elements);
     t.fill (std::istream_iterator<double>(in1),
-	    true);
+            true);
 
     for (unsigned int i=0; i<t.size()[0]; ++i)
       {
-	for (unsigned int j=0; j<t.size()[1]; ++j)
-	  deallog << t[i][j] << ' ';
-	deallog << std::endl;
+        for (unsigned int j=0; j<t.size()[1]; ++j)
+          deallog << t[i][j] << ' ';
+        deallog << std::endl;
       }
 
     // same data, same table, but filled in transpose ordering
     std::istringstream in2(elements);
     t.fill (std::istream_iterator<double>(in2),
-	    false);
+            false);
 
     for (unsigned int i=0; i<t.size()[0]; ++i)
       {
-	for (unsigned int j=0; j<t.size()[1]; ++j)
-	  deallog << t[i][j] << ' ';
-	deallog << std::endl;
+        for (unsigned int j=0; j<t.size()[1]; ++j)
+          deallog << t[i][j] << ' ';
+        deallog << std::endl;
       }
   }
 }

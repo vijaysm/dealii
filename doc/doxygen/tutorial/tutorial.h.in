@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2014 by the deal.II authors
+// Copyright (C) 2005 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,20 +43,26 @@
  *     synopsis of each program.
  *   <li> or <b><a href="#topic">grouped by topic</a></b>.
  * </ol>
- * Some of the programs also jointly form
- * the <a href="../../doxygen/deal.II/group__geodynamics.html">geodynamics
- * demonstration suite</a>.
  *
  * The programs are in the <code>examples/</code> directory of your local
  * deal.II installation. After compiling the library itself, if you go into
  * one of the tutorial directories, you can configure the program by typing
  * <code>cmake .</code>, build it via <code>make</code> and run it using
  * <code>make run</code>. The latter command also compiles the program if
- * that has not already been done. The CMakefiles.txt files in the
- * different directories are based on the 
- * <a href="../../users/cmakelists.html" target="_top">small program Makefile template</a>.
+ * that has not already been done. The CMakeLists.txt files in the
+ * different directories are based on the
+ * <a href="../../users/cmakelists.html#cmakeauto" target="_top">autopilot
+ * style CMakeLists.txt example</a>.
+ *
+ * @note Some of the tutorial programs also jointly form
+ *   the <a href="../../doxygen/deal.II/group__geodynamics.html">geodynamics
+ *   demonstration suite</a>. More, often more complex but less well documented,
+ *   deal.II-based programs than the ones that form the tutorial can also be
+ *   found in the @ref CodeGallery .
+ *
  *
  * <a name="graph"></a>
+ * @anchor TutorialConnectionGraph
  * <h3>Connections between tutorial programs</h3>
  *
  * The following graph shows the connections between tutorial programs and
@@ -65,17 +71,13 @@
  * your mouse pointer over a box, a brief description of the program
  * should appear.
  * @dot
-@@MAP@@
+@@TUTORIAL_MAP@@
  * @enddot
  *
  * <b>Legend:</b><br />
- * <blockquote>
- * <i>Green:</i> programs that show basic techniques; <br />
- * <i>Orange:</i> advanced techniques; <br />
- * <i>Yellow:</i> applications in fluid dynamics; <br />
- * <i>Light blue:</i> applications in solid mechanics; <br />
- * <i>Dark blue:</i> time dependent problems.
- * </blockquote>
+ * @dot
+@@TUTORIAL_LEGEND@@
+ * @enddot
  *
  * <a name="list"></a>
  * <h3>Tutorial programs listed by number</h3>
@@ -162,7 +164,7 @@
  *   <tr valign="top">
  *       <td>step-11</td>
  *       <td> Solving a Laplace problem with
- *       higher order mappings. Using strange constraints and
+ *       higher order mappings. Using mean value constraints and
  *       intermediate representations of sparsity patterns.
  *       </td></tr>
  *
@@ -393,7 +395,7 @@
  *       </td></tr>
  *
  *   <tr valign="top">
- *       <td>step-52/td>
+ *       <td>step-52</td>
  *       <td> Solving the time dependent neutron diffusion equation using 
  *       Runge-Kutta methods.
  *       </td></tr>
@@ -401,6 +403,16 @@
  *   <tr valign="top">
  *       <td>step-53</td>
  *       <td> Describing the geometry of complex domains and curved boundaries.
+ *       </td></tr>
+ *
+ *   <tr valign="top">
+ *       <td>step-54</td>
+ *       <td> Using CAD files to describe the boundary of your domain.
+ *       </td></tr>
+ *
+ *   <tr valign="top">
+ *       <td>step-56</td>
+ *       <td> Geometric Multigrid for Stokes.
  *       </td></tr>
  * </table>
  *
@@ -484,7 +496,8 @@
  *       step-31,
  *       step-32,
  *       step-43,
- *       step-44
+ *       step-44,
+ *       step-56
  *     </td>
  *   </tr>
  *
@@ -623,7 +636,8 @@
  *       step-32,
  *       step-34,
  *       step-38,
- *       step-53
+ *       step-53,
+ *       step-54
  *     </td>
  *   </tr>
  *
@@ -649,7 +663,8 @@
  *     </td>
  *     <td>
  *       step-49,
- *       step-53
+ *       step-53,
+ *       step-54
  *     </td>
  *   </tr>
  *
@@ -686,7 +701,8 @@
  *       step-39,
  *       step-41,
  *       step-42,
- *       step-43
+ *       step-43,
+ *       step-56
  *     </td>
  *   </tr>
  *
@@ -711,7 +727,8 @@
  *       step-22,
  *       step-31,
  *       step-32,
- *       step-43
+ *       step-43,
+ *       step-56
  *     </td>
  *   </tr>
  *
@@ -736,6 +753,12 @@
  *     <td> Eigenvalue solvers
  *     </td>
  *     <td>step-36</td>
+ *   </tr>
+ *
+ *   <tr valign="top">
+ *     <td> Linear operators
+ *     </td>
+ *     <td>step-44</td>
  *   </tr>
  *
  * </table>
@@ -822,7 +845,8 @@
  *       step-31,
  *       step-32,
  *       step-35,
- *       step-46
+ *       step-46,
+ *       step-56
  *     </td>
  *   </tr>
  *
@@ -903,7 +927,9 @@
  *     <td>step-22,
  *         step-31,
  *         step-32,
- *         step-35</td>
+ *         step-35,
+ *         step-56
+ *    </td>
  *   </tr>
  *
  *   <tr valign="top">

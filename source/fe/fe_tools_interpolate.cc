@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,8 +20,8 @@
 #include <deal.II/base/utilities.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/block_vector.h>
-#include <deal.II/lac/parallel_vector.h>
-#include <deal.II/lac/parallel_block_vector.h>
+#include <deal.II/lac/la_parallel_vector.h>
+#include <deal.II/lac/la_parallel_block_vector.h>
 #include <deal.II/lac/petsc_parallel_vector.h>
 #include <deal.II/lac/petsc_block_vector.h>
 #include <deal.II/lac/petsc_parallel_block_vector.h>
@@ -51,14 +51,14 @@ DEAL_II_NAMESPACE_OPEN
 namespace FETools
 {
   template <int dim, int spacedim,
-            template <int, int> class DH1,
-            template <int, int> class DH2,
+            template <int, int> class DoFHandlerType1,
+            template <int, int> class DoFHandlerType2,
             class InVector, class OutVector>
   void
-  interpolate(const DH1<dim, spacedim> &dof1,
-              const InVector           &u1,
-              const DH2<dim, spacedim> &dof2,
-              OutVector                &u2)
+  interpolate(const DoFHandlerType1<dim, spacedim> &dof1,
+              const InVector                       &u1,
+              const DoFHandlerType2<dim, spacedim> &dof2,
+              OutVector                            &u2)
   {
     ConstraintMatrix dummy;
     dummy.close();
@@ -68,41 +68,36 @@ namespace FETools
 
 
   template <int dim, int spacedim,
-            template <int, int> class DH1,
-            template <int, int> class DH2,
+            template <int, int> class DoFHandlerType1,
+            template <int, int> class DoFHandlerType2,
             class InVector, class OutVector>
   void
-  interpolate (const DH1<dim, spacedim> &dof1,
-               const InVector           &u1,
-               const DH2<dim, spacedim> &dof2,
-               const ConstraintMatrix   &constraints,
-               OutVector                &u2)
+  interpolate (const DoFHandlerType1<dim, spacedim> &dof1,
+               const InVector                       &u1,
+               const DoFHandlerType2<dim, spacedim> &dof2,
+               const ConstraintMatrix               &constraints,
+               OutVector                            &u2)
   {
-    Assert(&dof1.get_tria()==&dof2.get_tria(), ExcTriangulationMismatch());
+    Assert(&dof1.get_triangulation()==&dof2.get_triangulation(), ExcTriangulationMismatch());
 
     Assert(u1.size()==dof1.n_dofs(),
            ExcDimensionMismatch(u1.size(), dof1.n_dofs()));
     Assert(u2.size()==dof2.n_dofs(),
            ExcDimensionMismatch(u2.size(), dof2.n_dofs()));
 
-#ifdef DEAL_II_WITH_PETSC
-    if (dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1) != 0)
-      if (dynamic_cast<const DoFHandler<dim>*>(&dof1) != 0)
-        {
-          // if u1 is a parallel distributed
-          // PETSc vector, we check the local
-          // size of u1 for safety
-          Assert(dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1)->local_size() == dof1.n_locally_owned_dofs(),
-                 ExcDimensionMismatch(dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1)->local_size(), dof1.n_locally_owned_dofs()));
-        };
-
-    if (dynamic_cast<PETScWrappers::MPI::Vector *>(&u2) != 0)
-      if (dynamic_cast<const DoFHandler<dim>*>(&dof2) != 0)
-        {
-          Assert(dynamic_cast<PETScWrappers::MPI::Vector *>(&u2)->local_size() == dof2.n_locally_owned_dofs(),
-                 ExcDimensionMismatch(dynamic_cast<PETScWrappers::MPI::Vector *>(&u2)->local_size(), dof2.n_locally_owned_dofs()));
-        };
+#ifdef DEBUG
+    const IndexSet &dof1_local_dofs = dof1.locally_owned_dofs();
+    const IndexSet &dof2_local_dofs = dof2.locally_owned_dofs();
+    const IndexSet u1_elements = u1.locally_owned_elements();
+    const IndexSet u2_elements = u2.locally_owned_elements();
+    Assert(u1_elements == dof1_local_dofs,
+           ExcMessage("The provided vector and DoF handler should have the same"
+                      " index sets."));
+    Assert(u2_elements == dof2_local_dofs,
+           ExcMessage("The provided vector and DoF handler should have the same"
+                      " index sets."));
 #endif
+
     // allocate vectors at maximal
     // size. will be reinited in inner
     // cell, but Vector makes sure that
@@ -119,10 +114,11 @@ namespace FETools
         std_cxx11::shared_ptr<FullMatrix<double> > > >
         interpolation_matrices;
 
-    typename DH1<dim,spacedim>::active_cell_iterator cell1 = dof1.begin_active(),
-                                                     endc1 = dof1.end();
-    typename DH2<dim,spacedim>::active_cell_iterator cell2 = dof2.begin_active(),
-                                                     endc2 = dof2.end();
+    typename DoFHandlerType1<dim,spacedim>::active_cell_iterator cell1 = dof1.begin_active(),
+                                                                 endc1 = dof1.end();
+    typename DoFHandlerType2<dim,spacedim>::active_cell_iterator cell2 = dof2.begin_active(),
+                                                                 endc2 = dof2.end();
+    (void)endc2;
 
     std::vector<types::global_dof_index> dofs;
     dofs.reserve (DoFTools::max_dofs_per_cell (dof2));
@@ -136,7 +132,7 @@ namespace FETools
     // a cell, which this processor owns,
     // so we have to know the subdomain_id
     const types::subdomain_id subdomain_id =
-      dof1.get_tria().locally_owned_subdomain();
+      dof1.get_triangulation().locally_owned_subdomain();
 
     for (; cell1!=endc1; ++cell1, ++cell2)
       if ((cell1->subdomain_id() == subdomain_id)
@@ -150,7 +146,7 @@ namespace FETools
           // for continuous elements on
           // grids with hanging nodes we
           // need hanging node
-          // constraints. Consequentely,
+          // constraints. Consequently,
           // if there are no constraints
           // then hanging nodes are not
           // allowed.
@@ -221,7 +217,8 @@ namespace FETools
     for (types::global_dof_index i=0; i<dof2.n_dofs(); ++i)
       if (locally_owned_dofs.is_element(i))
         {
-          Assert(touch_count(i)!=0, ExcInternalError());
+          Assert(static_cast<typename OutVector::value_type>(touch_count(i)) != typename OutVector::value_type(0),
+                 ExcInternalError());
           u2(i) /= touch_count(i);
         }
 
@@ -246,23 +243,16 @@ namespace FETools
     Assert(u1_interpolated.size()==dof1.n_dofs(),
            ExcDimensionMismatch(u1_interpolated.size(), dof1.n_dofs()));
 
-#ifdef DEAL_II_WITH_PETSC
-    if (dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1) != 0)
-      if (dynamic_cast<const DoFHandler<dim>*>(&dof1) != 0)
-        {
-          // if u1 is a parallel distributed
-          // PETSc vector, we check the local
-          // size of u1 for safety
-          Assert(dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1)->local_size() == dof1.n_locally_owned_dofs(),
-                 ExcDimensionMismatch(dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1)->local_size(), dof1.n_locally_owned_dofs()));
-        };
-
-    if (dynamic_cast<PETScWrappers::MPI::Vector *>(&u1_interpolated) != 0)
-      if (dynamic_cast<const DoFHandler<dim>*>(&dof1) != 0)
-        {
-          Assert(dynamic_cast<PETScWrappers::MPI::Vector *>(&u1_interpolated)->local_size() == dof1.n_locally_owned_dofs(),
-                 ExcDimensionMismatch(dynamic_cast<PETScWrappers::MPI::Vector *>(&u1_interpolated)->local_size(), dof1.n_locally_owned_dofs()));
-        };
+#ifdef DEBUG
+    const IndexSet &dof1_local_dofs = dof1.locally_owned_dofs();
+    const IndexSet u1_elements = u1.locally_owned_elements();
+    const IndexSet u1_interpolated_elements = u1_interpolated.locally_owned_elements();
+    Assert(u1_elements == dof1_local_dofs,
+           ExcMessage("The provided vector and DoF handler should have the same"
+                      " index sets."));
+    Assert(u1_interpolated_elements == dof1_local_dofs,
+           ExcMessage("The provided vector and DoF handler should have the same"
+                      " index sets."));
 #endif
 
     // For continuous elements on grids
@@ -281,7 +271,7 @@ namespace FETools
     Vector<typename OutVector::value_type> u1_int_local(dofs_per_cell1);
 
     const types::subdomain_id subdomain_id =
-      dof1.get_tria().locally_owned_subdomain();
+      dof1.get_triangulation().locally_owned_subdomain();
 
     typename DoFHandler<dim,spacedim>::active_cell_iterator cell = dof1.begin_active(),
                                                             endc = dof1.end();
@@ -313,46 +303,39 @@ namespace FETools
 
 
   template <int dim,
-            template <int> class DH,
+            template <int> class DoFHandlerType,
             class InVector, class OutVector, int spacedim>
   void
-  back_interpolate(const DH<dim>            &dof1,
-                   const InVector           &u1,
+  back_interpolate(const DoFHandlerType<dim>         &dof1,
+                   const InVector                    &u1,
                    const FiniteElement<dim,spacedim> &fe2,
-                   OutVector                &u1_interpolated)
+                   OutVector                         &u1_interpolated)
   {
     Assert(u1.size() == dof1.n_dofs(),
            ExcDimensionMismatch(u1.size(), dof1.n_dofs()));
     Assert(u1_interpolated.size() == dof1.n_dofs(),
            ExcDimensionMismatch(u1_interpolated.size(), dof1.n_dofs()));
 
-#ifdef DEAL_II_WITH_PETSC
-    if (dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1) != 0)
-      if (dynamic_cast<const DoFHandler<dim>*>(&dof1) != 0)
-        {
-          // if u1 is a parallel distributed
-          // PETSc vector, we check the local
-          // size of u1 for safety
-          Assert(dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1)->local_size() == dof1.n_locally_owned_dofs(),
-                 ExcDimensionMismatch(dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1)->local_size(), dof1.n_locally_owned_dofs()));
-        };
-
-    if (dynamic_cast<PETScWrappers::MPI::Vector *>(&u1_interpolated) != 0)
-      if (dynamic_cast<const DoFHandler<dim>*>(&dof1) != 0)
-        {
-          Assert(dynamic_cast<PETScWrappers::MPI::Vector *>(&u1_interpolated)->local_size() == dof1.n_locally_owned_dofs(),
-                 ExcDimensionMismatch(dynamic_cast<PETScWrappers::MPI::Vector *>(&u1_interpolated)->local_size(), dof1.n_locally_owned_dofs()));
-        };
+#ifdef DEBUG
+    const IndexSet &dof1_local_dofs = dof1.locally_owned_dofs();
+    const IndexSet u1_elements = u1.locally_owned_elements();
+    const IndexSet u1_interpolated_elements = u1_interpolated.locally_owned_elements();
+    Assert(u1_elements == dof1_local_dofs,
+           ExcMessage("The provided vector and DoF handler should have the same"
+                      " index sets."));
+    Assert(u1_interpolated_elements == dof1_local_dofs,
+           ExcMessage("The provided vector and DoF handler should have the same"
+                      " index sets."));
 #endif
 
     Vector<typename OutVector::value_type> u1_local(DoFTools::max_dofs_per_cell(dof1));
     Vector<typename OutVector::value_type> u1_int_local(DoFTools::max_dofs_per_cell(dof1));
 
     const types::subdomain_id subdomain_id =
-      dof1.get_tria().locally_owned_subdomain();
+      dof1.get_triangulation().locally_owned_subdomain();
 
-    typename DH<dim>::active_cell_iterator cell = dof1.begin_active(),
-                                           endc = dof1.end();
+    typename DoFHandlerType<dim>::active_cell_iterator cell = dof1.begin_active(),
+                                                       endc = dof1.end();
 
     // map from possible fe objects in
     // dof1 to the back_interpolation
@@ -488,21 +471,21 @@ namespace FETools
       }
 #endif
 
-      // special version for parallel::distributed::Vector
+      // special version for LinearAlgebra::distributed::Vector
       template <int dim, int spacedim, typename Number>
       void back_interpolate (const DoFHandler<dim,spacedim> &dof1,
                              const ConstraintMatrix &constraints1,
-                             const parallel::distributed::Vector<Number> &u1,
+                             const LinearAlgebra::distributed::Vector<Number> &u1,
                              const DoFHandler<dim,spacedim> &dof2,
                              const ConstraintMatrix &constraints2,
-                             parallel::distributed::Vector<Number> &u1_interpolated)
+                             LinearAlgebra::distributed::Vector<Number> &u1_interpolated)
       {
         IndexSet dof2_locally_owned_dofs = dof2.locally_owned_dofs();
         IndexSet dof2_locally_relevant_dofs;
         DoFTools::extract_locally_relevant_dofs (dof2,
                                                  dof2_locally_relevant_dofs);
 
-        parallel::distributed::Vector<Number>
+        LinearAlgebra::distributed::Vector<Number>
         u2 (dof2_locally_owned_dofs,
             dof2_locally_relevant_dofs,
             u1.get_mpi_communicator());
@@ -558,23 +541,16 @@ namespace FETools
     Assert(u1_difference.size()==dof1.n_dofs(),
            ExcDimensionMismatch(u1_difference.size(), dof1.n_dofs()));
 
-#ifdef DEAL_II_WITH_PETSC
-    if (dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1) != 0)
-      if (dynamic_cast<const DoFHandler<dim>*>(&dof1) != 0)
-        {
-          // if u1 is a parallel distributed
-          // PETSc vector, we check the local
-          // size of u1 for safety
-          Assert(dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1)->local_size() == dof1.n_locally_owned_dofs(),
-                 ExcDimensionMismatch(dynamic_cast<const PETScWrappers::MPI::Vector *>(&u1)->local_size(), dof1.n_locally_owned_dofs()));
-        };
-
-    if (dynamic_cast<PETScWrappers::MPI::Vector *>(&u1_difference) != 0)
-      if (dynamic_cast<const DoFHandler<dim>*>(&dof1) != 0)
-        {
-          Assert(dynamic_cast<PETScWrappers::MPI::Vector *>(&u1_difference)->local_size() == dof1.n_locally_owned_dofs(),
-                 ExcDimensionMismatch(dynamic_cast<PETScWrappers::MPI::Vector *>(&u1_difference)->local_size(), dof1.n_locally_owned_dofs()));
-        };
+#ifdef DEBUG
+    const IndexSet &dof1_local_dofs = dof1.locally_owned_dofs();
+    const IndexSet u1_elements = u1.locally_owned_elements();
+    const IndexSet u1_difference_elements = u1_difference.locally_owned_elements();
+    Assert(u1_elements == dof1_local_dofs,
+           ExcMessage("The provided vector and DoF handler should have the same"
+                      " index sets."));
+    Assert(u1_difference_elements == dof1_local_dofs,
+           ExcMessage("The provided vector and DoF handler should have the same"
+                      " index sets."));
 #endif
 
     // For continuous elements on grids
@@ -593,7 +569,7 @@ namespace FETools
     Vector<typename OutVector::value_type> u1_diff_local(dofs_per_cell);
 
     const types::subdomain_id subdomain_id =
-      dof1.get_tria().locally_owned_subdomain();
+      dof1.get_triangulation().locally_owned_subdomain();
 
     FullMatrix<double> difference_matrix(dofs_per_cell, dofs_per_cell);
     get_interpolation_difference_matrix(dof1.get_fe(), fe2,
@@ -699,7 +675,7 @@ namespace FETools
                   const DoFHandler<dim,spacedim> &dof2,
                   OutVector &u2)
   {
-    Assert(&dof1.get_tria()==&dof2.get_tria(), ExcTriangulationMismatch());
+    Assert(&dof1.get_triangulation()==&dof2.get_triangulation(), ExcTriangulationMismatch());
     Assert(dof1.get_fe().n_components() == dof2.get_fe().n_components(),
            ExcDimensionMismatch(dof1.get_fe().n_components(), dof2.get_fe().n_components()));
     Assert(u1.size()==dof1.n_dofs(), ExcDimensionMismatch(u1.size(), dof1.n_dofs()));
@@ -712,13 +688,14 @@ namespace FETools
     const unsigned int n1 = dof1.get_fe().dofs_per_cell;
     const unsigned int n2 = dof2.get_fe().dofs_per_cell;
 
-    Vector<double> u1_local(n1);
-    Vector<double> u2_local(n2);
+    Vector<typename OutVector::value_type> u1_local(n1);
+    Vector<typename OutVector::value_type> u2_local(n2);
     std::vector<types::global_dof_index> dofs(n2);
 
     FullMatrix<double> matrix(n2,n1);
     get_projection_matrix(dof1.get_fe(), dof2.get_fe(), matrix);
 
+    u2 = 0;
     while (cell2 != end)
       {
         cell1->get_dof_values(u1, u1_local);
@@ -757,7 +734,7 @@ namespace FETools
   {
     Assert(dof1.get_fe().n_components() == dof2.get_fe().n_components(),
            ExcDimensionMismatch(dof1.get_fe().n_components(), dof2.get_fe().n_components()));
-    Assert(&dof1.get_tria()==&dof2.get_tria(), ExcTriangulationMismatch());
+    Assert(&dof1.get_triangulation()==&dof2.get_triangulation(), ExcTriangulationMismatch());
     Assert(u1.size()==dof1.n_dofs(), ExcDimensionMismatch(u1.size(), dof1.n_dofs()));
     Assert(u2.size()==dof2.n_dofs(), ExcDimensionMismatch(u2.size(), dof2.n_dofs()));
 
@@ -781,7 +758,7 @@ namespace FETools
     }
 
     // then traverse grid bottom up
-    for (unsigned int level=0; level<dof1.get_tria().n_levels()-1; ++level)
+    for (unsigned int level=0; level<dof1.get_triangulation().n_levels()-1; ++level)
       {
         typename DoFHandler<dim,spacedim>::cell_iterator cell=dof2.begin(level),
                                                          endc=dof2.end(level);

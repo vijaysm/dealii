@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2013 by the deal.II authors
+// Copyright (C) 2008 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -43,14 +43,14 @@ void test(std::ostream & /*out*/)
   {
     GridIn<dim> gi;
     gi.attach_triangulation (tr);
-    std::ifstream in (SOURCE_DIR "/../deal.II/grid_in_3d/4.in");
+    std::ifstream in (SOURCE_DIR "/../grid/grid_in_3d/4.in");
     gi.read_xda (in);
   }
 
   {
     GridIn<dim> gi;
     gi.attach_triangulation (tr2);
-    std::ifstream in (SOURCE_DIR "/../deal.II/grid_in_3d/4.in");
+    std::ifstream in (SOURCE_DIR "/../grid/grid_in_3d/4.in");
     gi.read_xda (in);
   }
 
@@ -98,7 +98,7 @@ void test(std::ostream & /*out*/)
 int main(int argc, char *argv[])
 {
 #ifdef DEAL_II_WITH_MPI
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
 #else
   (void)argc;
   (void)argv;
@@ -106,7 +106,6 @@ int main(int argc, char *argv[])
 
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   deallog.push("3d");

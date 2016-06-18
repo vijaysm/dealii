@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -26,7 +26,6 @@
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/fe/fe.h>
-#include <deal.II/multigrid/mg_dof_handler.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/multigrid/mg_transfer_component.h>
 #include <deal.II/multigrid/mg_transfer_component.templates.h>
@@ -126,7 +125,7 @@ namespace
     if (ndofs.size() == 0)
       {
         std::vector<std::vector<types::global_dof_index> >
-        new_dofs(mg_dof.get_tria().n_levels(),
+        new_dofs(mg_dof.get_triangulation().n_levels(),
                  std::vector<types::global_dof_index>(target_component.size()));
         std::swap(ndofs, new_dofs);
         MGTools::count_dofs_per_block (mg_dof, ndofs, target_component);
@@ -195,7 +194,7 @@ namespace
     if (ndofs.size() == 0)
       {
         std::vector<std::vector<types::global_dof_index> >
-        new_dofs(mg_dof.get_tria().n_levels(),
+        new_dofs(mg_dof.get_triangulation().n_levels(),
                  std::vector<types::global_dof_index>(target_component.size()));
         std::swap(ndofs, new_dofs);
         MGTools::count_dofs_per_block (mg_dof, ndofs,
@@ -221,7 +220,7 @@ MGTransferSelect<number>::do_copy_to_mg (
 {
   dst=0;
 
-  Assert(sizes.size()==mg_dof_handler.get_tria().n_levels(),
+  Assert(sizes.size()==mg_dof_handler.get_triangulation().n_levels(),
          ExcMatricesNotBuilt());
 
   reinit_vector_by_components(mg_dof_handler, dst,
@@ -240,7 +239,7 @@ MGTransferSelect<number>::do_copy_to_mg (
   // already have built.
 
   bool first = true;
-  for (unsigned int level=mg_dof_handler.get_tria().n_levels(); level!=0;)
+  for (unsigned int level=mg_dof_handler.get_triangulation().n_levels(); level!=0;)
     {
       --level;
 
@@ -319,7 +318,7 @@ void MGTransferComponentBase::build_matrices (
   const unsigned int n_components  =
     *std::max_element(mg_target_component.begin(), mg_target_component.end()) + 1;
   const unsigned int dofs_per_cell = fe.dofs_per_cell;
-  const unsigned int n_levels      = mg_dof.get_tria().n_levels();
+  const unsigned int n_levels      = mg_dof.get_triangulation().n_levels();
 
   Assert (mg_component_mask.represents_n_components(fe.n_components()),
           ExcMessage ("Component mask has wrong size."));
@@ -507,7 +506,7 @@ void MGTransferComponentBase::build_matrices (
   if (boundary_indices.size() != 0)
     {
       std::vector<std::vector<types::global_dof_index> >
-      dofs_per_component(mg_dof.get_tria().n_levels(),
+      dofs_per_component(mg_dof.get_triangulation().n_levels(),
                          std::vector<types::global_dof_index>(n_components));
 
       MGTools::count_dofs_per_block (mg_dof, dofs_per_component, mg_target_component);
@@ -613,9 +612,12 @@ void MGTransferSelect<number>::build_matrices (
 
   MGTransferComponentBase::build_matrices (dof, mg_dof);
 
-  interface_dofs.resize(mg_dof.get_tria().n_levels());
-  for (unsigned int l=0; l<mg_dof.get_tria().n_levels(); ++l)
-    interface_dofs[l].resize(mg_dof.n_dofs(l));
+  interface_dofs.resize(mg_dof.get_triangulation().n_levels());
+  for (unsigned int l=0; l<mg_dof.get_triangulation().n_levels(); ++l)
+    {
+      interface_dofs[l].clear();
+      interface_dofs[l].set_size(mg_dof.n_dofs(l));
+    }
   MGTools::extract_inner_interface_dofs(mg_dof, interface_dofs);
 
   // use a temporary vector to create the
@@ -623,7 +625,7 @@ void MGTransferSelect<number>::build_matrices (
   std::vector<types::global_dof_index> temp_copy_indices;
   std::vector<types::global_dof_index> global_dof_indices (fe.dofs_per_cell);
   std::vector<types::global_dof_index> level_dof_indices  (fe.dofs_per_cell);
-  for (int level=dof.get_tria().n_levels()-1; level>=0; --level)
+  for (int level=dof.get_triangulation().n_levels()-1; level>=0; --level)
     {
       copy_to_and_from_indices[level].clear();
       typename DoFHandler<dim,spacedim>::active_cell_iterator
@@ -650,7 +652,7 @@ void MGTransferSelect<number>::build_matrices (
               const unsigned int component
                 = fe.system_to_component_index(i).first;
               if (component_mask[component] &&
-                  !interface_dofs[level][level_dof_indices[i]])
+                  !interface_dofs[level].is_element(level_dof_indices[i]))
                 {
                   const types::global_dof_index level_start
                     = mg_component_start[level][mg_target_component[component]];

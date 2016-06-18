@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2007 - 2013 by the deal.II authors
+// Copyright (C) 2007 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,7 +31,7 @@ void test (const BlockIndices &idx)
   for (unsigned i=0; i<n; ++i)
     deallog << ' ' << idx.block_start(i);
 
-  deallog << std::endl;
+  deallog << std::endl << "string: " << idx.to_string() << std::endl;
 
   for (unsigned int i=0; i<idx.total_size(); ++i)
     {
@@ -57,7 +57,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
 
   BlockIndices bi0;
   deallog << "empty: " << bi0 << std::endl;
@@ -85,4 +84,8 @@ int main()
 
   BlockIndices bi2(v);
   test(bi2);
+
+  BlockIndices bi3 = std::move(bi2);
+  test(bi3);
+  deallog << "empty: " << bi2 << std::endl;
 }

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__solver_minres_h
-#define __deal2__solver_minres_h
+#ifndef dealii__solver_minres_h
+#define dealii__solver_minres_h
 
 
 #include <deal.II/base/config.h>
@@ -32,41 +32,45 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * Minimal residual method for symmetric matrices.
  *
- * For the requirements on matrices and vectors in order to work with
- * this class, see the documentation of the Solver base class.
+ * For the requirements on matrices and vectors in order to work with this
+ * class, see the documentation of the Solver base class.
  *
- * Like all other solver classes, this class has a local structure called
- * @p AdditionalData which is used to pass additional parameters to the
- * solver, like damping parameters or the number of temporary vectors. We
- * use this additional structure instead of passing these values directly
- * to the constructor because this makes the use of the @p SolverSelector and
- * other classes much easier and guarantees that these will continue to
- * work even if number or type of the additional parameters for a certain
- * solver changes.
+ * Like all other solver classes, this class has a local structure called @p
+ * AdditionalData which is used to pass additional parameters to the solver,
+ * like damping parameters or the number of temporary vectors. We use this
+ * additional structure instead of passing these values directly to the
+ * constructor because this makes the use of the @p SolverSelector and other
+ * classes much easier and guarantees that these will continue to work even if
+ * number or type of the additional parameters for a certain solver changes.
  *
- * However, since the MinRes method does not need additional data, the respective
- * structure is empty and does not offer any functionality. The constructor
- * has a default argument, so you may call it without the additional
- * parameter.
+ * However, since the MinRes method does not need additional data, the
+ * respective structure is empty and does not offer any functionality. The
+ * constructor has a default argument, so you may call it without the
+ * additional parameter.
  *
  * The preconditioner has to be positive definite and symmetric
  *
- * The algorithm is taken from the Master thesis of Astrid Batterman
- * with some changes.
- * The full text can be found at
- * <tt>http://scholar.lib.vt.edu/theses/public/etd-12164379662151/etd-title.html</tt>
+ * The algorithm is taken from the Master thesis of Astrid Battermann with
+ * some changes. The full text can be found at
+ * http://scholar.lib.vt.edu/theses/public/etd-12164379662151/etd-title.html
+ *
+ *
+ * <h3>Observing the progress of linear solver iterations</h3>
+ *
+ * The solve() function of this class uses the mechanism described in the
+ * Solver base class to determine convergence. This mechanism can also be used
+ * to observe the progress of the iteration.
+ *
  *
  * @author Thomas Richter, 2000, Luca Heltai, 2006
  */
-template <class VECTOR = Vector<double> >
-class SolverMinRes : public Solver<VECTOR>
+template <class VectorType = Vector<double> >
+class SolverMinRes : public Solver<VectorType>
 {
 public:
   /**
-   * Standardized data struct to
-   * pipe additional data to the
-   * solver. This solver does not
-   * need additional data yet.
+   * Standardized data struct to pipe additional data to the solver. This
+   * solver does not need additional data yet.
    */
   struct AdditionalData
   {
@@ -75,14 +79,13 @@ public:
   /**
    * Constructor.
    */
-  SolverMinRes (SolverControl &cn,
-                VectorMemory<VECTOR> &mem,
-                const AdditionalData &data=AdditionalData());
+  SolverMinRes (SolverControl            &cn,
+                VectorMemory<VectorType> &mem,
+                const AdditionalData     &data=AdditionalData());
 
   /**
-   * Constructor. Use an object of
-   * type GrowingVectorMemory as
-   * a default to allocate memory.
+   * Constructor. Use an object of type GrowingVectorMemory as a default to
+   * allocate memory.
    */
   SolverMinRes (SolverControl        &cn,
                 const AdditionalData &data=AdditionalData());
@@ -93,18 +96,19 @@ public:
   virtual ~SolverMinRes ();
 
   /**
-   * Solve the linear system $Ax=b$
-   * for x.
+   * Solve the linear system $Ax=b$ for x.
    */
-  template<class MATRIX, class PRECONDITIONER>
+  template<typename MatrixType, typename PreconditionerType>
   void
-  solve (const MATRIX         &A,
-         VECTOR               &x,
-         const VECTOR         &b,
-         const PRECONDITIONER &precondition);
+  solve (const MatrixType         &A,
+         VectorType               &x,
+         const VectorType         &b,
+         const PreconditionerType &precondition);
 
-  /** @addtogroup Exceptions
-   * @{ */
+  /**
+   * @addtogroup Exceptions
+   * @{
+   */
 
   /**
    * Exception
@@ -114,43 +118,32 @@ public:
 
 protected:
   /**
-   * Implementation of the computation of
-   * the norm of the residual.
+   * Implementation of the computation of the norm of the residual.
    */
   virtual double criterion();
   /**
-   * Interface for derived class.
-   * This function gets the current
-   * iteration vector, the residual
-   * and the update vector in each
-   * step. It can be used for a
-   * graphical output of the
-   * convergence history.
+   * Interface for derived class. This function gets the current iteration
+   * vector, the residual and the update vector in each step. It can be used
+   * for a graphical output of the convergence history.
    */
   virtual void print_vectors(const unsigned int step,
-                             const VECTOR &x,
-                             const VECTOR &r,
-                             const VECTOR &d) const;
+                             const VectorType   &x,
+                             const VectorType   &r,
+                             const VectorType   &d) const;
 
   /**
-   * Temporary vectors, allocated through
-   * the @p VectorMemory object at the start
-   * of the actual solution process and
-   * deallocated at the end.
+   * Temporary vectors, allocated through the @p VectorMemory object at the
+   * start of the actual solution process and deallocated at the end.
    */
-  VECTOR *Vu0, *Vu1, *Vu2;
-  VECTOR *Vm0, *Vm1, *Vm2;
-  VECTOR *Vv;
+  VectorType *Vu0, *Vu1, *Vu2;
+  VectorType *Vm0, *Vm1, *Vm2;
+  VectorType *Vv;
 
   /**
-   * Within the iteration loop, the
-   * square of the residual vector is
-   * stored in this variable. The
-   * function @p criterion uses this
-   * variable to compute the convergence
-   * value, which in this class is the
-   * norm of the residual vector and thus
-   * the square root of the @p res2 value.
+   * Within the iteration loop, the square of the residual vector is stored in
+   * this variable. The function @p criterion uses this variable to compute
+   * the convergence value, which in this class is the norm of the residual
+   * vector and thus the square root of the @p res2 value.
    */
   double res2;
 };
@@ -160,55 +153,55 @@ protected:
 
 #ifndef DOXYGEN
 
-template<class VECTOR>
-SolverMinRes<VECTOR>::SolverMinRes (SolverControl &cn,
-                                    VectorMemory<VECTOR> &mem,
-                                    const AdditionalData &)
+template<class VectorType>
+SolverMinRes<VectorType>::SolverMinRes (SolverControl            &cn,
+                                        VectorMemory<VectorType> &mem,
+                                        const AdditionalData &)
   :
-  Solver<VECTOR>(cn,mem)
+  Solver<VectorType>(cn,mem)
 {}
 
 
 
-template<class VECTOR>
-SolverMinRes<VECTOR>::SolverMinRes (SolverControl &cn,
-                                    const AdditionalData &)
+template<class VectorType>
+SolverMinRes<VectorType>::SolverMinRes (SolverControl        &cn,
+                                        const AdditionalData &)
   :
-  Solver<VECTOR>(cn)
+  Solver<VectorType>(cn)
 {}
 
 
-template<class VECTOR>
-SolverMinRes<VECTOR>::~SolverMinRes ()
+template<class VectorType>
+SolverMinRes<VectorType>::~SolverMinRes ()
 {}
 
 
 
-template<class VECTOR>
+template<class VectorType>
 double
-SolverMinRes<VECTOR>::criterion()
+SolverMinRes<VectorType>::criterion()
 {
   return res2;
 }
 
 
-template<class VECTOR>
+template<class VectorType>
 void
-SolverMinRes<VECTOR>::print_vectors(const unsigned int,
-                                    const VECTOR &,
-                                    const VECTOR &,
-                                    const VECTOR &) const
+SolverMinRes<VectorType>::print_vectors(const unsigned int,
+                                        const VectorType &,
+                                        const VectorType &,
+                                        const VectorType &) const
 {}
 
 
 
-template<class VECTOR>
-template<class MATRIX, class PRECONDITIONER>
+template<class VectorType>
+template<typename MatrixType, typename PreconditionerType>
 void
-SolverMinRes<VECTOR>::solve (const MATRIX         &A,
-                             VECTOR               &x,
-                             const VECTOR         &b,
-                             const PRECONDITIONER &precondition)
+SolverMinRes<VectorType>::solve (const MatrixType         &A,
+                                 VectorType               &x,
+                                 const VectorType         &b,
+                                 const PreconditionerType &precondition)
 {
   SolverControl::State conv=SolverControl::iterate;
 
@@ -223,10 +216,10 @@ SolverMinRes<VECTOR>::solve (const MATRIX         &A,
   Vm1  = this->memory.alloc();
   Vm2  = this->memory.alloc();
   // define some aliases for simpler access
-  typedef VECTOR *vecptr;
+  typedef VectorType *vecptr;
   vecptr u[3] = {Vu0, Vu1, Vu2};
   vecptr m[3] = {Vm0, Vm1, Vm2};
-  VECTOR &v   = *Vv;
+  VectorType &v   = *Vv;
   // resize the vectors, but do not set
   // the values since they'd be overwritten
   // soon anyway.
@@ -262,7 +255,7 @@ SolverMinRes<VECTOR>::solve (const MATRIX         &A,
   *u[1] -= *m[0];
   // Precondition is applied.
   // The preconditioner has to be
-  // positiv definite and symmetric
+  // positive definite and symmetric
 
   // M v = u[1]
   precondition.vmult (v,*u[1]);
@@ -281,7 +274,7 @@ SolverMinRes<VECTOR>::solve (const MATRIX         &A,
   m[1]->reinit(b);
   m[2]->reinit(b);
 
-  conv = this->control().check(0,r_l2);
+  conv = this->iteration_status(0, r_l2, x);
 
   while (conv==SolverControl::iterate)
     {
@@ -298,7 +291,7 @@ SolverMinRes<VECTOR>::solve (const MATRIX         &A,
       *m[0] = v;
 
       // precondition: solve M v = u[2]
-      // Preconditioner has to be positiv
+      // Preconditioner has to be positive
       // definite and symmetric.
       precondition.vmult(v,*u[2]);
 
@@ -321,7 +314,8 @@ SolverMinRes<VECTOR>::solve (const MATRIX         &A,
 
       d = std::sqrt (d_*d_ + delta[2]);
 
-      if (j>1) tau *= s / c;
+      if (j>1)
+        tau *= s / c;
       c = d_ / d;
       tau *= c;
 
@@ -337,7 +331,7 @@ SolverMinRes<VECTOR>::solve (const MATRIX         &A,
       x.add (tau, *m[0]);
       r_l2 *= std::fabs(s);
 
-      conv = this->control().check(j,r_l2);
+      conv = this->iteration_status(j, r_l2, x);
 
       // next iteration step
       ++j;
@@ -380,9 +374,9 @@ SolverMinRes<VECTOR>::solve (const MATRIX         &A,
   deallog.pop ();
 
   // in case of failure: throw exception
-  if (this->control().last_check() != SolverControl::success)
-    AssertThrow(false, SolverControl::NoConvergence (this->control().last_step(),
-                                                     this->control().last_value()));
+  AssertThrow(conv == SolverControl::success,
+              SolverControl::NoConvergence (j, r_l2));
+
   // otherwise exit as normal
 }
 

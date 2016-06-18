@@ -19,7 +19,7 @@ California Institute of Technology.
 This program deals with the Stokes system of equations which reads as
 follows in non-dimensionalized form:
 @f{eqnarray*}
-  -\textrm{div}\; \varepsilon(\textbf{u}) + \nabla p &=& \textbf{f},
+  -2\; \textrm{div}\; \varepsilon(\textbf{u}) + \nabla p &=& \textbf{f},
   \\
   -\textrm{div}\; \textbf{u} &=& 0,
 @f}
@@ -40,28 +40,51 @@ valid; taking into account inertia effects then leads to the
 nonlinear Navier-Stokes equations. However, in this tutorial program,
 we will focus on the simpler Stokes system.
 
+Note that when deriving the more general compressible Navier-Stokes equations,
+the diffusion is modeled as the divergence of the stress tensor
+@f{eqnarray*}
+  \tau = - \mu (2\varepsilon(\textbf{u}) - \frac{2}{3}\nabla \cdot \textbf{u} I),
+@f}
+where $\mu$ is the viscosity of the fluid. With the assumption of $\mu=1$
+(assume constant viscosity and non-dimensionalize the equation by dividing out
+$\mu$) and assuming incompressibility ($\textrm{div}\; \textbf{u}=0$), we
+arrive at the formulation from above:
+@f{eqnarray*}
+  \textrm{div}\; \tau = -2\textrm{div}\;\varepsilon(\textbf{u}).
+@f}
+A different formulation uses the Laplace operator ($-\triangle \textbf{u}$)
+instead of the symmetrized gradient. A big difference here is that the
+different components of the velocity do not couple. If you assume additional
+regularity of the solution $\textbf{u}$ (second partial derivatives exist and
+are continuous), the formulations are equivalent:
+@f{eqnarray*}
+  \textrm{div}\; \tau
+  = -2\textrm{div}\;\varepsilon(\textbf{u})
+  = -\triangle \textbf{u} + \nabla \cdot (\nabla\textbf{u})^T
+  = -\triangle \textbf{u}.
+@f}
+This is because the $i$th entry of  $\nabla \cdot (\nabla\textbf{u})^T$ is given by:
+@f{eqnarray*}
+[\nabla \cdot (\nabla\textbf{u})^T]_i
+= \sum_j \frac{\partial}{\partial x_j} [(\nabla\textbf{u})^T]_{i,j}
+= \sum_j \frac{\partial}{\partial x_j} [(\nabla\textbf{u})]_{j,i}
+= \sum_j \frac{\partial}{\partial x_j} \frac{\partial}{\partial x_i} \textbf{u}_j
+= \sum_j \frac{\partial}{\partial x_i} \frac{\partial}{\partial x_j} \textbf{u}_j
+= \frac{\partial}{\partial x_i} \textrm{div}\; \textbf{u}
+= 0.
+@f}
+If you can not assume the above mentioned regularity, or if your viscosity is
+not a constant, the equivalence no longer holds. Therefore, we decided to
+stick with the more physically accurate symmetric tensor formulation in this
+tutorial.
+
+
 To be well-posed, we will have to add boundary conditions to the
 equations. What boundary conditions are readily possible here will
 become clear once we discuss the weak form of the equations.
 
 The equations covered here fall into the class of vector-valued problems. A
 toplevel overview of this topic can be found in the @ref vector_valued module.
-
-@note Different people mean different things when they talk about the Stokes
-equations. We here adopt the convention of the solid mechanics community which
-uses the symmetric gradient. This differs from the convention in the fluids
-community by a factor of two since the fact that $\textrm{div}\; \textbf{u}=0$
-implies that $-\textrm{div}\; \varepsilon(\textbf{u}) = \frac 12 \Delta
-\textbf{u}$. The equations above are therefore equivalent to
-@f{eqnarray*}
-  -\frac 12 \Delta\textbf{u} + \nabla p &=& \textbf{f},
-  \\
-  -\textrm{div}\; \textbf{u} &=& 0.
-@f}
-The Stokes equations that the fluid dynamics community would refer to do not
-have the factor $\frac 12$ in front. Depending on your viewpoint you may
-therefore want to adjust the bilinear form in the program when building the
-system matrix and preconditioner.
 
 
 <h3>Weak form</h3>
@@ -70,7 +93,7 @@ The weak form of the equations is obtained by writing it in vector
 form as
 @f{eqnarray*}
   \begin{pmatrix}
-    {-\textrm{div}\; \varepsilon(\textbf{u}) + \nabla p}
+    {-2\; \textrm{div}\; \varepsilon(\textbf{u}) + \nabla p}
     \\
     {-\textrm{div}\; \textbf{u}}
   \end{pmatrix}
@@ -82,23 +105,23 @@ form as
   \end{pmatrix},
 @f}
 forming the dot product from the left with a vector-valued test
-function $\phi = \begin{pmatrix}\textbf v \\ q\end{pmatrix}$ and integrating
+function $\phi = \begin{pmatrix}\textbf{v} \\ q\end{pmatrix}$ and integrating
 over the domain $\Omega$, yielding the following set of equations:
 @f{eqnarray*}
   (\mathrm v,
-   -\textrm{div}\; \varepsilon(\textbf{u}) + \nabla p)_{\Omega}
+   -2\; \textrm{div}\; \varepsilon(\textbf{u}) + \nabla p)_{\Omega}
   -
   (q,\textrm{div}\; \textbf{u})_{\Omega}
   =
   (\textbf{v}, \textbf{f})_\Omega,
 @f}
-which has to hold for all test functions $\phi = \begin{pmatrix}\textbf v
+which has to hold for all test functions $\phi = \begin{pmatrix}\textbf{v}
 \\ q\end{pmatrix}$.
 
 In practice, one wants to impose as little regularity on the pressure
 variable as possible; consequently, we integrate by parts the second term:
 @f{eqnarray*}
-  (\mathrm v, -\textrm{div}\; \varepsilon(\textbf{u}))_{\Omega}
+  (\textbf{v}, -2\; \textrm{div}\; \varepsilon(\textbf{u}))_{\Omega}
   - (\textrm{div}\; \textbf{v}, p)_{\Omega}
   + (\textbf{n}\cdot\textbf{v}, p)_{\partial\Omega}
   -
@@ -108,9 +131,9 @@ variable as possible; consequently, we integrate by parts the second term:
 @f}
 Likewise, we integrate by parts the first term to obtain
 @f{eqnarray*}
-  (\nabla \mathrm v,\varepsilon(\textbf{u}))_{\Omega}
+  (\nabla \textbf{v}, 2\; \varepsilon(\textbf{u}))_{\Omega}
   -
-  (\textbf{n} \otimes \mathrm v,\varepsilon(\textbf{u}))_{\partial\Omega}
+  (\textbf{n} \otimes \textbf{v}, 2\; \varepsilon(\textbf{u}))_{\partial\Omega}
   - (\textrm{div}\; \textbf{v}, p)_{\Omega}
   + (\textbf{n}\cdot\textbf{v}, p)_{\partial\Omega}
   -
@@ -121,20 +144,20 @@ Likewise, we integrate by parts the first term to obtain
 where the scalar product between two tensor-valued quantities is here
 defined as
 @f{eqnarray*}
-  (\nabla \mathrm v,\varepsilon(\textbf{u}))_{\Omega}
+  (\nabla \textbf{v}, 2\; \varepsilon(\textbf{u}))_{\Omega}
   =
-  \int_\Omega \sum_{i,j=1}^d \frac{\partial v_j}{\partial x_i}
+  2 \int_\Omega \sum_{i,j=1}^d \frac{\partial v_j}{\partial x_i}
   \varepsilon(\textbf{u})_{ij} \ dx.
 @f}
 Because the scalar product between a general tensor like
-$\nabla\mathrm v$ and a symmetric tensor like
+$\nabla\textbf{v}$ and a symmetric tensor like
 $\varepsilon(\textbf{u})$ equals the scalar product between the
 symmetrized forms of the two, we can also write the bilinear form
 above as follows:
 @f{eqnarray*}
-  (\varepsilon(\mathrm v),\varepsilon(\textbf{u}))_{\Omega}
+  (\varepsilon(\textbf{v}), 2\; \varepsilon(\textbf{u}))_{\Omega}
   -
-  (\textbf{n} \otimes \mathrm v,\varepsilon(\textbf{u}))_{\partial\Omega}
+  (\textbf{n} \otimes \textbf{v}, 2\; \varepsilon(\textbf{u}))_{\partial\Omega}
   - (\textrm{div}\; \textbf{v}, p)_{\Omega}
   + (\textbf{n}\cdot\textbf{v}, p)_{\partial\Omega}
   -
@@ -145,7 +168,7 @@ above as follows:
 We will deal with the boundary terms in the next section, but it is already
 clear from the domain terms
 @f{eqnarray*}
-  (\varepsilon(\mathrm v),\varepsilon(\textbf{u}))_{\Omega}
+  (\varepsilon(\textbf{v}), 2\; \varepsilon(\textbf{u}))_{\Omega}
   - (\textrm{div}\; \textbf{v}, p)_{\Omega}
   -
   (q,\textrm{div}\; \textbf{u})_{\Omega}
@@ -157,6 +180,7 @@ form, and consequently a symmetric (if indefinite) system matrix.
 <h3>%Boundary conditions</h3>
 
 @dealiiVideoLecture{21.5}
+(@dealiiVideoLectureSeeAlso{21.55,21.6,21.65})
 
 The weak form just derived immediately presents us with different
 possibilities for imposing boundary conditions:
@@ -168,12 +192,12 @@ possibilities for imposing boundary conditions:
     @f{eqnarray*}
         \textbf u = \textbf g_D \qquad\qquad \textrm{on}\ \Gamma_D.
     @f}
-    Because test functions $\textbf v$ come from the tangent space of
-    the solution variable, we have that $\textbf v=0$ on $\Gamma_D$
+    Because test functions $\textbf{v}$ come from the tangent space of
+    the solution variable, we have that $\textbf{v}=0$ on $\Gamma_D$
     and consequently that
     @f{eqnarray*}
       -(\textbf{n} \otimes \mathrm
-        v,\varepsilon(\textbf{u}))_{\Gamma_D}
+        v, 2\; \varepsilon(\textbf{u}))_{\Gamma_D}
       +
       (\textbf{n}\cdot\textbf{v}, p)_{\Gamma_D}
       = 0.
@@ -191,46 +215,46 @@ possibilities for imposing boundary conditions:
     boundary terms as follows:
     @f{eqnarray*}
       -(\textbf{n} \otimes \mathrm
-        v,\varepsilon(\textbf{u}))_{\Gamma_N}
+        v, 2\; \varepsilon(\textbf{u}))_{\Gamma_N}
       +
       (\textbf{n}\cdot\textbf{v}, p)_{\Gamma_N}
       &=&
       \sum_{i,j=1}^d
-      -(n_i v_j,\varepsilon(\textbf{u})_{ij})_{\Gamma_N}
+      -(n_i v_j, 2\; \varepsilon(\textbf{u})_{ij})_{\Gamma_N}
       +
       \sum_{i=1}^d
       (n_i v_i, p)_{\Gamma_N}
       \\
       &=&
       \sum_{i,j=1}^d
-      -(n_i v_j,\varepsilon(\textbf{u})_{ij})_{\Gamma_N}
+      -(n_i v_j, 2\; \varepsilon(\textbf{u})_{ij})_{\Gamma_N}
       +
       \sum_{i,j=1}^d
       (n_i v_j, p \delta_{ij})_{\Gamma_N}
       \\
       &=&
       \sum_{i,j=1}^d
-      (n_i v_j,p \delta_{ij} - \varepsilon(\textbf{u})_{ij})_{\Gamma_N}
+      (n_i v_j,p \delta_{ij} - 2\; \varepsilon(\textbf{u})_{ij})_{\Gamma_N}
       \\
       &=&
-      (\textbf{n} \otimes \mathrm v,
-      p \textbf{1} - \varepsilon(\textbf{u}))_{\Gamma_N}.
+      (\textbf{n} \otimes \textbf{v},
+      p \textbf{I} - 2\; \varepsilon(\textbf{u}))_{\Gamma_N}.
       \\
       &=&
-      (\mathrm v,
-       \textbf{n}\cdot [p \textbf{1} - \varepsilon(\textbf{u})])_{\Gamma_N}.
+      (\textbf{v},
+       \textbf{n}\cdot [p \textbf{I} - 2\; \varepsilon(\textbf{u})])_{\Gamma_N}.
     @f}
     In other words, on the Neumann part of the boundary we can
     prescribe values for the total stress:
     @f{eqnarray*}
-      \textbf{n}\cdot [p \textbf{1} - \varepsilon(\textbf{u})]
+      \textbf{n}\cdot [p \textbf{I} - 2\; \varepsilon(\textbf{u})]
       =
       \textbf g_N \qquad\qquad \textrm{on}\ \Gamma_N.
     @f}
     If the boundary is subdivided into Dirichlet and Neumann parts
     $\Gamma_D,\Gamma_N$, this then leads to the following weak form:
     @f{eqnarray*}
-      (\varepsilon(\mathrm v),\varepsilon(\textbf{u}))_{\Omega}
+      (\varepsilon(\textbf{v}), 2\; \varepsilon(\textbf{u}))_{\Omega}
       - (\textrm{div}\; \textbf{v}, p)_{\Omega}
       -
       (q,\textrm{div}\; \textbf{u})_{\Omega}
@@ -244,13 +268,13 @@ possibilities for imposing boundary conditions:
 <li>Robin-type boundary conditions: Robin boundary conditions are a mixture of
     Dirichlet and Neumann boundary conditions. They would read
     @f{eqnarray*}
-      \textbf{n}\cdot [p \textbf{1} - \varepsilon(\textbf{u})]
+      \textbf{n}\cdot [p \textbf{I} - 2\; \varepsilon(\textbf{u})]
       =
       \textbf S \textbf u \qquad\qquad \textrm{on}\ \Gamma_R,
     @f}
     with a rank-2 tensor (matrix) $\textbf S$. The associated weak form is
     @f{eqnarray*}
-      (\varepsilon(\mathrm v),\varepsilon(\textbf{u}))_{\Omega}
+      (\varepsilon(\textbf{v}), 2\; \varepsilon(\textbf{u}))_{\Omega}
       - (\textrm{div}\; \textbf{v}, p)_{\Omega}
       -
       (q,\textrm{div}\; \textbf{u})_{\Omega}
@@ -272,7 +296,7 @@ possibilities for imposing boundary conditions:
     @f{eqnarray*}
       \textbf u_{\textbf t} &=& 0,
       \\
-      \textbf n \cdot \left(\textbf{n}\cdot [p \textbf{1} -
+      \textbf n \cdot \left(\textbf{n}\cdot [p \textbf{I} - 2\;
       \varepsilon(\textbf{u})] \right)
       &=&
       0.
@@ -293,7 +317,7 @@ possibilities for imposing boundary conditions:
       \textbf{n}\cdot\textbf u &=& 0,
       \\
       (\textbf 1-\textbf n\otimes\textbf n)
-      \left(\textbf{n}\cdot [p \textbf{1} -
+      \left(\textbf{n}\cdot [p \textbf{I} - 2\;
       \varepsilon(\textbf{u})] \right)
       &=&
       0,
@@ -314,7 +338,7 @@ boundary conditions on $\Gamma_D$ and $\Gamma_N$ reads like this: find
 $\textbf u\in \textbf V_g = \{\varphi \in H^1(\Omega)^d: \varphi_{\Gamma_D}=\textbf
 g_D\}, p\in Q=L^2(\Omega)$ so that
 @f{eqnarray*}
-  (\varepsilon(\mathrm v),\varepsilon(\textbf{u}))_{\Omega}
+  (\varepsilon(\textbf{v}), 2\; \varepsilon(\textbf{u}))_{\Omega}
   - (\textrm{div}\; \textbf{v}, p)_{\Omega}
   -
   (q,\textrm{div}\; \textbf{u})_{\Omega}
@@ -324,7 +348,7 @@ g_D\}, p\in Q=L^2(\Omega)$ so that
   (\textbf{v}, \textbf g_N)_{\Gamma_N}
 @f}
 for all test functions
-$\textbf v\in \textbf V_0 = \{\varphi \in H^1(\Omega)^d: \varphi_{\Gamma_D}=0\},q\in
+$\textbf{v}\in \textbf V_0 = \{\varphi \in H^1(\Omega)^d: \varphi_{\Gamma_D}=0\},q\in
 Q$.
 
 These equations represent a symmetric saddle point problem. It is well known
@@ -346,7 +370,7 @@ pressures.
 This then leads to the following discrete problem: find $\textbf u_h,p_h$ so
 that
 @f{eqnarray*}
-  (\varepsilon(\mathrm v_h),\varepsilon(\textbf u_h))_{\Omega}
+  (\varepsilon(\textbf{v}_h), 2\; \varepsilon(\textbf u_h))_{\Omega}
   - (\textrm{div}\; \textbf{v}_h, p_h)_{\Omega}
   -
   (q_h,\textrm{div}\; \textbf{u}_h)_{\Omega}
@@ -355,7 +379,7 @@ that
   -
   (\textbf{v}_h, \textbf g_N)_{\Gamma_N}
 @f}
-for all test functions $\textbf v_h, q_h$. Assembling the linear system
+for all test functions $\textbf{v}_h, q_h$. Assembling the linear system
 associated with this problem follows the same lines used in @ref step_20
 "step-20", step-21, and explained in detail in the @ref
 vector_valued module.
@@ -505,10 +529,9 @@ matrix. So here's what we're going to do: if in 2d, we use the
 ultimate preconditioner, namely a direct sparse LU decomposition of
 the matrix. This is implemented using the SparseDirectUMFPACK class
 that uses the UMFPACK direct solver to compute the decomposition. To
-use it, you will have to specify the <code>--with-umfpack</code>
-switch when configuring the deal.II library, see the <a
-href="../../readme.html#optional-software">ReadMe file</a> for
-instructions. With this, the inner solver converges in one iteration.
+use it, you will have to build deal.II with UMFPACK support (which is the
+default); see the <a href="../../readme.html#optional-software">ReadMe file</a>
+for instructions. With this, the inner solver converges in one iteration.
 
 In 2d, we can do this sort of thing because even reasonably large problems
 rarely have more than a few 100,000 unknowns with relatively few nonzero
@@ -541,8 +564,8 @@ matrix. It is therefore an operation that can efficiently also be computed in
 represent an exact inverse of the matrix $A$. Consequently, preconditioning
 with the ILU will still require more than one iteration, unlike
 preconditioning with the sparse direct solver. The inner solver will therefore
-take more time when multiplying with the Schur complement, a trade-off
-unavoidable.
+take more time when multiplying with the Schur complement: an unavoidable
+trade-off.
 </ol>
 
 In the program below, we will make use of the fact that the SparseILU and
@@ -567,7 +590,7 @@ struct InnerPreconditioner<3>
 };
 @endcode
 
-From hereon, we can refer to the type <code>typename
+From here on, we can refer to the type <code>typename
 InnerPreconditioner@<dim@>::%type</code> and automatically get the correct
 preconditioner class. Because of the similarity of the interfaces of the two
 classes, we will be able to use them interchangeably using the same syntax in
@@ -585,7 +608,7 @@ from below. Without trying to be entirely realistic, we model this situation
 by solving the following set of equations and boundary conditions on the
 domain $\Omega=[-2,2]\times[0,1]\times[-1,0]$:
 @f{eqnarray*}
-  -\textrm{div}\; \varepsilon(\textbf{u}) + \nabla p &=& 0,
+  -2\; \textrm{div}\; \varepsilon(\textbf{u}) + \nabla p &=& 0,
   \\
   -\textrm{div}\; \textbf{u} &=& 0,
   \\
@@ -604,7 +627,7 @@ domain $\Omega=[-2,2]\times[0,1]\times[-1,0]$:
   \end{array}\right)
   \qquad\qquad \textrm{at}\ z=0, x=0,
 @f}
-and using natural boundary conditions $\textbf{n}\cdot [p \textbf{1} -
+and using natural boundary conditions $\textbf{n}\cdot [p \textbf{I} - 2
 \varepsilon(\textbf{u})] = 0$ everywhere else. In other words, at the
 left part of the top surface we prescribe that the fluid moves with the
 continental plate to the left at speed $-1$, that it moves to the right on the
@@ -748,7 +771,8 @@ element at a time; however, its data structures are poorly adapted for the
 large numbers of nonzero entries per row created by our discretization in
 3d, leading to a quadratic behavior. Replacing the internal algorithms in
 deal.II to set many elements at a time, and using a
-BlockCompressedSimpleSparsityPattern as a better adapted data structure,
+BlockCompressedSimpleSparsityPattern (which has, as of early 2015, been in turn
+replaced by BlockDynamicSparsityPattern) as a better adapted data structure,
 removed this bottleneck at the price of a slightly higher memory
 consumption. Likewise, the implementation of the decomposition step in the
 SparseILU class was very inefficient and has been replaced by one that is
@@ -763,7 +787,7 @@ A profile of how many CPU instructions are spent at the various
 different places in the program during refinement cycles
 zero through three in 3d is shown here:
 
-<img src="http://www.dealii.org/images/steps/developer/step-22.profile-3.png" alt="">
+<img src="https://www.dealii.org/images/steps/developer/step-22.profile-3.png" alt="">
 
 As can be seen, at this refinement level approximately three quarters of the
 instruction count is spent on the actual solver (the SparseILU::vmult calls
@@ -792,10 +816,10 @@ discussion of results below as well.
 As a final point, and as a point of reference, the following picture also
 shows how the profile looked at an early stage of optimizing this program:
 
-<img src="http://www.dealii.org/images/steps/developer/step-22.profile-3.original.png" alt="">
+<img src="https://www.dealii.org/images/steps/developer/step-22.profile-3.original.png" alt="">
 
-As mentioned above, the runtime of this version was about four times as long
-as for the first profile, with the SparseILU decomposition taking up about
-30% of the instruction count, and operations on the ill-suited
-CompressedSparsityPattern about 10%. Both these bottlenecks have since been
+As mentioned above, the runtime of this version was about four times as long as
+for the first profile, with the SparseILU decomposition taking up about 30% of
+the instruction count, and operations an early, inefficient version of
+DynamicSparsityPattern about 10%. Both these bottlenecks have since been
 completely removed.

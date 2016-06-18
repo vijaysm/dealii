@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__eigen_h
-#define __deal2__eigen_h
+#ifndef dealii__eigen_h
+#define dealii__eigen_h
 
 
 #include <deal.II/base/config.h>
@@ -38,20 +38,20 @@ DEAL_II_NAMESPACE_OPEN
 /**
  * Power method (von Mises) for eigenvalue computations.
  *
- * This method determines the largest eigenvalue of a matrix by
- * applying increasing powers of this matrix to a vector. If there is
- * an eigenvalue $l$ with dominant absolute value, the iteration vectors
- * will become aligned to its eigenspace and $Ax = lx$.
+ * This method determines the largest eigenvalue of a matrix by applying
+ * increasing powers of this matrix to a vector. If there is an eigenvalue $l$
+ * with dominant absolute value, the iteration vectors will become aligned to
+ * its eigenspace and $Ax = lx$.
  *
- * A shift parameter allows to shift the spectrum, so it is possible
- * to compute the smallest eigenvalue, too.
+ * A shift parameter allows to shift the spectrum, so it is possible to
+ * compute the smallest eigenvalue, too.
  *
  * Convergence of this method is known to be slow.
  *
  * @author Guido Kanschat, 2000
  */
-template <class VECTOR = Vector<double> >
-class EigenPower : private Solver<VECTOR>
+template <typename VectorType = Vector<double> >
+class EigenPower : private Solver<VectorType>
 {
 public:
   /**
@@ -60,17 +60,13 @@ public:
   typedef types::global_dof_index size_type;
 
   /**
-   * Standardized data struct to
-   * pipe additional data to the
-   * solver.
+   * Standardized data struct to pipe additional data to the solver.
    */
   struct AdditionalData
   {
     /**
-     * Shift parameter. This
-     * parameter allows to shift
-     * the spectrum to compute a
-     * different eigenvalue.
+     * Shift parameter. This parameter allows to shift the spectrum to compute
+     * a different eigenvalue.
      */
     double shift;
     /**
@@ -86,9 +82,9 @@ public:
   /**
    * Constructor.
    */
-  EigenPower (SolverControl &cn,
-              VectorMemory<VECTOR> &mem,
-              const AdditionalData &data=AdditionalData());
+  EigenPower (SolverControl            &cn,
+              VectorMemory<VectorType> &mem,
+              const AdditionalData     &data=AdditionalData());
 
   /**
    * Virtual destructor.
@@ -96,21 +92,16 @@ public:
   virtual ~EigenPower ();
 
   /**
-   * Power method. @p x is the
-   * (not necessarily normalized,
-   * but nonzero) start vector for
-   * the power method. After the
-   * iteration, @p value is the
-   * approximated eigenvalue and
-   * @p x is the corresponding
-   * eigenvector, normalized with
-   * respect to the l2-norm.
+   * Power method. @p x is the (not necessarily normalized, but nonzero) start
+   * vector for the power method. After the iteration, @p value is the
+   * approximated eigenvalue and @p x is the corresponding eigenvector,
+   * normalized with respect to the l2-norm.
    */
-  template <class MATRIX>
+  template <typename MatrixType>
   void
-  solve (double       &value,
-         const MATRIX &A,
-         VECTOR       &x);
+  solve (double           &value,
+         const MatrixType &A,
+         VectorType       &x);
 
 protected:
   /**
@@ -122,30 +113,28 @@ protected:
 /**
  * Inverse iteration (Wieland) for eigenvalue computations.
  *
- * This class implements an adaptive version of the inverse iteration by Wieland.
+ * This class implements an adaptive version of the inverse iteration by
+ * Wieland.
  *
- * There are two choices for the stopping criterion: by default, the
- * norm of the residual $A x - l x$ is computed. Since this might not
- * converge to zero for non-symmetric matrices with non-trivial Jordan
- * blocks, it can be replaced by checking the difference of successive
- * eigenvalues. Use AdditionalData::use_residual for switching
- * this option.
+ * There are two choices for the stopping criterion: by default, the norm of
+ * the residual $A x - l x$ is computed. Since this might not converge to zero
+ * for non-symmetric matrices with non-trivial Jordan blocks, it can be
+ * replaced by checking the difference of successive eigenvalues. Use
+ * AdditionalData::use_residual for switching this option.
  *
- * Usually, the initial guess entering this method is updated after
- * each step, replacing it with the new approximation of the
- * eigenvalue. Using a parameter AdditionalData::relaxation
- * between 0 and 1, this update can be damped. With relaxation
- * parameter 0, no update is performed. This damping allows for slower
- * adaption of the shift value to make sure that the method converges
- * to the eigenvalue closest to the initial guess. This can be aided
- * by the parameter AdditionalData::start_adaption, which
- * indicates the first iteration step in which the shift value should
- * be adapted.
+ * Usually, the initial guess entering this method is updated after each step,
+ * replacing it with the new approximation of the eigenvalue. Using a
+ * parameter AdditionalData::relaxation between 0 and 1, this update can be
+ * damped. With relaxation parameter 0, no update is performed. This damping
+ * allows for slower adaption of the shift value to make sure that the method
+ * converges to the eigenvalue closest to the initial guess. This can be aided
+ * by the parameter AdditionalData::start_adaption, which indicates the first
+ * iteration step in which the shift value should be adapted.
  *
  * @author Guido Kanschat, 2000, 2003
  */
-template <class VECTOR = Vector<double> >
-class EigenInverse : private Solver<VECTOR>
+template <typename VectorType = Vector<double> >
+class EigenInverse : private Solver<VectorType>
 {
 public:
   /**
@@ -154,9 +143,7 @@ public:
   typedef types::global_dof_index size_type;
 
   /**
-   * Standardized data struct to
-   * pipe additional data to the
-   * solver.
+   * Standardized data struct to pipe additional data to the solver.
    */
   struct AdditionalData
   {
@@ -166,8 +153,7 @@ public:
     double relaxation;
 
     /**
-     * Start step of adaptive
-     * shift parameter.
+     * Start step of adaptive shift parameter.
      */
     unsigned int start_adaption;
     /**
@@ -191,9 +177,9 @@ public:
   /**
    * Constructor.
    */
-  EigenInverse (SolverControl &cn,
-                VectorMemory<VECTOR> &mem,
-                const AdditionalData &data=AdditionalData());
+  EigenInverse (SolverControl            &cn,
+                VectorMemory<VectorType> &mem,
+                const AdditionalData     &data=AdditionalData());
 
 
   /**
@@ -202,23 +188,17 @@ public:
   virtual ~EigenInverse ();
 
   /**
-   * Inverse method. @p value is
-   * the start guess for the
-   * eigenvalue and @p x is the
-   * (not necessarily normalized,
-   * but nonzero) start vector for
-   * the power method. After the
-   * iteration, @p value is the
-   * approximated eigenvalue and
-   * @p x is the corresponding
-   * eigenvector, normalized with
+   * Inverse method. @p value is the start guess for the eigenvalue and @p x
+   * is the (not necessarily normalized, but nonzero) start vector for the
+   * power method. After the iteration, @p value is the approximated
+   * eigenvalue and @p x is the corresponding eigenvector, normalized with
    * respect to the l2-norm.
    */
-  template <class MATRIX>
+  template <typename MatrixType>
   void
-  solve (double       &value,
-         const MATRIX &A,
-         VECTOR       &x);
+  solve (double           &value,
+         const MatrixType &A,
+         VectorType       &x);
 
 protected:
   /**
@@ -231,49 +211,50 @@ protected:
 //---------------------------------------------------------------------------
 
 
-template <class VECTOR>
-EigenPower<VECTOR>::EigenPower (SolverControl &cn,
-                                VectorMemory<VECTOR> &mem,
-                                const AdditionalData &data)
+template <class VectorType>
+EigenPower<VectorType>::EigenPower (SolverControl            &cn,
+                                    VectorMemory<VectorType> &mem,
+                                    const AdditionalData     &data)
   :
-  Solver<VECTOR>(cn, mem),
+  Solver<VectorType>(cn, mem),
   additional_data(data)
 {}
 
 
 
-template <class VECTOR>
-EigenPower<VECTOR>::~EigenPower ()
+template <class VectorType>
+EigenPower<VectorType>::~EigenPower ()
 {}
 
 
 
-template <class VECTOR>
-template <class MATRIX>
+template <class VectorType>
+template <typename MatrixType>
 void
-EigenPower<VECTOR>::solve (double       &value,
-                           const MATRIX &A,
-                           VECTOR       &x)
+EigenPower<VectorType>::solve (double           &value,
+                               const MatrixType &A,
+                               VectorType       &x)
 {
   SolverControl::State conv=SolverControl::iterate;
 
   deallog.push("Power method");
 
-  VECTOR *Vy = this->memory.alloc ();
-  VECTOR &y = *Vy;
+  VectorType *Vy = this->memory.alloc ();
+  VectorType &y = *Vy;
   y.reinit (x);
-  VECTOR *Vr = this->memory.alloc ();
-  VECTOR &r = *Vr;
+  VectorType *Vr = this->memory.alloc ();
+  VectorType &r = *Vr;
   r.reinit (x);
 
   double length = x.l2_norm ();
   double old_length = 0.;
-  x.scale(1./length);
+  x *= 1./length;
 
   A.vmult (y,x);
 
   // Main loop
-  for (int iter=0; conv==SolverControl::iterate; iter++)
+  int iter=0;
+  for (; conv==SolverControl::iterate; iter++)
     {
       y.add(additional_data.shift, x);
 
@@ -307,7 +288,7 @@ EigenPower<VECTOR>::solve (double       &value,
 
       // Check the change of the eigenvalue
       // Brrr, this is not really a good criterion
-      conv = this->control().check (iter, std::fabs(1./length-1./old_length));
+      conv = this->iteration_status (iter, std::fabs(1./length-1./old_length), x);
     }
 
   this->memory.free(Vy);
@@ -316,69 +297,71 @@ EigenPower<VECTOR>::solve (double       &value,
   deallog.pop();
 
   // in case of failure: throw exception
-  if (this->control().last_check() != SolverControl::success)
-    AssertThrow(false, SolverControl::NoConvergence (this->control().last_step(),
-                                                     this->control().last_value()));
+  AssertThrow(conv == SolverControl::success, SolverControl::NoConvergence (iter,
+              std::fabs(1./length-1./old_length)));
+
   // otherwise exit as normal
 }
 
 //---------------------------------------------------------------------------
 
-template <class VECTOR>
-EigenInverse<VECTOR>::EigenInverse (SolverControl &cn,
-                                    VectorMemory<VECTOR> &mem,
-                                    const AdditionalData &data)
+template <class VectorType>
+EigenInverse<VectorType>::EigenInverse (SolverControl            &cn,
+                                        VectorMemory<VectorType> &mem,
+                                        const AdditionalData     &data)
   :
-  Solver<VECTOR>(cn, mem),
+  Solver<VectorType>(cn, mem),
   additional_data(data)
 {}
 
 
 
-template <class VECTOR>
-EigenInverse<VECTOR>::~EigenInverse ()
+template <class VectorType>
+EigenInverse<VectorType>::~EigenInverse ()
 {}
 
 
 
-template <class VECTOR>
-template <class MATRIX>
+template <class VectorType>
+template <typename MatrixType>
 void
-EigenInverse<VECTOR>::solve (double       &value,
-                             const MATRIX &A,
-                             VECTOR       &x)
+EigenInverse<VectorType>::solve (double           &value,
+                                 const MatrixType &A,
+                                 VectorType       &x)
 {
   deallog.push("Wielandt");
 
   SolverControl::State conv=SolverControl::iterate;
 
   // Prepare matrix for solver
-  ShiftedMatrix <MATRIX> A_s(A, -value);
+  ShiftedMatrix <MatrixType> A_s(A, -value);
 
   // Define solver
   ReductionControl inner_control (5000, 1.e-16, 1.e-5, false, false);
   PreconditionIdentity prec;
-  SolverGMRES<VECTOR>
+  SolverGMRES<VectorType>
   solver(inner_control, this->memory);
 
   // Next step for recomputing the shift
   unsigned int goal = additional_data.start_adaption;
 
   // Auxiliary vector
-  VECTOR *Vy = this->memory.alloc ();
-  VECTOR &y = *Vy;
+  VectorType *Vy = this->memory.alloc ();
+  VectorType &y = *Vy;
   y.reinit (x);
-  VECTOR *Vr = this->memory.alloc ();
-  VECTOR &r = *Vr;
+  VectorType *Vr = this->memory.alloc ();
+  VectorType &r = *Vr;
   r.reinit (x);
 
   double length = x.l2_norm ();
   double old_value = value;
 
-  x.scale(1./length);
+  x *= 1./length;
 
   // Main loop
-  for (size_type iter=0; conv==SolverControl::iterate; iter++)
+  double res = -std::numeric_limits<double>::max();
+  size_type iter=0;
+  for (; conv==SolverControl::iterate; iter++)
     {
       solver.solve (A_s, y, x, prec);
 
@@ -420,13 +403,14 @@ EigenInverse<VECTOR>::solve (double       &value,
           y.equ (value, x);
           A.vmult(r,x);
           r.sadd(-1., value, x);
-          double res = r.l2_norm();
+          res = r.l2_norm();
           // Check the residual
-          conv = this->control().check (iter, res);
+          conv = this->iteration_status (iter, res, x);
         }
       else
         {
-          conv = this->control().check (iter, std::fabs(1./value-1./old_value));
+          res = std::fabs(1./value-1./old_value);
+          conv = this->iteration_status (iter, res, x);
         }
       old_value = value;
     }
@@ -438,9 +422,9 @@ EigenInverse<VECTOR>::solve (double       &value,
 
   // in case of failure: throw
   // exception
-  if (this->control().last_check() != SolverControl::success)
-    throw SolverControl::NoConvergence (this->control().last_step(),
-                                        this->control().last_value());
+  AssertThrow (conv == SolverControl::success,
+               SolverControl::NoConvergence (iter,
+                                             res));
   // otherwise exit as normal
 }
 

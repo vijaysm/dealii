@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2013 by the deal.II authors
+// Copyright (C) 2001 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -81,7 +81,7 @@ namespace Step40
     void solve ();
     void refine_grid ();
     void get_point_value (const Point<dim> point, const int proc,
-                          Vector<double> &value) const;
+                          Vector<PetscScalar> &value) const;
     void check_periodicity (const unsigned int cycle) const;
     void output_results (const unsigned int cycle) const;
 
@@ -118,7 +118,7 @@ namespace Step40
            :
            std::cout,
            (Utilities::MPI::this_mpi_process(mpi_communicator)
-           == 0))
+            == 0))
   {}
 
 
@@ -192,8 +192,8 @@ namespace Step40
     const unsigned int   dofs_per_cell = fe.dofs_per_cell;
     const unsigned int   n_q_points    = quadrature_formula.size();
 
-    FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
-    Vector<double>       cell_rhs (dofs_per_cell);
+    FullMatrix<PetscScalar>   cell_matrix (dofs_per_cell, dofs_per_cell);
+    Vector<PetscScalar>       cell_rhs (dofs_per_cell);
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
@@ -202,45 +202,45 @@ namespace Step40
     endc = dof_handler.end();
     for (; cell!=endc; ++cell)
       if (cell->is_locally_owned())
-      {
-        cell_matrix = 0;
-        cell_rhs = 0;
-
-        fe_values.reinit (cell);
-
-        for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
         {
-          double rhs_value
-            = (std::cos(2*numbers::PI*fe_values.quadrature_point(q_point)[0]) *
-               std::exp(-1*fe_values.quadrature_point(q_point)[0]) *
-               std::cos(2*numbers::PI*fe_values.quadrature_point(q_point)[1]) *
-               std::exp(-2*fe_values.quadrature_point(q_point)[1]));
+          cell_matrix = PetscScalar();
+          cell_rhs = PetscScalar();
 
-          if (dim==3)
-            rhs_value*=
-              std::cos(2*numbers::PI*fe_values.quadrature_point(q_point)[2]) *
-              std::exp (- 3 * fe_values.quadrature_point(q_point)[2]);
+          fe_values.reinit (cell);
 
-          for (unsigned int i=0; i<dofs_per_cell; ++i)
-          {
-            for (unsigned int j=0; j<dofs_per_cell; ++j)
-              cell_matrix(i,j) += (fe_values.shape_grad(i,q_point) *
-                                   fe_values.shape_grad(j,q_point) *
-                                   fe_values.JxW(q_point));
+          for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
+            {
+              PetscScalar rhs_value
+                = (std::cos(2*numbers::PI*fe_values.quadrature_point(q_point)[0]) *
+                   std::exp(-1*fe_values.quadrature_point(q_point)[0]) *
+                   std::cos(2*numbers::PI*fe_values.quadrature_point(q_point)[1]) *
+                   std::exp(-2*fe_values.quadrature_point(q_point)[1]));
 
-            cell_rhs(i) += (rhs_value *
-                            fe_values.shape_value(i,q_point) *
-                            fe_values.JxW(q_point));
-          }
+              if (dim==3)
+                rhs_value*=
+                  std::cos(2*numbers::PI*fe_values.quadrature_point(q_point)[2]) *
+                  std::exp (- 3 * fe_values.quadrature_point(q_point)[2]);
+
+              for (unsigned int i=0; i<dofs_per_cell; ++i)
+                {
+                  for (unsigned int j=0; j<dofs_per_cell; ++j)
+                    cell_matrix(i,j) += (fe_values.shape_grad(i,q_point) *
+                                         fe_values.shape_grad(j,q_point) *
+                                         fe_values.JxW(q_point));
+
+                  cell_rhs(i) += (rhs_value *
+                                  fe_values.shape_value(i,q_point) *
+                                  fe_values.JxW(q_point));
+                }
+            }
+
+          cell->get_dof_indices (local_dof_indices);
+          constraints.distribute_local_to_global (cell_matrix,
+                                                  cell_rhs,
+                                                  local_dof_indices,
+                                                  system_matrix,
+                                                  system_rhs);
         }
-
-        cell->get_dof_indices (local_dof_indices);
-        constraints.distribute_local_to_global (cell_matrix,
-                                                cell_rhs,
-                                                local_dof_indices,
-                                                system_matrix,
-                                                system_rhs);
-      }
 
     system_matrix.compress (VectorOperation::add);
     system_rhs.compress (VectorOperation::add);
@@ -255,10 +255,11 @@ namespace Step40
                                      dof_handler.n_dofs(),
                                      dof_handler.n_locally_owned_dofs());
 
-    SolverControl solver_control (dof_handler.n_dofs(), 1e-12);
+    SolverControl solver_control (dof_handler.n_dofs(), 1e-12, false, false);
 
     PETScWrappers::SolverCG solver(solver_control, mpi_communicator);
 
+#ifndef PETSC_USE_COMPLEX
     // Ask for a symmetric preconditioner by setting the first parameter in
     // AdditionalData to true.
     PETScWrappers::PreconditionBoomerAMG
@@ -267,9 +268,10 @@ namespace Step40
 
     solver.solve (system_matrix, completely_distributed_solution, system_rhs,
                   preconditioner);
-
-    pcout << "   Solved in " << solver_control.last_step()
-          << " iterations." << std::endl;
+#else
+    solver.solve (system_matrix, completely_distributed_solution, system_rhs,
+                  PETScWrappers::PreconditionJacobi(system_matrix));
+#endif
 
     constraints.distribute (completely_distributed_solution);
 
@@ -286,16 +288,16 @@ namespace Step40
                                         locally_relevant_solution,
                                         estimated_error_per_cell);
     parallel::distributed::GridRefinement::
-      refine_and_coarsen_fixed_number (triangulation,
-                                   estimated_error_per_cell,
-                                   0.3, 0.03);
+    refine_and_coarsen_fixed_number (triangulation,
+                                     estimated_error_per_cell,
+                                     0.3, 0.03);
 
     triangulation.execute_coarsening_and_refinement ();
   }
 
   template <int dim>
   void LaplaceProblem<dim>::get_point_value
-    (const Point<dim> point, const int proc, Vector<double> &value) const
+  (const Point<dim> point, const int proc, Vector<PetscScalar> &value) const
   {
     typename DoFHandler<dim>::active_cell_iterator cell
       = GridTools::find_active_cell_around_point (dof_handler, point);
@@ -305,20 +307,20 @@ namespace Step40
                                 point, value);
 
     std::vector<double> tmp (value.size());
-    for (unsigned int i=0; i<value.size(); ++i)
-      tmp[i]=value[i];
-
     std::vector<double> tmp2 (value.size());
+    for (unsigned int i=0; i<value.size(); ++i)
+      tmp[i]=get_real_assert_zero_imag(value[i]);
+
     MPI_Reduce(&(tmp[0]), &(tmp2[0]), value.size(), MPI_DOUBLE,
                MPI_SUM, proc, mpi_communicator);
-    
+
     for (unsigned int i=0; i<value.size(); ++i)
       value[i]=tmp2[i];
   }
 
   template <int dim>
   void LaplaceProblem<dim>::check_periodicity
-    (const unsigned int cycle) const
+  (const unsigned int cycle) const
   {}
 
   template <>
@@ -327,33 +329,40 @@ namespace Step40
     unsigned int n_points = 2;
     for (unsigned int i = 0; i<cycle; i++)
       n_points*=2;
-    
+
+    //don't test exactly at the support points, since point_value is not stable there
+    const double eps = 1./(16.*n_points);
+
     for (unsigned int i=1; i< n_points; i++)
-    {
-      Vector<double> value1(1);
-      Vector<double> value2(1);
-      
-      Point <2> point1;
-      point1(0)=1.*i/n_points;
-      point1(1)=0.;
-      Point <2> point2;
-      point2(0)=1.*i/n_points;
-      point2(1)=1.;
-      
-      get_point_value (point1, 0, value1);
-      get_point_value (point2, 0, value2);
-      
-      if (Utilities::MPI::this_mpi_process(mpi_communicator)==0)
       {
-        pcout << point1 << "\t" << value1[0] << std::endl;
-        if (std::abs(value2[0]-value1[0])>1e-8)
-        {
-          std::cout<<point1<< "\t" << value1[0] << std::endl;
-          std::cout<<point2<< "\t" << value2[0] << std::endl;
-          Assert(false, ExcInternalError());
-        }
+        Vector<PetscScalar> value1(1);
+        Vector<PetscScalar> value2(1);
+
+        Point <2> point1;
+        point1(0)=1.*i/n_points+eps;
+        point1(1)=0.;
+        Point <2> point2;
+        point2(0)=1.*i/n_points+eps;
+        point2(1)=1.;
+
+        get_point_value (point1, 0, value1);
+        get_point_value (point2, 0, value2);
+
+        if (Utilities::MPI::this_mpi_process(mpi_communicator)==0)
+          {
+            if (std::abs(value2[0]-value1[0])>1e-8)
+              {
+                pcout << point1 << "\t" << "fail" << std::endl;
+                std::cout<<point1<< "\t" << value1[0] << std::endl;
+                std::cout<<point2<< "\t" << value2[0] << std::endl;
+                Assert(false, ExcInternalError());
+              }
+            else
+              {
+                pcout << point1 << "\t" << "pass" << std::endl;
+              }
+          }
       }
-    }
   }
 
   template <>
@@ -362,57 +371,65 @@ namespace Step40
     unsigned int n_points = 2;
     for (unsigned int i = 0; i<cycle; i++)
       n_points*=2;
-    
+
+    //don't test exactly at the support points, since point_value is not stable there
+    const double eps = 1./(16.*n_points);
+
     for (unsigned int i=1; i< n_points; i++)
       for (unsigned int j=1; j< n_points; j++)
-    {
-      Vector<double> value1(1);
-      Vector<double> value2(1);
-      Vector<double> value3(1);
-      Vector<double> value4(1);
-      
-      Point <3> point1;
-      point1(0)=1.*i/n_points;
-      point1(1)=1.*j/n_points;
-      point1(2)=0.;
-      Point <3> point2;
-      point2(0)=1.*i/n_points;
-      point2(1)=1.*j/n_points;
-      point2(2)=1.;
-      Point <3> point3;
-      point3(0)=1.*i/n_points;
-      point3(1)=0.;
-      point3(2)=1.*j/n_points;;
-      Point <3> point4;
-      point4(0)=1.*i/n_points;
-      point4(1)=1.;
-      point4(2)=1.*j/n_points;;
-      
-      get_point_value (point1, 0, value1);
-      get_point_value (point2, 0, value2);
-      get_point_value (point3, 0, value3);
-      get_point_value (point4, 0, value4);
-      
-      if (Utilities::MPI::this_mpi_process(mpi_communicator)==0)
-      {
-        pcout << point1 << "\t" << value1[0] << std::endl;
-        if (std::abs(value2[0]-value1[0])>1e-8)
         {
-          std::cout<<point1<< "\t" << value1[0] << std::endl;
-          std::cout<<point2<< "\t" << value2[0] << std::endl;
-          Assert(false, ExcInternalError());
+          Vector<PetscScalar> value1(1);
+          Vector<PetscScalar> value2(1);
+          Vector<PetscScalar> value3(1);
+          Vector<PetscScalar> value4(1);
+
+          Point <3> point1;
+          point1(0)=1.*i/n_points+eps;
+          point1(1)=1.*j/n_points+eps;
+          point1(2)=0;
+          Point <3> point2;
+          point2(0)=1.*i/n_points+eps;
+          point2(1)=1.*j/n_points+eps;
+          point2(2)=1.;
+          Point <3> point3;
+          point3(0)=1.*i/n_points+eps;
+          point3(1)=0.;
+          point3(2)=1.*j/n_points+eps;
+          Point <3> point4;
+          point4(0)=1.*i/n_points+eps;
+          point4(1)=1.;
+          point4(2)=1.*j/n_points+eps;
+
+          get_point_value (point1, 0, value1);
+          get_point_value (point2, 0, value2);
+          get_point_value (point3, 0, value3);
+          get_point_value (point4, 0, value4);
+
+          if (Utilities::MPI::this_mpi_process(mpi_communicator)==0)
+            {
+              if (std::abs(value2[0]-value1[0])>1e-8)
+                {
+                  pcout << point1 << "\t fail check 0" << std::endl;
+                  std::cout<<point1<< "\t" << value1[0] << std::endl;
+                  std::cout<<point2<< "\t" << value2[0] << std::endl;
+                  Assert(false, ExcInternalError());
+                }
+              else
+                pcout << point1 << "\t pass check 0" << std::endl;
+
+              if (std::abs(value4[0]-value3[0])>1e-8)
+                {
+                  pcout << point3 << "\t fail check 1" << std::endl;
+                  std::cout<<point3<< "\t" << value3[0] << std::endl;
+                  std::cout<<point4<< "\t" << value4[0] << std::endl;
+                  Assert(false, ExcInternalError());
+                }
+              else
+                pcout << point3 << "\t pass check 1" << std::endl;
+            }
         }
-        pcout << point3 << "\t" << value3[0] << std::endl;
-        if (std::abs(value4[0]-value3[0])>1e-8)
-        {
-          std::cout<<point3<< "\t" << value3[0] << std::endl;
-          std::cout<<point4<< "\t" << value4[0] << std::endl;
-          Assert(false, ExcInternalError());
-        }
-      }
-    }
   }
-      
+
   //only needed for graphical output
   template <int dim>
   void LaplaceProblem<dim>::output_results (const unsigned int cycle) const
@@ -457,7 +474,7 @@ namespace Step40
   void LaplaceProblem<dim>::run ()
   {
     pcout << std::endl<< "Testing for dim="<<dim<<std::endl;
-    
+
     const unsigned int n_cycles = 3;
     for (unsigned int cycle=0; cycle<n_cycles; ++cycle)
       {
@@ -470,37 +487,39 @@ namespace Step40
             reps.push_back(2);
             if (dim==3)
               reps.push_back(2);
-            
-            Point<dim> p1(true);
-            Point<dim> p2(true);
-            for (unsigned int i=0;i<dim;++i)
+
+            Point<dim> p1;
+            Point<dim> p2;
+            for (unsigned int i=0; i<dim; ++i)
               p2(i)=1.0;
 
             GridGenerator::subdivided_hyper_rectangle
-              (triangulation,reps,p1,p2,true);
+            (triangulation,reps,p1,p2,true);
 
 
             std::vector<GridTools::PeriodicFacePair<typename parallel::distributed::Triangulation<dim>::cell_iterator> >
-              periodicity_vector;
-              
-            for(int i=1; i<dim; ++i)
+            periodicity_vector;
+
+            for (int i=1; i<dim; ++i)
               GridTools::collect_periodic_faces
-                ( triangulation, /*b_id1*/ 2*i, /*b_id2*/ 2*i+1,
-                  /*direction*/ i, periodicity_vector);
-              
+              ( triangulation, /*b_id1*/ 2*i, /*b_id2*/ 2*i+1,
+                /*direction*/ i, periodicity_vector);
+
             triangulation.add_periodicity(periodicity_vector);
             triangulation.refine_global (1);
           }
         else
-        {
-          refine_grid ();
-        }
+          {
+            refine_grid ();
+          }
 
         setup_system ();
         assemble_system ();
         solve ();
         //output_results (cycle);
+        deallog.push(Utilities::int_to_string(dof_handler.n_dofs(),5));
         check_periodicity(cycle);
+        deallog.pop();
       }
   }
 }
@@ -512,35 +531,33 @@ int main(int argc, char *argv[])
       using namespace dealii;
       using namespace Step40;
 
-      Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
-      deallog.depth_console (0);
+      Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
 
       if (Utilities::MPI::this_mpi_process (MPI_COMM_WORLD)==0)
-      {
-        std::ofstream logfile("output");
-        deallog.attach(logfile, false);
-        deallog.depth_console(0);
-        deallog.threshold_double(1.e-10);
         {
-          LaplaceProblem<2> laplace_problem;
-          laplace_problem.run ();
+          std::ofstream logfile("output");
+          deallog.attach(logfile, false);
+          deallog.threshold_double(1.e-10);
+          {
+            LaplaceProblem<2> laplace_problem;
+            laplace_problem.run ();
+          }
+          {
+            LaplaceProblem<3> laplace_problem;
+            laplace_problem.run ();
+          }
         }
-        {
-          LaplaceProblem<3> laplace_problem;
-          laplace_problem.run ();
-        }
-      }
       else
-      {
         {
-          LaplaceProblem<2> laplace_problem;
-          laplace_problem.run ();
+          {
+            LaplaceProblem<2> laplace_problem;
+            laplace_problem.run ();
+          }
+          {
+            LaplaceProblem<3> laplace_problem;
+            laplace_problem.run ();
+          }
         }
-        {
-          LaplaceProblem<3> laplace_problem;
-          laplace_problem.run ();
-        }
-      }
     }
   catch (std::exception &exc)
     {

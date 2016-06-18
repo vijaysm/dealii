@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -18,6 +18,7 @@
 
 #include "../tests.h"
 #include <deal.II/base/logstream.h>
+#include <deal.II/base/std_cxx11/unique_ptr.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/grid/grid_generator.h>
@@ -37,7 +38,6 @@
 #include <iomanip>
 #include <iomanip>
 #include <string>
-#include <memory>
 
 
 // forward declaration of the function that must be provided in the
@@ -76,17 +76,17 @@ output_matrix (const FullMatrix<double> &m)
 
 
 // output some indicators for a given vector
-template <class VECTOR>
+template <typename VectorType>
 void
-output_vector (const VECTOR &v)
+output_vector (const VectorType &v)
 {
   deallog << v.l1_norm() << ' ' << v.l2_norm() << ' ' << v.linfty_norm()
           << std::endl;
 
   // write out at most 20 equispaced
   // elements of the vector
-  for (unsigned int i=0; i<v.size(); i+=std::max(static_cast<typename VECTOR::size_type>(1),
-                                                 static_cast<typename VECTOR::size_type>(v.size()/20)))
+  for (unsigned int i=0; i<v.size(); i+=std::max(static_cast<typename VectorType::size_type>(1),
+                                                 static_cast<typename VectorType::size_type>(v.size()/20)))
     deallog << v(i) << ' ';
   deallog << std::endl;
 }
@@ -176,7 +176,7 @@ main()
   try
     {
       std::ofstream logfile(output_file_name.c_str());
-      deallog << std::setprecision (6);
+      deallog << std::setprecision (8);
       deallog.attach(logfile);
       deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
@@ -318,4 +318,3 @@ main()
       return 1;
     };
 }
-

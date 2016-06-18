@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -85,7 +85,7 @@ void check_this (Triangulation<3> &tria)
                         << std::endl;
 
               Assert ((fe_face_values1.quadrature_point(q)-
-                       fe_face_values2.quadrature_point(q)).square()
+                       fe_face_values2.quadrature_point(q)).norm_square()
                       < 1e-20,
                       ExcInternalError());
 
@@ -123,7 +123,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   {

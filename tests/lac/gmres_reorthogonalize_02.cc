@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013 by the deal.II authors
+// Copyright (C) 2013 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -40,7 +40,7 @@ void test ()
   for (unsigned int i=0; i<n; ++i)
     matrix.diag_element(i) = (i+1);
 
-  SolverControl control(1000, 1e2*std::numeric_limits<number>::epsilon());
+  SolverControl control(1000, 1e3*std::numeric_limits<number>::epsilon());
   typename SolverGMRES<Vector<number> >::AdditionalData data;
   data.max_n_tmp_vectors = 202;
 
@@ -53,13 +53,12 @@ int main()
   std::ofstream logfile("output");
   deallog << std::setprecision(4);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   deallog.push("double");
   test<double>();
   deallog.pop();
-  deallog.threshold_double(1.e-4);
+  deallog.threshold_double(2.e-4);
   deallog.push("float");
   test<float>();
   deallog.pop();

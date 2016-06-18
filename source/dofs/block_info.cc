@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,7 +16,6 @@
 #include <deal.II/dofs/block_info.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
-#include <deal.II/multigrid/mg_dof_handler.h>
 #include <deal.II/multigrid/mg_tools.h>
 #include <deal.II/fe/fe.h>
 #include <deal.II/fe/fe_tools.h>
@@ -38,7 +37,7 @@ BlockInfo::initialize(const DoFHandler<dim, spacedim> &dof, bool levels_only, bo
 
   if (!active_only && dof.has_level_dofs())
     {
-      std::vector<std::vector<types::global_dof_index> > sizes (dof.get_tria ().n_levels ());
+      std::vector<std::vector<types::global_dof_index> > sizes (dof.get_triangulation().n_levels ());
 
       for (unsigned int i = 0; i < sizes.size (); ++i)
         sizes[i].resize (dof.get_fe ().n_blocks ());

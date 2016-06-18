@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2013 by the deal.II authors
+// Copyright (C) 2001 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -60,7 +60,7 @@ void test ()
       for (unsigned int d=0; d<dim; ++d)
         if (cell->center()(d) > 0)
           subdomain |= (1<<d);
-      Assert (subdomain < (1<<dim), ExcInternalError());
+      AssertThrow (subdomain < (1<<dim), ExcInternalError());
 
       cell->set_subdomain_id (subdomain);
     }
@@ -73,20 +73,20 @@ void test ()
       // check that the number of cells
       // associated is also what the respective
       // function returns
-      Assert (static_cast<unsigned int>
-              (std::count (subdomain_association.begin(),
-                           subdomain_association.end(), subdomain))
-              ==
-              GridTools::count_cells_with_subdomain_association (tria,
-                                                                 subdomain),
-              ExcInternalError());
+      AssertThrow (static_cast<unsigned int>
+                   (std::count (subdomain_association.begin(),
+                                subdomain_association.end(), subdomain))
+                   ==
+                   GridTools::count_cells_with_subdomain_association (tria,
+                       subdomain),
+                   ExcInternalError());
 
       // ...and that this is also the correct
       // number
-      Assert (GridTools::count_cells_with_subdomain_association (tria,
-                                                                 subdomain)
-              == (tria.n_active_cells() / (1<<dim)),
-              ExcInternalError());
+      AssertThrow (GridTools::count_cells_with_subdomain_association (tria,
+                   subdomain)
+                   == (tria.n_active_cells() / (1<<dim)),
+                   ExcInternalError());
     }
 
   deallog << "OK" << std::endl;
@@ -97,7 +97,6 @@ int main ()
 {
   deallog << std::setprecision(4);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();

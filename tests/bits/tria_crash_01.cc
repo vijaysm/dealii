@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1998 - 2013 by the deal.II authors
+// Copyright (C) 1998 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -41,7 +41,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
 
   const unsigned int dim=3;
   Triangulation<dim> tria;
@@ -77,7 +76,7 @@ int main ()
   // flags set
   tria.prepare_coarsening_and_refinement();
   for (cell=tria.begin_active(); cell!=endc; ++cell)
-    Assert (!cell->refine_flag_set(), ExcInternalError());
+    AssertThrow (!cell->refine_flag_set(), ExcInternalError());
 
   tria.execute_coarsening_and_refinement();
 

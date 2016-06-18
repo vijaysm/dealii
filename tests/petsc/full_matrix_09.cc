@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,7 +31,7 @@ void test (PETScWrappers::FullMatrix &m)
       if ((i+2*j+1) % 3 == 0)
         m.set (i,j, i*j*.5+.5);
 
-  m.compress (VectorOperation::add);
+  m.compress (VectorOperation::insert);
 
   // then multiply everything by 1.25 and
   // make sure we retrieve the values we
@@ -42,13 +42,13 @@ void test (PETScWrappers::FullMatrix &m)
     for (unsigned int j=0; j<m.m(); ++j)
       if ((i+2*j+1) % 3 == 0)
         {
-          Assert (m(i,j) == (i*j*.5+.5)*1.25, ExcInternalError());
-          Assert (m.el(i,j) == (i*j*.5+.5)*1.25, ExcInternalError());
+          AssertThrow (m(i,j) == (i*j*.5+.5)*1.25, ExcInternalError());
+          AssertThrow (m.el(i,j) == (i*j*.5+.5)*1.25, ExcInternalError());
         }
       else
         {
-          Assert (m(i,j) == 0, ExcInternalError());
-          Assert (m.el(i,j) == 0, ExcInternalError());
+          AssertThrow (m(i,j) == 0, ExcInternalError());
+          AssertThrow (m.el(i,j) == 0, ExcInternalError());
         }
 
   deallog << "OK" << std::endl;
@@ -60,12 +60,11 @@ int main (int argc,char **argv)
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   try
     {
-      Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+      Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
       {
         PETScWrappers::FullMatrix m (5,5);
         test (m);

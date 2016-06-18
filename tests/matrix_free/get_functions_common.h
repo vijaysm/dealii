@@ -25,6 +25,7 @@
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q.h>
 #include <deal.II/numerics/vector_tools.h>
 
 #include <fstream>
@@ -69,9 +70,9 @@ public:
   {
     FEEvaluation<dim,fe_degree,n_q_points_1d,1,Number> fe_eval (data);
 
-    std::vector<double> reference_values (fe_eval.n_q_points);
-    std::vector<Tensor<1,dim> > reference_grads (fe_eval.n_q_points);
-    std::vector<Tensor<2,dim> > reference_hess (fe_eval.n_q_points);
+    std::vector<Number> reference_values (fe_eval.n_q_points);
+    std::vector<Tensor<1,dim,Number> > reference_grads (fe_eval.n_q_points);
+    std::vector<Tensor<2,dim,Number> > reference_hess (fe_eval.n_q_points);
 
     for (unsigned int cell=cell_range.first; cell<cell_range.second; ++cell)
       {
@@ -218,7 +219,7 @@ void do_test (const DoFHandler<dim> &dof,
 {
   deallog << "Testing " << dof.get_fe().get_name() << std::endl;
   // use this for info on problem
-  //std::cout << "Number of cells: " << dof.get_tria().n_active_cells()
+  //std::cout << "Number of cells: " << dof.get_triangulation().n_active_cells()
   //          << std::endl;
   //std::cout << "Number of degrees of freedom: " << dof.n_dofs() << std::endl;
   //std::cout << "Number of constraints: " << constraints.n_constraints() << std::endl;

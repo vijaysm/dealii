@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -47,7 +47,6 @@
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/error_estimator.h>
 
-#include <deal.II/multigrid/mg_dof_handler.h>
 #include <deal.II/multigrid/multigrid.h>
 #include <deal.II/multigrid/mg_transfer.h>
 #include <deal.II/multigrid/mg_tools.h>
@@ -77,7 +76,7 @@ private:
 
   Triangulation<dim>   triangulation;
   FE_Q<dim>            fe;
-  MGDoFHandler<dim>    mg_dof_handler;
+  DoFHandler<dim>    mg_dof_handler;
 
   SparsityPattern      sparsity_pattern;
   SparseMatrix<double> system_matrix;
@@ -157,7 +156,8 @@ LaplaceProblem<dim>::LaplaceProblem (const unsigned int degree)
 template <int dim>
 void LaplaceProblem<dim>::setup_system ()
 {
-  mg_dof_handler.distribute_dofs (fe);
+  mg_dof_handler.distribute_dofs(fe);
+  mg_dof_handler.distribute_mg_dofs (fe);
   deallog << "Number of degrees of freedom: "
           << mg_dof_handler.n_dofs();
 
@@ -183,7 +183,7 @@ void LaplaceProblem<dim>::setup_system ()
   typename FunctionMap<dim>::type      dirichlet_boundary;
   ZeroFunction<dim>                    homogeneous_dirichlet_bc (1);
   dirichlet_boundary[0] = &homogeneous_dirichlet_bc;
-  MappingQ1<dim> mapping;
+  MappingQGeneric<dim> mapping(1);
   VectorTools::interpolate_boundary_values (mapping,
                                             mg_dof_handler,
                                             dirichlet_boundary,
@@ -239,7 +239,7 @@ void LaplaceProblem<dim>::assemble_system ()
   const Coefficient<dim> coefficient;
   std::vector<double>    coefficient_values (n_q_points);
 
-  typename MGDoFHandler<dim>::active_cell_iterator
+  typename DoFHandler<dim>::active_cell_iterator
   cell = mg_dof_handler.begin_active(),
   endc = mg_dof_handler.end();
   for (; cell!=endc; ++cell)
@@ -293,26 +293,17 @@ void LaplaceProblem<dim>::assemble_multigrid ()
   const Coefficient<dim> coefficient;
   std::vector<double>    coefficient_values (n_q_points);
 
-  std::vector<std::vector<bool> > interface_dofs
-    = mg_constrained_dofs.get_refinement_edge_indices ();
-  std::vector<std::vector<bool> > boundary_interface_dofs
-    = mg_constrained_dofs.get_refinement_edge_boundary_indices ();
-
   std::vector<ConstraintMatrix> boundary_constraints (triangulation.n_levels());
-  std::vector<ConstraintMatrix> boundary_interface_constraints (triangulation.n_levels());
+  ConstraintMatrix empty_constraints;
   for (unsigned int level=0; level<triangulation.n_levels(); ++level)
     {
-      boundary_constraints[level].add_lines (interface_dofs[level]);
-      boundary_constraints[level].add_lines (mg_constrained_dofs.get_boundary_indices()[level]);
+      boundary_constraints[level].add_lines (mg_constrained_dofs.get_refinement_edge_indices(level));
+      boundary_constraints[level].add_lines (mg_constrained_dofs.get_boundary_indices(level));
       boundary_constraints[level].close ();
-
-      boundary_interface_constraints[level]
-      .add_lines (boundary_interface_dofs[level]);
-      boundary_interface_constraints[level].close ();
     }
 
-  typename MGDoFHandler<dim>::cell_iterator cell = mg_dof_handler.begin(),
-                                            endc = mg_dof_handler.end();
+  typename DoFHandler<dim>::cell_iterator cell = mg_dof_handler.begin(),
+                                          endc = mg_dof_handler.end();
 
   for (; cell!=endc; ++cell)
     {
@@ -382,13 +373,38 @@ void LaplaceProblem<dim>::assemble_multigrid ()
       // (in the <code>solve()</code>
       // function) be able to just pass the
       // transpose matrix where necessary.
+      const unsigned int lvl = cell->level();
+
       for (unsigned int i=0; i<dofs_per_cell; ++i)
         for (unsigned int j=0; j<dofs_per_cell; ++j)
-          if ( !(interface_dofs[cell->level()][local_dof_indices[i]]==true &&
-                 interface_dofs[cell->level()][local_dof_indices[j]]==false))
-            cell_matrix(i,j) = 0;
+          if (mg_constrained_dofs.at_refinement_edge(lvl, local_dof_indices[i])
+              &&
+              ! mg_constrained_dofs.at_refinement_edge(lvl, local_dof_indices[j])
+              &&
+              (
+                (!mg_constrained_dofs.is_boundary_index(lvl, local_dof_indices[i])
+                 &&
+                 !mg_constrained_dofs.is_boundary_index(lvl, local_dof_indices[j])
+                ) // ( !boundary(i) && !boundary(j) )
+                ||
+                (
+                  mg_constrained_dofs.is_boundary_index(lvl, local_dof_indices[i])
+                  &&
+                  local_dof_indices[i]==local_dof_indices[j]
+                ) // ( boundary(i) && boundary(j) && i==j )
+              )
+             )
+            {
+              // do nothing, so add entries to interface matrix
+            }
+          else
+            {
+              cell_matrix(i,j) = 0;
+              std::cout << i << " " << j << "\n";
+            }
 
-      boundary_interface_constraints[cell->level()]
+
+      empty_constraints
       .distribute_local_to_global (cell_matrix,
                                    local_dof_indices,
                                    mg_interface_matrices[cell->level()]);
@@ -416,7 +432,7 @@ void LaplaceProblem<dim>::assemble_multigrid ()
 // problem under consideration. In that case,
 // we can use the MGTransferPrebuilt class
 // that, given the constraints on the global
-// level and an MGDoFHandler object computes
+// level and an DoFHandler object computes
 // the matrices corresponding to these
 // transfer operators.
 //
@@ -449,9 +465,9 @@ void LaplaceProblem<dim>::solve ()
   mg_smoother.set_steps(2);
   mg_smoother.set_symmetric(true);
 
-  MGMatrix<> mg_matrix(&mg_matrices);
-  MGMatrix<> mg_interface_up(&mg_interface_matrices);
-  MGMatrix<> mg_interface_down(&mg_interface_matrices);
+  mg::Matrix<> mg_matrix(mg_matrices);
+  mg::Matrix<> mg_interface_up(mg_interface_matrices);
+  mg::Matrix<> mg_interface_down(mg_interface_matrices);
 
   Multigrid<Vector<double> > mg(mg_dof_handler,
                                 mg_matrix,
@@ -492,7 +508,7 @@ void LaplaceProblem<dim>::solve ()
 // exception of two minor differences: The
 // KellyErrorEstimator::estimate function
 // wants an argument of type DoFHandler, not
-// MGDoFHandler, and so we have to cast from
+// DoFHandler, and so we have to cast from
 // derived to base class; and we generate
 // output in VTK format, to use the more
 // modern visualization programs available
@@ -584,7 +600,7 @@ void LaplaceProblem<dim>::run ()
       assemble_multigrid ();
 
       solve ();
-//      output_results (cycle);
+      output_results (cycle);
     }
 }
 
@@ -598,12 +614,10 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(4);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   try
     {
-      deallog.depth_console (0);
 
       LaplaceProblem<2> laplace_problem(1);
       laplace_problem.run ();

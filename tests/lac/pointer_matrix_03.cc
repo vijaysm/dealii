@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -22,13 +22,13 @@
 #include <deal.II/lac/vector.h>
 
 template<typename number>
-  void
-  checkConstructor3(char *name)
-  {
-    deallog << "Init with matrix name" << std::endl;
-    PointerMatrix<FullMatrix<number>, Vector<number> > P(name);
-    deallog << "Is matrix empty:" << P.empty() << std::endl;
-  }
+void
+checkConstructor3(char *name)
+{
+  deallog << "Init with matrix name" << std::endl;
+  PointerMatrix<FullMatrix<number>, Vector<number> > P(name);
+  deallog << "Is matrix empty:" << P.empty() << std::endl;
+}
 
 int
 main()
@@ -38,7 +38,6 @@ main()
   deallog << std::fixed;
   deallog << std::setprecision(4);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   char *name = "Matrix A";

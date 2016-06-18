@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -16,7 +16,7 @@
 
 #include "../tests.h"
 #include "fe_tools_common.h"
-#include <deal.II/lac/parallel_vector.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/sparsity_pattern.h>
 
 // check
@@ -47,18 +47,18 @@ check_this (const FiniteElement<dim> &fe1,
       !fe2.constraints_are_implemented())
     return;
 
-  std::auto_ptr<Triangulation<dim> > tria(make_tria<dim>());
-  std::auto_ptr<DoFHandler<dim> >    dof1(make_dof_handler (*tria, fe1));
-  std::auto_ptr<DoFHandler<dim> >    dof2(make_dof_handler (*tria, fe2));
+  std_cxx11::unique_ptr<Triangulation<dim> > tria(make_tria<dim>());
+  std_cxx11::unique_ptr<DoFHandler<dim> >    dof1(make_dof_handler (*tria, fe1));
+  std_cxx11::unique_ptr<DoFHandler<dim> >    dof2(make_dof_handler (*tria, fe2));
   ConstraintMatrix cm1, cm2;
   DoFTools::make_hanging_node_constraints (*dof1, cm1);
   DoFTools::make_hanging_node_constraints (*dof2, cm2);
   cm1.close ();
   cm2.close ();
 
-  parallel::distributed::Vector<double> in (dof1->n_dofs());
+  LinearAlgebra::distributed::Vector<double> in (dof1->n_dofs());
   for (unsigned int i=0; i<in.size(); ++i) in(i) = i;
-  parallel::distributed::Vector<double> out (dof1->n_dofs());
+  LinearAlgebra::distributed::Vector<double> out (dof1->n_dofs());
 
   FETools::back_interpolate (*dof1, cm1, in, *dof2, cm2, out);
   output_vector (out);

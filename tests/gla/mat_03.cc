@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,6 +30,7 @@
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/dofs/dof_tools.h>
@@ -91,7 +92,7 @@ void test ()
       types::global_dof_index row = 21;
       unsigned int n_values = 4;
       types::global_dof_index cols[] = {21, 22, 23, 39};
-      double vals[] = {1, 201, 401, 101};
+      typename LA::MPI::SparseMatrix::value_type vals[] = {1, 201, 401, 101};
       matrix.add(row, n_values, cols, vals, false, true);
     }
 
@@ -109,7 +110,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
   MPILogInitAll log;
 
   {

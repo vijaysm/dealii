@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2014 by the deal.II authors
+// Copyright (C) 2011 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,22 +13,14 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__mpi_h
-#define __deal2__mpi_h
+#ifndef dealii__mpi_h
+#define dealii__mpi_h
 
 #include <deal.II/base/config.h>
+
 #include <vector>
 
-#if defined(DEAL_II_WITH_MPI) || defined(DEAL_II_WITH_PETSC)
-#  include <mpi.h>
-// Check whether <mpi.h> is a suitable
-// include for us (if MPI_SEEK_SET is not
-// defined, we'll die anyway):
-#  ifndef MPI_SEEK_SET
-#    error "The buildsystem included an insufficient mpi.h header that does not export MPI_SEEK_SET"
-#  endif
-
-#else
+#if !defined(DEAL_II_WITH_MPI) && !defined(DEAL_II_WITH_PETSC)
 // without MPI, we would still like to use
 // some constructs with MPI data
 // types. Therefore, create some dummies
@@ -36,18 +28,21 @@ typedef int MPI_Comm;
 const int MPI_COMM_SELF = 0;
 typedef int MPI_Datatype;
 typedef int MPI_Op;
-namespace MPI
-{
-  static const unsigned int UNSIGNED = 0;
-  static const unsigned int LONG_DOUBLE = 0;
-  static const unsigned int LONG_DOUBLE_COMPLEX = 0;
-  static const unsigned int MAX = 0;
-  static const unsigned int MIN = 0;
-  static const unsigned int SUM = 0;
-}
+
+static const int MPI_MIN = 0;
+static const int MPI_MAX = 0;
+static const int MPI_SUM = 0;
 #endif
 
 DEAL_II_NAMESPACE_OPEN
+
+
+//Forward type declarations to allow MPI sums over tensorial types
+template <int rank, int dim, typename Number> class Tensor;
+template <int rank, int dim, typename Number> class SymmetricTensor;
+
+//Forward type declaration to allow MPI sums over Vector<number> type
+template <typename Number> class Vector;
 
 
 namespace Utilities
@@ -63,15 +58,18 @@ namespace Utilities
   {
     /**
      * Return the number of MPI processes there exist in the given
-     * communicator object. If this is a sequential job, it returns 1.
+     * @ref GlossMPICommunicator "communicator"
+     * object. If this is a sequential job, it returns 1.
      */
     unsigned int n_mpi_processes (const MPI_Comm &mpi_communicator);
 
     /**
-     * Return the number of the present MPI process in the space of processes
-     * described by the given communicator. This will be a unique value for
-     * each process between zero and (less than) the number of all processes
-     * (given by get_n_mpi_processes()).
+     * Return the
+     * @ref GlossMPIRank "rank of the present MPI process"
+     * in the space of processes described by the given
+     * @ref GlossMPICommunicator "communicator".
+     * This will be a unique value for each process between zero and (less
+     * than) the number of all processes (given by get_n_mpi_processes()).
      */
     unsigned int this_mpi_process (const MPI_Comm &mpi_communicator);
 
@@ -81,8 +79,10 @@ namespace Utilities
      * processors. To do that, the other processors need to know who to expect
      * messages from. This function computes this information.
      *
-     * @param mpi_comm A communicator that describes the processors that are
-     * going to communicate with each other.
+     * @param mpi_comm A
+     * @ref GlossMPICommunicator "communicator"
+     * that describes the processors that are going to communicate with each
+     * other.
      *
      * @param destinations The list of processors the current process wants to
      * send information to. This list need not be sorted in any way. If it
@@ -99,8 +99,10 @@ namespace Utilities
                                                   const std::vector<unsigned int> &destinations);
 
     /**
-     * Given a communicator, generate a new communicator that contains the
-     * same set of processors but that has a different, unique identifier.
+     * Given a
+     * @ref GlossMPICommunicator "communicator",
+     * generate a new communicator that contains the same set of processors
+     * but that has a different, unique identifier.
      *
      * This functionality can be used to ensure that different objects, such
      * as distributed matrices, each have unique communicators over which they
@@ -113,18 +115,19 @@ namespace Utilities
 
     /**
      * Return the sum over all processors of the value @p t. This function is
-     * collective over all processors given in the communicator. If deal.II is
-     * not configured for use of MPI, this function simply returns the value
-     * of @p t. This function corresponds to the <code>MPI_Allreduce</code>
-     * function, i.e. all processors receive the result of this operation.
+     * collective over all processors given in the
+     * @ref GlossMPICommunicator "communicator".
+     * If deal.II is not configured for use of MPI, this function simply
+     * returns the value of @p t. This function corresponds to the
+     * <code>MPI_Allreduce</code> function, i.e. all processors receive the
+     * result of this operation.
      *
-     * @note Sometimes, not all processors need a results and in that case one
+     * @note Sometimes, not all processors need a result and in that case one
      * would call the <code>MPI_Reduce</code> function instead of the
      * <code>MPI_Allreduce</code> function. The latter is at most twice as
      * expensive, so if you are concerned about performance, it may be
      * worthwhile investigating whether your algorithm indeed needs the result
-     * everywhere or whether you could get away with calling the current
-     * function and getting the result everywhere.
+     * everywhere.
      *
      * @note This function is only implemented for certain template arguments
      * <code>T</code>, namely <code>float, double, int, unsigned int</code>.
@@ -161,20 +164,55 @@ namespace Utilities
               std::vector<T> &sums);
 
     /**
+     * Like the previous function, but take the sums over the elements of a
+     * Vector<T>.
+     *
+     * Input and output vectors may be the same.
+     */
+    template <typename T>
+    inline
+    void sum (const Vector<T> &values,
+              const MPI_Comm &mpi_communicator,
+              Vector<T> &sums);
+
+
+    /**
+     * Perform an MPI sum of the entries of a symmetric tensor.
+     *
+     * @relates SymmetricTensor
+     */
+    template <int rank, int dim, typename Number>
+    inline
+    SymmetricTensor<rank,dim,Number>
+    sum (const SymmetricTensor<rank,dim,Number> &local,
+         const MPI_Comm &mpi_communicator);
+
+    /**
+     * Perform an MPI sum of the entries of a tensor.
+     *
+     * @relates Tensor
+     */
+    template <int rank, int dim, typename Number>
+    inline
+    Tensor<rank,dim,Number>
+    sum (const Tensor<rank,dim,Number> &local,
+         const MPI_Comm &mpi_communicator);
+
+    /**
      * Return the maximum over all processors of the value @p t. This function
-     * is collective over all processors given in the communicator. If deal.II
-     * is not configured for use of MPI, this function simply returns the
-     * value of @p t. This function corresponds to the
+     * is collective over all processors given in the
+     * @ref GlossMPICommunicator "communicator".
+     * If deal.II is not configured for use of MPI, this function simply
+     * returns the value of @p t. This function corresponds to the
      * <code>MPI_Allreduce</code> function, i.e. all processors receive the
      * result of this operation.
      *
-     * @note Sometimes, not all processors need a results and in that case one
+     * @note Sometimes, not all processors need a result and in that case one
      * would call the <code>MPI_Reduce</code> function instead of the
      * <code>MPI_Allreduce</code> function. The latter is at most twice as
      * expensive, so if you are concerned about performance, it may be
      * worthwhile investigating whether your algorithm indeed needs the result
-     * everywhere or whether you could get away with calling the current
-     * function and getting the result everywhere.
+     * everywhere.
      *
      * @note This function is only implemented for certain template arguments
      * <code>T</code>, namely <code>float, double, int, unsigned int</code>.
@@ -212,10 +250,64 @@ namespace Utilities
               std::vector<T> &maxima);
 
     /**
+     * Return the minimum over all processors of the value @p t. This function
+     * is collective over all processors given in the
+     * @ref GlossMPICommunicator "communicator".
+     * If deal.II is not configured for use of MPI, this function simply
+     * returns the value of @p t. This function corresponds to the
+     * <code>MPI_Allreduce</code> function, i.e. all processors receive the
+     * result of this operation.
+     *
+     * @note Sometimes, not all processors need a result and in that case one
+     * would call the <code>MPI_Reduce</code> function instead of the
+     * <code>MPI_Allreduce</code> function. The latter is at most twice as
+     * expensive, so if you are concerned about performance, it may be
+     * worthwhile investigating whether your algorithm indeed needs the result
+     * everywhere.
+     *
+     * @note This function is only implemented for certain template arguments
+     * <code>T</code>, namely <code>float, double, int, unsigned int</code>.
+     */
+    template <typename T>
+    T min (const T &t,
+           const MPI_Comm &mpi_communicator);
+
+    /**
+     * Like the previous function, but take the minima over the elements of an
+     * array of length N. In other words, the i-th element of the results
+     * array is the minimum of the i-th entries of the input arrays from each
+     * processor.
+     *
+     * Input and output arrays may be the same.
+     */
+    template <typename T, unsigned int N>
+    inline
+    void min (const T (&values)[N],
+              const MPI_Comm &mpi_communicator,
+              T (&minima)[N]);
+
+    /**
+     * Like the previous function, but take the minimum over the elements of a
+     * std::vector. In other words, the i-th element of the results array is
+     * the minimum over the i-th entries of the input arrays from each
+     * processor.
+     *
+     * Input and output vectors may be the same.
+     */
+    template <typename T>
+    inline
+    void min (const std::vector<T> &values,
+              const MPI_Comm &mpi_communicator,
+              std::vector<T> &minima);
+
+
+    /**
      * Data structure to store the result of min_max_avg().
      */
     struct MinMaxAvg
     {
+      // Note: We assume a POD property of this struct in the MPI calls in
+      // min_max_avg
       double sum;
       double min;
       double max;
@@ -226,17 +318,17 @@ namespace Utilities
 
     /**
      * Returns sum, average, minimum, maximum, processor id of minimum and
-     * maximum as a collective operation of on the given MPI communicator @p
-     * mpi_communicator . Each processor's value is given in @p my_value and
+     * maximum as a collective operation of on the given MPI
+     * @ref GlossMPICommunicator "communicator"
+     * @p mpi_communicator. Each processor's value is given in @p my_value and
      * the result will be returned. The result is available on all machines.
      *
-     * @note Sometimes, not all processors need a results and in that case one
+     * @note Sometimes, not all processors need a result and in that case one
      * would call the <code>MPI_Reduce</code> function instead of the
      * <code>MPI_Allreduce</code> function. The latter is at most twice as
      * expensive, so if you are concerned about performance, it may be
      * worthwhile investigating whether your algorithm indeed needs the result
-     * everywhere or whether you could get away with calling the current
-     * function and getting the result everywhere.
+     * everywhere.
      */
     MinMaxAvg
     min_max_avg (const double my_value,
@@ -250,7 +342,7 @@ namespace Utilities
      * control the number threads used in each MPI task.
      *
      * If deal.II is configured with PETSc, the library will also be
-     * initialized in the beginning and destructed at the end automatically
+     * initialized in the beginning and destroyed at the end automatically
      * (internally by calling PetscInitialize() and PetscFinalize()).
      *
      * If a program uses MPI one would typically just create an object of this
@@ -265,261 +357,112 @@ namespace Utilities
     class MPI_InitFinalize
     {
     public:
-
       /**
-       * Constructor. Takes the arguments from the command line (in case of
-       * MPI, the number of processes is specified there), and sets up a
-       * respective communicator by calling <tt>MPI_Init()</tt>. This
-       * constructor can only be called once in a program, since MPI cannot be
-       * initialized twice.
-       *
-       * This constructor sets max_num_threads to 1 (see other constructor).
-       */
-      MPI_InitFinalize (int    &argc,
-                        char ** &argv) /*DEAL_II_DEPRECATED*/;
-
-      /**
-       * Initialize MPI (and, if deal.II was configured to use it, PETSc)
-       * and set the number of threads used by deal.II (via the underlying
+       * Initialize MPI (and, if deal.II was configured to use it, PETSc) and
+       * set the number of threads used by deal.II (via the underlying
        * Threading Building Blocks library) to the given parameter.
        *
-       * @param[in,out] argc A reference to the 'argc' argument passed to main. This
-       *   argument is used to initialize MPI (and, possibly, PETSc) as they
-       *   read arguments from the command line.
-       * @param[in,out] argv A reference to the 'argv' argument passed to main.
-       * @param[in] max_num_threads The maximal number of threads this MPI process
-       *   should utilize. If this argument is set to
-       *   numbers::invalid_unsigned_int, the number of threads is determined by
-       *   automatically in the following way: the number of
-       *   threads to run on this MPI process is set in such a way that all of
-       *   the cores in your node are spoken for. In other words, if you
-       *   have started one MPI process per node, setting this argument is
-       *   equivalent to setting it to the number of cores present in the node
-       *   this MPI process runs on. If you have started as many MPI
-       *   processes per node as there are cores on each node, then
-       *   this is equivalent to passing 1 as the argument. On the
-       *   other hand, if, for example, you start 4 MPI processes
-       *   on each 16-core node, then this option will start 4 worker
-       *   threads for each node. If you start 3 processes on an 8 core
-       *   node, then they will start 3, 3 and 2 threads, respectively.
+       * @param[in,out] argc A reference to the 'argc' argument passed to
+       * main. This argument is used to initialize MPI (and, possibly, PETSc)
+       * as they read arguments from the command line.
+       * @param[in,out] argv A reference to the 'argv' argument passed to
+       * main.
+       * @param[in] max_num_threads The maximal number of threads this MPI
+       * process should utilize. If this argument is set to
+       * numbers::invalid_unsigned_int (the default value), then the number of
+       * threads is determined automatically in the following way: the number
+       * of threads to run on this MPI process is set in such a way that all
+       * of the cores in your node are spoken for. In other words, if you have
+       * started one MPI process per node, setting this argument is equivalent
+       * to setting it to the number of cores present in the node this MPI
+       * process runs on. If you have started as many MPI processes per node
+       * as there are cores on each node, then this is equivalent to passing 1
+       * as the argument. On the other hand, if, for example, you start 4 MPI
+       * processes on each 16-core node, then this option will start 4 worker
+       * threads for each node. If you start 3 processes on an 8 core node,
+       * then they will start 3, 3 and 2 threads, respectively.
        *
-       * @note This function calls MultithreadInfo::set_thread_limit()
-       * with either @p max_num_threads or, following the discussion above, a
-       * number of threads equal to the number of cores allocated to this
-       * MPI process. However, MultithreadInfo::set_thread_limit() in turn also
-       * evaluates the environment variable DEAL_II_NUM_THREADS. Finally, the worker
-       * threads can only be created on cores to which the current MPI process has
-       * access to; some MPI implementations limit the number of cores each process
-       * has access to to one or a subset of cores in order to ensure better cache
-       * behavior. Consequently, the number of threads that will really be created
-       * will be the minimum of the argument passed here, the environment variable
-       * (if set), and the number of cores accessible to the thread.
+       * @note This function calls MultithreadInfo::set_thread_limit() with
+       * either @p max_num_threads or, following the discussion above, a
+       * number of threads equal to the number of cores allocated to this MPI
+       * process. However, MultithreadInfo::set_thread_limit() in turn also
+       * evaluates the environment variable DEAL_II_NUM_THREADS. Finally, the
+       * worker threads can only be created on cores to which the current MPI
+       * process has access to; some MPI implementations limit the number of
+       * cores each process has access to to one or a subset of cores in order
+       * to ensure better cache behavior. Consequently, the number of threads
+       * that will really be created will be the minimum of the argument
+       * passed here, the environment variable (if set), and the number of
+       * cores accessible to the thread.
+       *
+       * @note MultithreadInfo::set_thread_limit() can only work if it is
+       * called before any threads are created. The safest place for a call to
+       * it is therefore at the beginning of <code>main()</code>.
+       * Consequently, this extends to the current class: the best place to
+       * create an object of this type is also at or close to the top of
+       * <code>main()</code>.
        */
       MPI_InitFinalize (int    &argc,
                         char ** &argv,
-                        const unsigned int max_num_threads);
+                        const unsigned int max_num_threads = numbers::invalid_unsigned_int);
 
       /**
        * Destructor. Calls <tt>MPI_Finalize()</tt> in case this class owns the
        * MPI process.
        */
       ~MPI_InitFinalize();
-
-    private:
-      /**
-       * This flag tells the class whether it owns the MPI process (i.e., it
-       * has been constructed using the argc/argv input, or it has been
-       * copied). In the former case, the command <tt>MPI_Finalize()</tt> will
-       * be called at destruction.
-       */
-      const bool owns_mpi;
-
-
-      /**
-       * A common function called by all of the constructors.
-       */
-      void do_init(int    &argc,
-                   char ** &argv);
     };
 
+    /**
+     * Return whether (i) deal.II has been compiled to support MPI (for
+     * example by compiling with <code>CXX=mpiCC</code>) and if so whether
+     * (ii) <code>MPI_Init()</code> has been called (for example using the
+     * Utilities::MPI::MPI_InitFinalize class). In other words, the result
+     * indicates whether the current job is running under MPI.
+     *
+     * @note The function does not take into account whether an MPI job
+     * actually runs on more than one processor or is, in fact, a single-node
+     * job that happens to run under MPI.
+     */
+    bool job_supports_mpi ();
+
+#ifndef DOXYGEN
+    // declaration for an internal function that lives in mpi.templates.h
     namespace internal
     {
-#ifdef DEAL_II_WITH_MPI
-      /**
-       * Return the corresponding MPI data type id for the argument given.
-       */
-      inline MPI_Datatype mpi_type_id (const int *)
-      {
-        return MPI_INT;
-      }
-
-
-      inline MPI_Datatype mpi_type_id (const long int *)
-      {
-        return MPI_LONG;
-      }
-
-
-      inline MPI_Datatype mpi_type_id (const unsigned int *)
-      {
-        return MPI_UNSIGNED;
-      }
-
-
-      inline MPI_Datatype mpi_type_id (const unsigned long int *)
-      {
-        return MPI_UNSIGNED_LONG;
-      }
-
-
-      inline MPI_Datatype mpi_type_id (const unsigned long long int *)
-      {
-        return MPI_UNSIGNED_LONG_LONG;
-      }
-
-
-      inline MPI_Datatype mpi_type_id (const float *)
-      {
-        return MPI_FLOAT;
-      }
-
-
-      inline MPI_Datatype mpi_type_id (const double *)
-      {
-        return MPI_DOUBLE;
-      }
-
-
-      inline MPI_Datatype mpi_type_id (const long double *)
-      {
-        return MPI_LONG_DOUBLE;
-      }
-#endif
+      template <typename T>
+      void all_reduce (const MPI_Op      &mpi_op,
+                       const T *const    values,
+                       const MPI_Comm    &mpi_communicator,
+                       T                 *output,
+                       const std::size_t  size);
     }
 
-
-    template <typename T>
-    inline
-    T sum (const T &t,
-           const MPI_Comm &mpi_communicator)
-    {
-#ifdef DEAL_II_WITH_MPI
-      T sum;
-      MPI_Allreduce (const_cast<void *>(static_cast<const void *>(&t)),
-                     &sum, 1, internal::mpi_type_id(&t), MPI_SUM,
-                     mpi_communicator);
-      return sum;
-#else
-      (void)mpi_communicator;
-      return t;
-#endif
-    }
-
-
+    // Since these depend on N they must live in the header file
     template <typename T, unsigned int N>
-    inline
     void sum (const T (&values)[N],
               const MPI_Comm &mpi_communicator,
               T (&sums)[N])
     {
-#ifdef DEAL_II_WITH_MPI
-      MPI_Allreduce ((&values[0] != &sums[0]
-                      ?
-                      const_cast<void *>(static_cast<const void *>(&values[0]))
-                      :
-                      MPI_IN_PLACE),
-                     &sums[0], N, internal::mpi_type_id(values), MPI_SUM,
-                     mpi_communicator);
-#else
-      (void)mpi_communicator;
-      for (unsigned int i=0; i<N; ++i)
-        sums[i] = values[i];
-#endif
+      internal::all_reduce(MPI_SUM, values, mpi_communicator, sums, N);
     }
-
-
-    template <typename T>
-    inline
-    void sum (const std::vector<T> &values,
-              const MPI_Comm       &mpi_communicator,
-              std::vector<T>       &sums)
-    {
-#ifdef DEAL_II_WITH_MPI
-      sums.resize (values.size());
-      MPI_Allreduce ((&values[0] != &sums[0]
-                      ?
-                      const_cast<void *>(static_cast<const void *>(&values[0]))
-                      :
-                      MPI_IN_PLACE),
-                     &sums[0], values.size(), internal::mpi_type_id((T *)0), MPI_SUM,
-                     mpi_communicator);
-#else
-      (void)mpi_communicator;
-      sums = values;
-#endif
-    }
-
-
-    template <typename T>
-    inline
-    T max (const T &t,
-           const MPI_Comm &mpi_communicator)
-    {
-#ifdef DEAL_II_WITH_MPI
-      T sum;
-      MPI_Allreduce (const_cast<void *>(static_cast<const void *>(&t)),
-                     &sum, 1, internal::mpi_type_id(&t), MPI_MAX,
-                     mpi_communicator);
-      return sum;
-#else
-      (void)mpi_communicator;
-      return t;
-#endif
-    }
-
 
     template <typename T, unsigned int N>
-    inline
     void max (const T (&values)[N],
               const MPI_Comm &mpi_communicator,
               T (&maxima)[N])
     {
-#ifdef DEAL_II_WITH_MPI
-      MPI_Allreduce ((&values[0] != &maxima[0]
-                      ?
-                      const_cast<void *>(static_cast<const void *>(&values[0]))
-                      :
-                      MPI_IN_PLACE),
-                     &maxima[0], N, internal::mpi_type_id(values), MPI_MAX,
-                     mpi_communicator);
-#else
-      (void)mpi_communicator;
-      for (unsigned int i=0; i<N; ++i)
-        maxima[i] = values[i];
-#endif
+      internal::all_reduce(MPI_MAX, values, mpi_communicator, maxima, N);
     }
 
-
-    template <typename T>
-    inline
-    void max (const std::vector<T> &values,
-              const MPI_Comm       &mpi_communicator,
-              std::vector<T>       &maxima)
+    template <typename T, unsigned int N>
+    void min (const T (&values)[N],
+              const MPI_Comm &mpi_communicator,
+              T (&minima)[N])
     {
-#ifdef DEAL_II_WITH_MPI
-      maxima.resize (values.size());
-      MPI_Allreduce ((&values[0] != &maxima[0]
-                      ?
-                      const_cast<void *>(static_cast<const void *>(&values[0]))
-                      :
-                      MPI_IN_PLACE),
-                     &maxima[0], values.size(), internal::mpi_type_id((T *)0), MPI_MAX,
-                     mpi_communicator);
-#else
-      (void)mpi_communicator;
-      maxima = values;
-#endif
+      internal::all_reduce(MPI_MIN, values, mpi_communicator, minima, N);
     }
+#endif
   } // end of namespace MPI
 } // end of namespace Utilities
 

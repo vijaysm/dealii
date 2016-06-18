@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2002 - 2013 by the deal.II authors
+// Copyright (C) 2002 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -44,8 +44,11 @@
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/matrix_tools.h>
 
-template <int dim, typename MATRIX, typename VECTOR>
-void assemble_laplace (MATRIX &B, VECTOR &bb, DoFHandler<dim> &dof_handler, FiniteElement<dim> &fe)
+template <int dim, typename MatrixType, typename VectorType>
+void assemble_laplace (MatrixType         &B,
+                       VectorType         &bb,
+                       DoFHandler<dim>    &dof_handler,
+                       FiniteElement<dim> &fe)
 {
   QGauss<dim>  quadrature_formula(2);
   FEValues<dim> fe_values (fe, quadrature_formula,
@@ -174,12 +177,51 @@ void test ()
   ubb = bb;
 
   SolverControl control (1000, 1e-13);
-
   SolverCG<BlockVector<double> > bcg(control, SolverCG<BlockVector<double> >::AdditionalData());
-  bcg.solve(Bb, bx, bb, PreconditionIdentity());
+
+  switch (dim)
+    {
+    case 1:
+      check_solver_within_range(
+        bcg.solve(Bb, bx, bb, PreconditionIdentity()),
+        control.last_step(), 112, 114);
+      break;
+    case 2:
+      check_solver_within_range(
+        bcg.solve(Bb, bx, bb, PreconditionIdentity()),
+        control.last_step(), 60, 62);
+      break;
+    case 3:
+      check_solver_within_range(
+        bcg.solve(Bb, bx, bb, PreconditionIdentity()),
+        control.last_step(), 24, 26);
+      break;
+    default:
+      Assert(false, ExcNotImplemented());
+    }
 
   SolverCG<Vector<double> > cg(control, SolverCG<Vector<double> >::AdditionalData());
-  cg.solve(B, x, b, PreconditionIdentity());
+
+  switch (dim)
+    {
+    case 1:
+      check_solver_within_range(
+        cg.solve(B, x, b, PreconditionIdentity()),
+        control.last_step(), 112, 114);
+      break;
+    case 2:
+      check_solver_within_range(
+        cg.solve(B, x, b, PreconditionIdentity()),
+        control.last_step(), 60, 62);
+      break;
+    case 3:
+      check_solver_within_range(
+        cg.solve(B, x, b, PreconditionIdentity()),
+        control.last_step(), 24, 26);
+      break;
+    default:
+      Assert(false, ExcNotImplemented());
+    }
 
   deallog << "Sparse Factorization" << std::endl;
   SparseDirectUMFPACK umfpack, umfpackb;
@@ -218,7 +260,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();

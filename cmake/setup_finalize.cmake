@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2014 by the deal.II authors
+## Copyright (C) 2012 - 2016 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -40,7 +40,7 @@ ENDFOREACH()
 # used during the configuration stage:
 #
 FOREACH(_flag ${DEAL_II_REMOVED_FLAGS})
-  IF(NOT "${_flag}" STREQUAL "")
+  IF(NOT "${${_flag}}" STREQUAL "")
     MESSAGE(FATAL_ERROR
       "\nInternal configuration error: The variable ${_flag} was set to a "
       "non empty value during the configuration! (The corresponding "
@@ -62,8 +62,10 @@ ENDFOREACH()
 # Register features:
 #
 FOREACH(_feature ${DEAL_II_FEATURES})
-  FILTER_SYSTEM_LIBRARIES(${_feature}) # TODO, remove here
-  REGISTER_FEATURE(${_feature})
+  IF(DEAL_II_WITH_${_feature})
+    FILTER_SYSTEM_LIBRARIES(${_feature})
+    REGISTER_FEATURE(${_feature})
+  ENDIF()
 ENDFOREACH()
 
 #
@@ -78,20 +80,7 @@ FOREACH(_suffix ${DEAL_II_LIST_SUFFIXES})
 ENDFOREACH()
 
 #
-# Cleanup some files used for storing the names of all object targets that
-# will be bundled to the deal.II library.
-# (Right now, i.e. cmake 2.8.8, this is the only reliable way to get
-# information into a global scope...)
-#
-FOREACH(_build ${DEAL_II_BUILD_TYPES})
-  STRING(TOLOWER "${_build}" _build_lowercase)
-  FILE(REMOVE
-    ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/deal_ii_objects_${_build_lowercase}
-    )
-ENDFOREACH()
-
-#
-# Cleanup deal.IITargets.cmake in the build directory:
+# Clean up deal.IITargets.cmake in the build directory:
 #
 FILE(REMOVE
   ${CMAKE_BINARY_DIR}/${DEAL_II_PROJECT_CONFIG_RELDIR}/${DEAL_II_PROJECT_CONFIG_NAME}Targets.cmake

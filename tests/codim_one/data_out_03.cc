@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2013 by the deal.II authors
+// Copyright (C) 2010 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -67,7 +67,6 @@ public:
 int main ()
 {
   deallog.attach(logfile);
-  deallog.depth_console(0);
 
   int fe_degree =2;
   int mapping_degree = 2;
@@ -94,7 +93,7 @@ int main ()
   boundary_ids.insert(0);
 
   GridGenerator::extract_boundary_mesh (volume_mesh, tria,
-                                    boundary_ids);
+                                        boundary_ids);
 
   // test for the position
   MappingQ<2,3>   mapping(mapping_degree,true);

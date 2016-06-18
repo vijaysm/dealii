@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2013 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -168,7 +168,7 @@ void check_mult_expand (const std::vector<Polynomial<double> > &p)
           double x = (double)Testing::rand()/RAND_MAX;
           double value1 = p[i].value (x) * p[j].value(x);
           double value2 = q   .value (x);
-          if (std::fabs(value1-value2) > std::max(1e-10,1e-10*std::fabs(value1)))
+          if (std::fabs(value1-value2) > std::max(1e-9,1e-9*std::fabs(value1)))
             deallog << "Error multiply at x=" << x
                     << ": p_"<<i<< "(x)*p_"<<j<<"(x)=" << value1
                     << ", q(x)=" << value2 << std::endl;
@@ -217,7 +217,6 @@ int main()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   deallog.push("LagrangeEquidistant");

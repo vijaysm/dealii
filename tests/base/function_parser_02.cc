@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -34,14 +34,12 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
-  
+
 
   std::vector<std::string> function(1);
   std::map<std::string, double> constants;
-  std::map<std::string, double> units;
 
   constants["PI"] = 3.141592654;
   constants["cm"] = 10;
@@ -53,7 +51,7 @@ int main ()
   FunctionParser<2> fp;
   function[0] = "x * cm + y * m + PI";
   fp.initialize(FunctionParser<2>::default_variable_names(),
-                function, constants, units);
+                function, constants);
 
   deallog << "Function " << "[" << function[0] << "]" <<
           " @point " << "[" << point << "]" << " is " <<
@@ -64,7 +62,7 @@ int main ()
   //strings
   FunctionParser<2> fp4;
   fp4.initialize(FunctionParser<2>::default_variable_names(),
-                 function[0], constants, units);
+                 function[0], constants);
 
   deallog << "Function " << "[" << function[0] << "]" <<
           " @point " << "[" << point << "]" << " is " <<

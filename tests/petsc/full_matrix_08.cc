@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -37,7 +37,7 @@ void test (PETScWrappers::FullMatrix &m)
         }
   norm = std::sqrt(norm);
 
-  m.compress (VectorOperation::add);
+  m.compress (VectorOperation::insert);
 
   // compare against the exact value of the
   // l2-norm (max row-sum)
@@ -53,12 +53,11 @@ int main (int argc,char **argv)
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   try
     {
-      Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+      Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
       {
         PETScWrappers::FullMatrix m (5,5);
         test (m);

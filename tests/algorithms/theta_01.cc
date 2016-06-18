@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -30,7 +30,7 @@ using namespace Algorithms;
 
 
 class Explicit
-  : public Operator<Vector<double> >
+  : public OperatorBase
 {
 public:
   Explicit(const FullMatrix<double> &matrix);
@@ -42,7 +42,7 @@ private:
 
 
 class Implicit
-  : public Operator<Vector<double> >
+  : public OperatorBase
 {
 public:
   Implicit(const FullMatrix<double> &matrix);
@@ -59,7 +59,6 @@ int main()
   std::string logname = "output";
   std::ofstream logfile(logname.c_str());
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   FullMatrix<double> matrix(2);
@@ -87,7 +86,7 @@ int main()
   solver.notify(Events::initial);
   solver(outdata, indata);
   deallog << "Result: " << value(0) << ' ' << value(1)
-	  << " Norm " << value.l2_norm() << std::endl;
+          << " Norm " << value.l2_norm() << std::endl;
 }
 
 
@@ -102,8 +101,8 @@ Explicit::Explicit(const FullMatrix<double> &M)
 void
 Explicit::operator() (AnyData &out, const AnyData &in)
 {
-  const double* step = in.read_ptr<double>("Timestep");
-  
+  const double *step = in.read_ptr<double>("Timestep");
+
   if (this->notifications.test(Events::initial) || this->notifications.test(Events::new_timestep_size))
     {
       m.equ(-*step, *matrix);
@@ -127,8 +126,8 @@ Implicit::Implicit(const FullMatrix<double> &M)
 void
 Implicit::operator() (AnyData &out, const AnyData &in)
 {
-  const double * step = in.read_ptr<double>("Timestep");
-  
+  const double *step = in.read_ptr<double>("Timestep");
+
   if (this->notifications.test(Events::initial) || this->notifications.test(Events::new_timestep_size))
     {
       m.equ(*step, *matrix);

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2012 - 2013 by the deal.II authors
+// Copyright (C) 2012 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -54,8 +54,10 @@ void test(FiniteElement<dim> &fe)
   typename DoFHandler<dim>::active_cell_iterator cell = dof.begin_active();
   typename DoFHandler<dim>::face_iterator face = cell->face(1);
 
+  std::vector<FullMatrix<double> > matrices(2);
   MeshWorker::Assembler::MatrixSimple<FullMatrix<double> > ass;
-  ass.initialize_local_blocks(dof.block_info().local());
+  ass.initialize(matrices[0]);
+
   MeshWorker::DoFInfo<dim> info(dof.block_info());
   ass.initialize_info(info, false);
 
@@ -81,7 +83,6 @@ int main()
   const std::string logname = "output";
   std::ofstream logfile(logname.c_str());
   deallog.attach(logfile);
-  deallog.depth_console (0);
 
   FE_DGP<2> p0(0);
   FE_DGP<2> p1(1);

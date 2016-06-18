@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2013 by the deal.II authors
+// Copyright (C) 2008 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -51,7 +51,7 @@ private:
 void test1 ()
 {
   const X x(42);
-  Threads::Thread<void> t = Threads::spawn (x, &X::execute)();
+  Threads::Thread<void> t = Threads::new_thread (&X::execute, x);
   t.join ();
 }
 
@@ -81,7 +81,7 @@ private:
 void test2 ()
 {
   Y y(42);
-  Threads::Thread<void> t = Threads::spawn (y, &Y::execute)();
+  Threads::Thread<void> t = Threads::new_thread (&Y::execute, y);
   t.join ();
 }
 
@@ -92,7 +92,6 @@ int main()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test1 ();

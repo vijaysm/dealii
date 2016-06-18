@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -135,7 +135,7 @@ void
 assemble(const DoFHandler<dim> &dof_handler, SparseMatrix<double> &matrix)
 {
   const FiniteElement<dim> &fe = dof_handler.get_fe();
-  MappingQ1<dim> mapping;
+  MappingQGeneric<dim> mapping(1);
 
   MeshWorker::IntegrationInfoBox<dim> info_box;
   const unsigned int n_gauss_points = dof_handler.get_fe().tensor_degree()+1;
@@ -164,13 +164,13 @@ assemble(const DoFHandler<dim> &dof_handler, SparseMatrix<double> &matrix)
 
 template <int dim>
 void
-assemble(const MGDoFHandler<dim> &dof_handler,
+assemble(const DoFHandler<dim> &dof_handler,
          MGLevelObject<SparseMatrix<double> > matrix,
          MGLevelObject<SparseMatrix<double> > dg_up,
          MGLevelObject<SparseMatrix<double> > dg_down)
 {
   const FiniteElement<dim> &fe = dof_handler.get_fe();
-  MappingQ1<dim> mapping;
+  MappingQGeneric<dim> mapping(1);
 
   MeshWorker::IntegrationInfoBox<dim> info_box;
   const unsigned int n_gauss_points = dof_handler.get_fe().tensor_degree()+1;
@@ -199,7 +199,7 @@ assemble(const MGDoFHandler<dim> &dof_handler,
 
 template <int dim>
 void
-test_simple(MGDoFHandler<dim> &mgdofs)
+test_simple(DoFHandler<dim> &mgdofs)
 {
   SparsityPattern pattern;
   SparseMatrix<double> matrix;
@@ -224,7 +224,7 @@ test_simple(MGDoFHandler<dim> &mgdofs)
   MGLevelObject<SparseMatrix<double> > mg_matrix_dg_up;
   MGLevelObject<SparseMatrix<double> > mg_matrix_dg_down;
 
-  const unsigned int n_levels = mgdofs.get_tria().n_levels();
+  const unsigned int n_levels = mgdofs.get_triangulation().n_levels();
 
   mg_sparsity.resize(0, n_levels-1);
   mg_sparsity_dg_interface.resize(0, n_levels-1);
@@ -278,8 +278,9 @@ test(const FiniteElement<dim> &fe)
        cell != tr.end(); ++cell, ++cn)
     cell->set_user_index(cn);
 
-  MGDoFHandler<dim> dofs(tr);
+  DoFHandler<dim> dofs(tr);
   dofs.distribute_dofs(fe);
+  dofs.distribute_mg_dofs(fe);
   deallog << "DoFHandler " << dofs.n_dofs() << " levels";
   for (unsigned int l=0; l<tr.n_levels(); ++l)
     deallog << ' ' << l << ':' << dofs.n_dofs(l);
@@ -294,7 +295,6 @@ int main ()
   const std::string logname = "output";
   std::ofstream logfile(logname.c_str());
   deallog.attach(logfile);
-  deallog.depth_console (0);
 
   std::vector<std_cxx11::shared_ptr<FiniteElement<2> > > fe2;
   fe2.push_back(std_cxx11::shared_ptr<FiniteElement<2> >(new  FE_DGP<2>(1)));

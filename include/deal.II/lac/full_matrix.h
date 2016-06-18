@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 1999 - 2014 by the deal.II authors
+// Copyright (C) 1999 - 2016 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__full_matrix_h
-#define __deal2__full_matrix_h
+#ifndef dealii__full_matrix_h
+#define dealii__full_matrix_h
 
 
 #include <deal.II/base/config.h>
@@ -42,21 +42,19 @@ template <typename number> class LAPACKFullMatrix;
 
 
 /**
- * Implementation of a classical rectangular scheme of numbers. The
- * data type of the entries is provided in the template argument
- * <tt>number</tt>.  The interface is quite fat and in fact has grown every
- * time a new feature was needed. So, a lot of functions are provided.
+ * Implementation of a classical rectangular scheme of numbers. The data type
+ * of the entries is provided in the template argument <tt>number</tt>.  The
+ * interface is quite fat and in fact has grown every time a new feature was
+ * needed. So, a lot of functions are provided.
  *
- * Internal calculations are usually done with the accuracy of the
- * vector argument to functions. If there is no argument with a number
- * type, the matrix number type is used.
+ * Internal calculations are usually done with the accuracy of the vector
+ * argument to functions. If there is no argument with a number type, the
+ * matrix number type is used.
  *
- * @note Instantiations for this template are provided for
- * <tt>@<float@>, @<double@>, @<long double@>,
- * @<std::complex@<float@>@>, @<std::complex@<double@>@>,
- * @<std::complex@<long double@>@></tt>; others can be generated in
- * application programs (see the section on @ref Instantiations in the
- * manual).
+ * @note Instantiations for this template are provided for <tt>@<float@>,
+ * @<double@>, @<std::complex@<float@>@>,
+ * @<std::complex@<double@>@></tt>. Others can be generated in application
+ * programs (see the section on @ref Instantiations in the manual).
  *
  * @author Guido Kanschat, Franz-Theo Suttmeier, Wolfgang Bangerth, 1993-2004
  */
@@ -65,15 +63,16 @@ class FullMatrix : public Table<2,number>
 {
 public:
   /**
-   * A type of used to index into this container. Because we can not
-   * expect to store matrices bigger than what can be indexed by a regular
-   * unsigned integer, <code>unsigned int</code> is completely sufficient
-   * as an index type.
+   * A type of used to index into this container. Because we can not expect to
+   * store matrices bigger than what can be indexed by a regular unsigned
+   * integer, <code>unsigned int</code> is completely sufficient as an index
+   * type.
    */
   typedef unsigned int size_type;
 
   /**
-   * Type of matrix entries. In analogy to the STL container classes.
+   * Type of matrix entries. This typedef is analogous to <tt>value_type</tt>
+   * in the standard library containers.
    */
   typedef number value_type;
 
@@ -81,9 +80,9 @@ public:
   /**
    * Declare a type that has holds real-valued numbers with the same precision
    * as the template argument to this class. If the template argument of this
-   * class is a real data type, then real_type equals the template
-   * argument. If the template argument is a std::complex type then real_type
-   * equals the type underlying the complex numbers.
+   * class is a real data type, then real_type equals the template argument.
+   * If the template argument is a std::complex type then real_type equals the
+   * type underlying the complex numbers.
    *
    * This typedef is used to represent the return type of norms.
    */
@@ -144,7 +143,7 @@ public:
   };
 
   /**
-   * STL conforming iterator.
+   * Standard-conforming iterator.
    */
   class const_iterator
   {
@@ -226,14 +225,13 @@ public:
               const size_type cols);
 
   /**
-   * Copy constructor. This constructor does a deep copy of the
-   * matrix. Therefore, it poses a possible efficiency problem, if for
-   * example, function arguments are passed by value rather than by
-   * reference. Unfortunately, we can't mark this copy constructor
-   * <tt>explicit</tt>, since that prevents the use of this class in
-   * containers, such as <tt>std::vector</tt>. The responsibility to check
-   * performance of programs must therefore remain with the user of this
-   * class.
+   * Copy constructor. This constructor does a deep copy of the matrix.
+   * Therefore, it poses a possible efficiency problem, if for example,
+   * function arguments are passed by value rather than by reference.
+   * Unfortunately, we can't mark this copy constructor <tt>explicit</tt>,
+   * since that prevents the use of this class in containers, such as
+   * <tt>std::vector</tt>. The responsibility to check performance of programs
+   * must therefore remain with the user of this class.
    */
   FullMatrix (const FullMatrix &);
 
@@ -312,19 +310,19 @@ public:
 
   /**
    * Assignment from different matrix classes. This assignment operator uses
-   * iterators of the class MATRIX. Therefore, sparse matrices are possible
-   * sources.
+   * iterators of the typename MatrixType. Therefore, sparse matrices are
+   * possible sources.
    */
-  template <class MATRIX>
-  void copy_from (const MATRIX &);
+  template <typename MatrixType>
+  void copy_from (const MatrixType &);
 
   /**
    * Transposing assignment from different matrix classes. This assignment
-   * operator uses iterators of the class MATRIX. Therefore, sparse matrices
-   * are possible sources.
+   * operator uses iterators of the typename MatrixType. Therefore, sparse
+   * matrices are possible sources.
    */
-  template <class MATRIX>
-  void copy_transposed (const MATRIX &);
+  template <typename MatrixType>
+  void copy_transposed (const MatrixType &);
 
   /**
    * Fill matrix with elements extracted from a tensor, taking rows included
@@ -361,39 +359,39 @@ public:
           const size_type dst_c=0) const;
 
   /**
-   * Copy a subset of the rows and columns of another matrix into the
-   * current object.
+   * Copy a subset of the rows and columns of another matrix into the current
+   * object.
    *
    * @param matrix The matrix from which a subset is to be taken from.
    * @param row_index_set The set of rows of @p matrix from which to extract.
-   * @param column_index_set The set of columns of @p matrix from which to extract.
-   * @pre The number of elements in @p row_index_set and
-   *      @p column_index_set shall be equal to the number of
-   *      rows and columns in the current object. In other words,
-   *      the current object is not resized for this operation.
+   * @param column_index_set The set of columns of @p matrix from which to
+   * extract. @pre The number of elements in @p row_index_set and @p
+   * column_index_set shall be equal to the number of rows and columns in the
+   * current object. In other words, the current object is not resized for
+   * this operation.
    */
   template <typename MatrixType, typename index_type>
-  void extract_submatrix_from (const MatrixType &matrix,
+  void extract_submatrix_from (const MatrixType              &matrix,
                                const std::vector<index_type> &row_index_set,
                                const std::vector<index_type> &column_index_set);
 
   /**
-   * Copy the elements of the current matrix object into a specified
-   * set of rows and columns of another matrix. Thus, this is a scatter operation.
+   * Copy the elements of the current matrix object into a specified set of
+   * rows and columns of another matrix. Thus, this is a scatter operation.
    *
    * @param row_index_set The rows of @p matrix into which to write.
    * @param column_index_set The columns of @p matrix into which to write.
-   * @param matrix The matrix within which certain elements are to be replaced.
-   * @pre The number of elements in @p row_index_set and
-   *      @p column_index_set shall be equal to the number of
-   *      rows and columns in the current object. In other words,
-   *      the current object is not resized for this operation.
+   * @param matrix The matrix within which certain elements are to be
+   * replaced. @pre The number of elements in @p row_index_set and @p
+   * column_index_set shall be equal to the number of rows and columns in the
+   * current object. In other words, the current object is not resized for
+   * this operation.
    */
   template <typename MatrixType, typename index_type>
   void
   scatter_matrix_to (const std::vector<index_type> &row_index_set,
                      const std::vector<index_type> &column_index_set,
-                     MatrixType &matrix) const;
+                     MatrixType                    &matrix) const;
 
   /**
    * Fill rectangular block.
@@ -438,8 +436,8 @@ public:
   /**
    * Set a particular entry of the matrix to a value. Thus, calling
    * <code>A.set(1,2,3.141);</code> is entirely equivalent to the operation
-   * <code>A(1,2) = 3.141;</code>. This function exists for compatibility
-   * with the various sparse matrix objects.
+   * <code>A(1,2) = 3.141;</code>. This function exists for compatibility with
+   * the various sparse matrix objects.
    *
    * @param i The row index of the element to be set.
    * @param j The columns index of the element to be set.
@@ -566,8 +564,8 @@ public:
    * stream before setting these given values for output, and restores the
    * previous values after output.
    */
-  template <class STREAM>
-  void print (STREAM             &s,
+  template <class StreamType>
+  void print (StreamType         &s,
               const unsigned int  width=5,
               const unsigned int  precision=2) const;
 
@@ -592,7 +590,7 @@ public:
    *
    * @arg <tt>threshold</tt>: all entries with absolute value smaller than
    * this are considered zero.
-  */
+   */
   void print_formatted (std::ostream       &out,
                         const unsigned int  precision=3,
                         const bool          scientific  = true,
@@ -612,7 +610,7 @@ public:
 //@{
 
   /**
-   * STL-like iterator with the first entry.
+   * Iterator starting at the first entry.
    */
   const_iterator begin () const;
 
@@ -622,7 +620,7 @@ public:
   const_iterator end () const;
 
   /**
-   * STL-like iterator with the first entry of row <tt>r</tt>.
+   * Iterator starting at the first entry of row <tt>r</tt>.
    */
   const_iterator begin (const size_type r) const;
 
@@ -688,8 +686,8 @@ public:
   /**
    * Add rectangular block.
    *
-   * A rectangular block of the matrix <tt>src</tt> is added to
-   * <tt>this</tt>. The upper left corner of the block being copied is
+   * A rectangular block of the matrix <tt>src</tt> is added to <tt>this</tt>.
+   * The upper left corner of the block being copied is
    * <tt>(src_offset_i,src_offset_j)</tt>.  The upper left corner of the
    * copied block is <tt>(dst_offset_i,dst_offset_j)</tt>.  The size of the
    * rectangular block being copied is the maximum size possible, determined
@@ -793,7 +791,7 @@ public:
                  const size_type j);
 
   /**
-   *  Swap <i>A(1...n,i) <-> A(1...n,j)</i>.  Swap columns i and j of this
+   * Swap <i>A(1...n,i) <-> A(1...n,j)</i>.  Swap columns i and j of this
    */
   void swap_col (const size_type i,
                  const size_type j);
@@ -841,9 +839,9 @@ public:
 
   /**
    * A=Inverse(A). A must be a square matrix.  Inversion of this matrix by
-   * Gauss-Jordan algorithm with partial pivoting.  This process is
-   * well-behaved for positive definite matrices, but be aware of round-off
-   * errors in the indefinite case.
+   * Gauss-Jordan algorithm with partial pivoting.  This process is well-
+   * behaved for positive definite matrices, but be aware of round-off errors
+   * in the indefinite case.
    *
    * In case deal.II was configured with LAPACK, the functions Xgetrf and
    * Xgetri build an LU factorization and invert the matrix upon that
@@ -908,11 +906,9 @@ public:
    * The optional parameter <tt>adding</tt> determines, whether the result is
    * stored in <tt>C</tt> or added to <tt>C</tt>.
    *
-   * if (adding)
-   *  <i>C += A*B</i>
+   * if (adding) <i>C += A*B</i>
    *
-   * if (!adding)
-   *  <i>C = A*B</i>
+   * if (!adding) <i>C = A*B</i>
    *
    * Assumes that <tt>A</tt> and <tt>B</tt> have compatible sizes and that
    * <tt>C</tt> already has the right size.
@@ -933,11 +929,9 @@ public:
    * The optional parameter <tt>adding</tt> determines, whether the result is
    * stored in <tt>C</tt> or added to <tt>C</tt>.
    *
-   * if (adding)
-   *  <i>C += A<sup>T</sup>*B</i>
+   * if (adding) <i>C += A<sup>T</sup>*B</i>
    *
-   * if (!adding)
-   *  <i>C = A<sup>T</sup>*B</i>
+   * if (!adding) <i>C = A<sup>T</sup>*B</i>
    *
    * Assumes that <tt>A</tt> and <tt>B</tt> have compatible sizes and that
    * <tt>C</tt> already has the right size.
@@ -958,11 +952,9 @@ public:
    * The optional parameter <tt>adding</tt> determines, whether the result is
    * stored in <tt>C</tt> or added to <tt>C</tt>.
    *
-   * if (adding)
-   *  <i>C += A*B<sup>T</sup></i>
+   * if (adding) <i>C += A*B<sup>T</sup></i>
    *
-   * if (!adding)
-   *  <i>C = A*B<sup>T</sup></i>
+   * if (!adding) <i>C = A*B<sup>T</sup></i>
    *
    * Assumes that <tt>A</tt> and <tt>B</tt> have compatible sizes and that
    * <tt>C</tt> already has the right size.
@@ -984,11 +976,9 @@ public:
    * The optional parameter <tt>adding</tt> determines, whether the result is
    * stored in <tt>C</tt> or added to <tt>C</tt>.
    *
-   * if (adding)
-   *  <i>C += A<sup>T</sup>*B<sup>T</sup></i>
+   * if (adding) <i>C += A<sup>T</sup>*B<sup>T</sup></i>
    *
-   * if (!adding)
-   *  <i>C = A<sup>T</sup>*B<sup>T</sup></i>
+   * if (!adding) <i>C = A<sup>T</sup>*B<sup>T</sup></i>
    *
    * Assumes that <tt>A</tt> and <tt>B</tt> have compatible sizes and that
    * <tt>C</tt> already has the right size.
@@ -1026,11 +1016,9 @@ public:
    * The optional parameter <tt>adding</tt> determines, whether the result is
    * stored in <tt>w</tt> or added to <tt>w</tt>.
    *
-   * if (adding)
-   *  <i>w += A*v</i>
+   * if (adding) <i>w += A*v</i>
    *
-   * if (!adding)
-   *  <i>w = A*v</i>
+   * if (!adding) <i>w = A*v</i>
    *
    * Source and destination must not be the same vector.
    */
@@ -1054,11 +1042,9 @@ public:
    * The optional parameter <tt>adding</tt> determines, whether the result is
    * stored in <tt>w</tt> or added to <tt>w</tt>.
    *
-   * if (adding)
-   *  <i>w += A<sup>T</sup>*v</i>
+   * if (adding) <i>w += A<sup>T</sup>*v</i>
    *
-   * if (!adding)
-   *  <i>w = A<sup>T</sup>*v</i>
+   * if (!adding) <i>w = A<sup>T</sup>*v</i>
    *
    *
    * Source and destination must not be the same vector.
@@ -1126,8 +1112,10 @@ public:
 
   //@}
 
-  /** @addtogroup Exceptions
-   * @{ */
+  /**
+   * @addtogroup Exceptions
+   * @{
+   */
 
   /**
    * Exception
@@ -1216,9 +1204,9 @@ void FullMatrix<number>::fill (const number2 *src)
 
 
 template <typename number>
-template <class MATRIX>
+template <typename MatrixType>
 void
-FullMatrix<number>::copy_from (const MATRIX &M)
+FullMatrix<number>::copy_from (const MatrixType &M)
 {
   this->reinit (M.m(), M.n());
 
@@ -1227,8 +1215,8 @@ FullMatrix<number>::copy_from (const MATRIX &M)
   // copy them into the current object
   for (size_type row = 0; row < M.m(); ++row)
     {
-      const typename MATRIX::const_iterator end_row = M.end(row);
-      for (typename MATRIX::const_iterator entry = M.begin(row);
+      const typename MatrixType::const_iterator end_row = M.end(row);
+      for (typename MatrixType::const_iterator entry = M.begin(row);
            entry != end_row; ++entry)
         this->el(row, entry->column()) = entry->value();
     }
@@ -1237,9 +1225,9 @@ FullMatrix<number>::copy_from (const MATRIX &M)
 
 
 template <typename number>
-template <class MATRIX>
+template <typename MatrixType>
 void
-FullMatrix<number>::copy_transposed (const MATRIX &M)
+FullMatrix<number>::copy_transposed (const MatrixType &M)
 {
   this->reinit (M.n(), M.m());
 
@@ -1248,8 +1236,8 @@ FullMatrix<number>::copy_transposed (const MATRIX &M)
   // copy them into the current object
   for (size_type row = 0; row < M.m(); ++row)
     {
-      const typename MATRIX::const_iterator end_row = M.end(row);
-      for (typename MATRIX::const_iterator entry = M.begin(row);
+      const typename MatrixType::const_iterator end_row = M.end(row);
+      for (typename MatrixType::const_iterator entry = M.begin(row);
            entry != end_row; ++entry)
         this->el(entry->column(), row) = entry->value();
     }
@@ -1261,7 +1249,7 @@ template <typename number>
 template <typename MatrixType, typename index_type>
 inline
 void
-FullMatrix<number>::extract_submatrix_from (const MatrixType &matrix,
+FullMatrix<number>::extract_submatrix_from (const MatrixType              &matrix,
                                             const std::vector<index_type> &row_index_set,
                                             const std::vector<index_type> &column_index_set)
 {
@@ -1284,7 +1272,7 @@ inline
 void
 FullMatrix<number>::scatter_matrix_to (const std::vector<index_type> &row_index_set,
                                        const std::vector<index_type> &column_index_set,
-                                       MatrixType &matrix) const
+                                       MatrixType                    &matrix) const
 {
   AssertDimension(row_index_set.size(), this->n_rows());
   AssertDimension(column_index_set.size(), this->n_cols());
@@ -1371,7 +1359,7 @@ inline
 number
 FullMatrix<number>::Accessor::value() const
 {
-  Assert (numbers::is_finite( matrix->el(a_row, a_col) ), ExcNumberNotFinite());
+  AssertIsFinite(matrix->el(a_row, a_col));
   return matrix->el(a_row, a_col);
 }
 
@@ -1539,10 +1527,10 @@ FullMatrix<number>::add (const size_type    row,
 
 
 template <typename number>
-template <class STREAM>
+template <class StreamType>
 inline
 void
-FullMatrix<number>::print (STREAM             &s,
+FullMatrix<number>::print (StreamType         &s,
                            const unsigned int  w,
                            const unsigned int  p) const
 {

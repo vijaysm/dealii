@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2006 - 2013 by the deal.II authors
+ * Copyright (C) 2006 - 2016 by the deal.II authors
  *
  * This file is part of the deal.II library.
  *
@@ -33,6 +33,7 @@
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/constraint_matrix.h>
@@ -284,7 +285,7 @@ namespace Step25
   // and refines it several times. Also, all matrix and vector members of the
   // <code>SineGordonProblem</code> class are initialized to their appropriate
   // sizes once the degrees of freedom have been assembled. Like step-24, we
-  // use the <code>MatrixCreator</code> class to generate a mass matrix $M$
+  // use <code>MatrixCreator</code> functions to generate a mass matrix $M$
   // and a Laplace matrix $A$ and store them in the appropriate variables for
   // the remainder of the program's life.
   template <int dim>
@@ -306,11 +307,9 @@ namespace Step25
               << dof_handler.n_dofs()
               << std::endl;
 
-    sparsity_pattern.reinit (dof_handler.n_dofs(),
-                             dof_handler.n_dofs(),
-                             dof_handler.max_couplings_between_dofs());
-    DoFTools::make_sparsity_pattern (dof_handler, sparsity_pattern);
-    sparsity_pattern.compress ();
+    DynamicSparsityPattern dsp(dof_handler.n_dofs(), dof_handler.n_dofs());
+    DoFTools::make_sparsity_pattern (dof_handler, dsp);
+    sparsity_pattern.copy_from (dsp);
 
     system_matrix.reinit  (sparsity_pattern);
     mass_matrix.reinit    (sparsity_pattern);
@@ -398,7 +397,7 @@ namespace Step25
   // @sect4{SineGordonProblem::compute_nl_term}
 
   // This function computes the vector $S(\cdot,\cdot)$, which appears in the
-  // nonlinear term in the both equations of the split formulation. This
+  // nonlinear term in both equations of the split formulation. This
   // function not only simplifies the repeated computation of this term, but
   // it is also a fundamental part of the nonlinear iterative solver that we
   // use when the time stepping is implicit (i.e. $\theta\ne 0$). Moreover, we
@@ -715,20 +714,16 @@ namespace Step25
 // @sect3{The <code>main</code> function}
 
 // This is the main function of the program. It creates an object of top-level
-// class and calls its principal function. Also, we suppress some of the
-// library output by setting <code>deallog.depth_console</code> to
-// zero. Furthermore, if exceptions are thrown during the execution of the run
-// method of the <code>SineGordonProblem</code> class, we catch and report
-// them here. For more information about exceptions the reader should consult
-// step-6.
+// class and calls its principal function. If exceptions are thrown during the
+// execution of the run method of the <code>SineGordonProblem</code> class, we
+// catch and report them here. For more information about exceptions the
+// reader should consult step-6.
 int main ()
 {
   try
     {
       using namespace dealii;
       using namespace Step25;
-
-      deallog.depth_console (0);
 
       SineGordonProblem<1> sg_problem;
       sg_problem.run ();

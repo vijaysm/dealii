@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2008 - 2013 by the deal.II authors
+// Copyright (C) 2008 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -55,7 +55,6 @@
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 #include <deal.II/lac/trilinos_precondition.h>
 
-#include <deal.II/multigrid/mg_dof_handler.h>
 #include <deal.II/multigrid/mg_constrained_dofs.h>
 #include <deal.II/multigrid/multigrid.h>
 #include <deal.II/multigrid/mg_transfer.h>
@@ -163,10 +162,7 @@ namespace Step50
     fe (degree),
     mg_dof_handler (triangulation),
     degree(degree)
-  {
-    if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD)!=0)
-      deallog.depth_console(0);
-  }
+  {}
 
 
   template <int dim>
@@ -313,22 +309,13 @@ namespace Step50
     const Coefficient<dim> coefficient;
     std::vector<double>    coefficient_values (n_q_points);
 
-    std::vector<std::vector<bool> > interface_dofs
-      = mg_constrained_dofs.get_refinement_edge_indices ();
-    std::vector<std::vector<bool> > boundary_interface_dofs
-      = mg_constrained_dofs.get_refinement_edge_boundary_indices ();
-
     std::vector<ConstraintMatrix> boundary_constraints (triangulation.n_levels());
-    std::vector<ConstraintMatrix> boundary_interface_constraints (triangulation.n_levels());
+    ConstraintMatrix empty_constraints;
     for (unsigned int level=0; level<triangulation.n_levels(); ++level)
       {
-        boundary_constraints[level].add_lines (interface_dofs[level]);
-        boundary_constraints[level].add_lines (mg_constrained_dofs.get_boundary_indices()[level]);
+        boundary_constraints[level].add_lines (mg_constrained_dofs.get_refinement_edge_indices(level));
+        boundary_constraints[level].add_lines (mg_constrained_dofs.get_boundary_indices(level));
         boundary_constraints[level].close ();
-
-        boundary_interface_constraints[level]
-        .add_lines (boundary_interface_dofs[level]);
-        boundary_interface_constraints[level].close ();
       }
 
     typename DoFHandler<dim>::cell_iterator cell = mg_dof_handler.begin(),
@@ -357,14 +344,36 @@ namespace Step50
           .distribute_local_to_global (cell_matrix,
                                        local_dof_indices,
                                        mg_matrices[cell->level()]);
+          const unsigned int lvl = cell->level();
 
           for (unsigned int i=0; i<dofs_per_cell; ++i)
             for (unsigned int j=0; j<dofs_per_cell; ++j)
-              if ( !(interface_dofs[cell->level()][local_dof_indices[i]]==true &&
-                     interface_dofs[cell->level()][local_dof_indices[j]]==false))
-                cell_matrix(i,j) = 0;
+              if (mg_constrained_dofs.at_refinement_edge(lvl, local_dof_indices[i])
+                  &&
+                  ! mg_constrained_dofs.at_refinement_edge(lvl, local_dof_indices[j])
+                  &&
+                  (
+                    (!mg_constrained_dofs.is_boundary_index(lvl, local_dof_indices[i])
+                     &&
+                     !mg_constrained_dofs.is_boundary_index(lvl, local_dof_indices[j])
+                    ) // ( !boundary(i) && !boundary(j) )
+                    ||
+                    (
+                      mg_constrained_dofs.is_boundary_index(lvl, local_dof_indices[i])
+                      &&
+                      local_dof_indices[i]==local_dof_indices[j]
+                    ) // ( boundary(i) && boundary(j) && i==j )
+                  )
+                 )
+                {
+                  // do nothing, so add entries to interface matrix
+                }
+              else
+                {
+                  cell_matrix(i,j) = 0;
+                }
 
-          boundary_interface_constraints[cell->level()]
+          empty_constraints
           .distribute_local_to_global (cell_matrix,
                                        local_dof_indices,
                                        mg_interface_matrices[cell->level()]);
@@ -396,9 +405,9 @@ namespace Step50
     MGSmootherPrecondition<matrix_t, Smoother, vector_t> mg_smoother;
     mg_smoother.initialize(mg_matrices);
     mg_smoother.set_steps(2);
-    MGMatrix<matrix_t,vector_t> mg_matrix(&mg_matrices);
-    MGMatrix<matrix_t,vector_t> mg_interface_up(&mg_interface_matrices);
-    MGMatrix<matrix_t,vector_t> mg_interface_down(&mg_interface_matrices);
+    mg::Matrix<vector_t> mg_matrix(mg_matrices);
+    mg::Matrix<vector_t> mg_interface_up(mg_interface_matrices);
+    mg::Matrix<vector_t> mg_interface_down(mg_interface_matrices);
 
     // Now, we are ready to set up the
     // V-cycle operator and the
@@ -505,14 +514,14 @@ namespace Step50
 // in step-6:
 int main (int argc, char *argv[])
 {
-  dealii::Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv);
+  using namespace dealii;
+  using namespace Step50;
+
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, testing_max_num_threads());
   mpi_initlog();
 
   try
     {
-      using namespace dealii;
-      using namespace Step50;
-
       LaplaceProblem<2> laplace_problem(1);
       laplace_problem.run ();
     }

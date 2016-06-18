@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -59,7 +59,7 @@ void test(std::string filename)
 
   FEValues<dim,spacedim> fe_values (dummy_fe, quadrature,
                                     update_JxW_values |
-                                    update_cell_normal_vectors |
+                                    update_normal_vectors |
                                     update_quadrature_points);
 
   dof_handler.distribute_dofs (dummy_fe);
@@ -76,7 +76,7 @@ void test(std::string filename)
   for (; cell!=endc; ++cell)
     {
       fe_values.reinit (cell);
-      const std::vector<Point<spacedim> > &cellnormals = fe_values.get_cell_normal_vectors();
+      const std::vector<Tensor<1,spacedim> > &cellnormals = fe_values.get_all_normal_vectors();
       const std::vector<Point<spacedim> > &quad_points = fe_values.get_quadrature_points();
 
       for (unsigned int i=0; i<fe_values.n_quadrature_points; ++i)
@@ -90,7 +90,7 @@ void test(std::string filename)
   deallog<<"Approximate measure of hyper sphere = "<<area<<std::endl;
   deallog<<"Error = "<<std::fabs(dim*2*numbers::PI-area)<<std::endl;
   deallog << "Average error in norms: "
-          << ( normals/dof_handler.get_tria().n_active_cells()
+          << ( normals/dof_handler.get_triangulation().n_active_cells()
                /fe_values.n_quadrature_points)
           << std::endl;
 
@@ -101,7 +101,6 @@ void test(std::string filename)
 int main ()
 {
   deallog.attach(logfile);
-  deallog.depth_console(0);
 
   deallog<<"Test <1,2>"<<std::endl;
   test<1,2>(SOURCE_DIR "/grids/circle_1.inp");

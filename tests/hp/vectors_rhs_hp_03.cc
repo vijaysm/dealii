@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -85,7 +85,7 @@ check ()
   // of one Q1 and one Q2 element
   hp::FECollection<dim> element;
   for (unsigned int i=1; i<7-dim; ++i)
-    element.push_back (FE_Q<dim>(i));
+    element.push_back (FE_Q<dim>(QIterated<1>(QTrapez<1>(),i)));
   hp::DoFHandler<dim> dof(tr);
   for (typename hp::DoFHandler<dim>::active_cell_iterator
        cell = dof.begin_active(); cell!=dof.end(); ++cell)
@@ -118,11 +118,8 @@ check ()
 int main ()
 {
   std::ofstream logfile ("output");
-  logfile.precision (4);
-  logfile.setf(std::ios::fixed);
-  deallog << std::setprecision(4) << std::fixed;
+  deallog << std::setprecision(8) << std::fixed;
   deallog.attach(logfile);
-  deallog.depth_console (0);
 
   deallog.push ("1d");
   check<1> ();

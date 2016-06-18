@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -28,7 +28,6 @@
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
-#include <deal.II/multigrid/mg_dof_handler.h>
 #include <deal.II/multigrid/mg_transfer_component.h>
 #include <deal.II/multigrid/mg_tools.h>
 
@@ -55,9 +54,10 @@ void check_select(const FiniteElement<dim> &fe,
   GridGenerator::hyper_cube(tr);
   tr.refine_global(2);
 
-  MGDoFHandler<dim> mgdof(tr);
+  DoFHandler<dim> mgdof(tr);
   DoFHandler<dim> &dof=mgdof;
   mgdof.distribute_dofs(fe);
+  mgdof.distribute_mg_dofs(fe);
   DoFRenumbering::component_wise(static_cast<DoFHandler<dim>&>(mgdof),
                                  target_component);
   vector<types::global_dof_index> ndofs(*std::max_element (target_component.begin(),
@@ -67,7 +67,7 @@ void check_select(const FiniteElement<dim> &fe,
   for (unsigned int l=0; l<tr.n_levels(); ++l)
     DoFRenumbering::component_wise(mgdof, l, mg_target_component);
 
-  std::vector<std::vector<types::global_dof_index> > mg_ndofs(mgdof.get_tria().n_levels());
+  std::vector<std::vector<types::global_dof_index> > mg_ndofs(mgdof.get_triangulation().n_levels());
   MGTools::count_dofs_per_component(mgdof, mg_ndofs, true, mg_target_component);
 
   deallog << "Global  dofs:";
@@ -127,7 +127,6 @@ int main()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   std::vector<unsigned int> v1(4);

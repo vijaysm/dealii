@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,15 +27,17 @@ namespace
 
 
 
-template <int dim>
-FE_Nothing<dim>::FE_Nothing (const unsigned int n_components)
+template <int dim, int spacedim>
+FE_Nothing<dim,spacedim>::FE_Nothing (const unsigned int n_components,
+                                      const bool dominate)
   :
-  FiniteElement<dim>
+  FiniteElement<dim,spacedim>
   (FiniteElementData<dim>(std::vector<unsigned>(dim+1,0),
                           n_components, 0,
                           FiniteElementData<dim>::unknown),
    std::vector<bool>(),
-   std::vector<ComponentMask>() )
+   std::vector<ComponentMask>() ),
+  dominate(dominate)
 {
 // in most other elements we have to set up all sorts of stuff
 // here. there isn't much that we have to do here; in particular,
@@ -45,18 +47,18 @@ FE_Nothing<dim>::FE_Nothing (const unsigned int n_components)
 }
 
 
-template <int dim>
-FiniteElement<dim> *
-FE_Nothing<dim>::clone() const
+template <int dim, int spacedim>
+FiniteElement<dim,spacedim> *
+FE_Nothing<dim,spacedim>::clone() const
 {
-  return new FE_Nothing<dim>(*this);
+  return new FE_Nothing<dim,spacedim>(*this);
 }
 
 
 
-template <int dim>
+template <int dim, int spacedim>
 std::string
-FE_Nothing<dim>::get_name () const
+FE_Nothing<dim,spacedim>::get_name () const
 {
   std::ostringstream namebuf;
   namebuf << "FE_Nothing<" << dim << ">(";
@@ -68,162 +70,184 @@ FE_Nothing<dim>::get_name () const
 
 
 
-template <int dim>
+template <int dim, int spacedim>
 UpdateFlags
-FE_Nothing<dim>::update_once (const UpdateFlags /*flags*/) const
+FE_Nothing<dim,spacedim>::requires_update_flags (const UpdateFlags flags) const
 {
-  return update_default;
+  return flags;
 }
 
 
 
-template <int dim>
-UpdateFlags
-FE_Nothing<dim>::update_each (const UpdateFlags /*flags*/) const
-{
-  return update_default;
-}
-
-
-
-template <int dim>
+template <int dim, int spacedim>
 double
-FE_Nothing<dim>::shape_value (const unsigned int /*i*/,
-                              const Point<dim> & /*p*/) const
+FE_Nothing<dim,spacedim>::shape_value (const unsigned int /*i*/,
+                                       const Point<dim> & /*p*/) const
 {
+  (void)zero_dof_message;
   Assert(false,ExcMessage(zero_dof_message));
   return 0;
 }
 
 
 
-template <int dim>
-typename Mapping<dim>::InternalDataBase *
-FE_Nothing<dim>::get_data (const UpdateFlags  /*flags*/,
-                           const Mapping<dim> & /*mapping*/,
-                           const Quadrature<dim> & /*quadrature*/) const
+template <int dim, int spacedim>
+typename FiniteElement<dim,spacedim>::InternalDataBase *
+FE_Nothing<dim,spacedim>::get_data (const UpdateFlags                                                    /*update_flags*/,
+                                    const Mapping<dim,spacedim>                                         &/*mapping*/,
+                                    const Quadrature<dim>                                               &/*quadrature*/,
+                                    dealii::internal::FEValues::FiniteElementRelatedData<dim, spacedim> &/*output_data*/) const
 {
   // Create a default data object.  Normally we would then
   // need to resize things to hold the appropriate numbers
   // of dofs, but in this case all data fields are empty.
-  typename Mapping<dim>::InternalDataBase *data
-    = new typename FiniteElement<dim>::InternalDataBase();
+  typename FiniteElement<dim,spacedim>::InternalDataBase *data
+    = new typename FiniteElement<dim,spacedim>::InternalDataBase();
   return data;
 }
 
 
 
-template <int dim>
+template <int dim, int spacedim>
 void
-FE_Nothing<dim>::
-fill_fe_values (const Mapping<dim> & /*mapping*/,
-                const typename Triangulation<dim>::cell_iterator & /*cell*/,
-                const Quadrature<dim> & /*quadrature*/,
-                typename Mapping<dim>::InternalDataBase & /*mapping_data*/,
-                typename Mapping<dim>::InternalDataBase & /*fedata*/,
-                FEValuesData<dim,dim> & /*data*/,
-                CellSimilarity::Similarity & /*cell_similarity*/) const
+FE_Nothing<dim,spacedim>::
+fill_fe_values (const typename Triangulation<dim,spacedim>::cell_iterator &,
+                const CellSimilarity::Similarity                                     ,
+                const Quadrature<dim> &,
+                const Mapping<dim,spacedim> &,
+                const typename Mapping<dim,spacedim>::InternalDataBase &,
+                const dealii::internal::FEValues::MappingRelatedData<dim, spacedim> &,
+                const typename FiniteElement<dim,spacedim>::InternalDataBase &,
+                dealii::internal::FEValues::FiniteElementRelatedData<dim, spacedim> &) const
 {
   // leave data fields empty
 }
 
 
 
-template <int dim>
+template <int dim, int spacedim>
 void
-FE_Nothing<dim>::
-fill_fe_face_values (const Mapping<dim> & /*mapping*/,
-                     const typename Triangulation<dim>::cell_iterator & /*cell*/,
-                     const unsigned int /*face*/,
-                     const Quadrature<dim-1> & /*quadrature*/,
-                     typename Mapping<dim>::InternalDataBase & /*mapping_data*/,
-                     typename Mapping<dim>::InternalDataBase & /*fedata*/,
-                     FEValuesData<dim,dim> & /*data*/) const
-{
-  // leave data fields empty
-}
-
-template <int dim>
-void
-FE_Nothing<dim>::
-fill_fe_subface_values (const Mapping<dim> & /*mapping*/,
-                        const typename Triangulation<dim>::cell_iterator & /*cell*/,
-                        const unsigned int /*face*/,
-                        const unsigned int /*subface*/,
-                        const Quadrature<dim-1> & /*quadrature*/,
-                        typename Mapping<dim>::InternalDataBase & /*mapping_data*/,
-                        typename Mapping<dim>::InternalDataBase & /*fedata*/,
-                        FEValuesData<dim,dim> & /*data*/) const
+FE_Nothing<dim,spacedim>::
+fill_fe_face_values (const typename Triangulation<dim,spacedim>::cell_iterator &,
+                     const unsigned int                                                   ,
+                     const Quadrature<dim-1>                                             &,
+                     const Mapping<dim,spacedim> &,
+                     const typename Mapping<dim,spacedim>::InternalDataBase &,
+                     const dealii::internal::FEValues::MappingRelatedData<dim, spacedim> &,
+                     const typename FiniteElement<dim,spacedim>::InternalDataBase &,
+                     dealii::internal::FEValues::FiniteElementRelatedData<dim, spacedim> &) const
 {
   // leave data fields empty
 }
 
 
-template <int dim>
-FiniteElementDomination::Domination
-FE_Nothing<dim> ::
-compare_for_face_domination (const FiniteElement<dim> &) const
+
+template <int dim, int spacedim>
+void
+FE_Nothing<dim,spacedim>::
+fill_fe_subface_values (const typename Triangulation<dim,spacedim>::cell_iterator &,
+                        const unsigned int                                                   ,
+                        const unsigned int                                                   ,
+                        const Quadrature<dim-1>                                             &,
+                        const Mapping<dim,spacedim> &,
+                        const typename Mapping<dim,spacedim>::InternalDataBase &,
+                        const dealii::internal::FEValues::MappingRelatedData<dim, spacedim> &,
+                        const typename FiniteElement<dim,spacedim>::InternalDataBase &,
+                        dealii::internal::FEValues::FiniteElementRelatedData<dim, spacedim> &) const
 {
-  return FiniteElementDomination::no_requirements;
+  // leave data fields empty
 }
 
 
-template <int dim>
-std::vector<std::pair<unsigned int, unsigned int> >
-FE_Nothing<dim> ::
-hp_vertex_dof_identities (const FiniteElement<dim> &/*fe_other*/) const
-{
-  // the FE_Nothing has no
-  // degrees of freedom, so there
-  // are no equivalencies to be
-  // recorded
-  return std::vector<std::pair<unsigned int, unsigned int> > ();
-}
 
-
-template <int dim>
-std::vector<std::pair<unsigned int, unsigned int> >
-FE_Nothing<dim> ::
-hp_line_dof_identities (const FiniteElement<dim> &/*fe_other*/) const
-{
-  // the FE_Nothing has no
-  // degrees of freedom, so there
-  // are no equivalencies to be
-  // recorded
-  return std::vector<std::pair<unsigned int, unsigned int> > ();
-}
-
-
-template <int dim>
-std::vector<std::pair<unsigned int, unsigned int> >
-FE_Nothing<dim> ::
-hp_quad_dof_identities (const FiniteElement<dim> &/*fe_other*/) const
-{
-  // the FE_Nothing has no
-  // degrees of freedom, so there
-  // are no equivalencies to be
-  // recorded
-  return std::vector<std::pair<unsigned int, unsigned int> > ();
-}
-
-
-template <int dim>
+template <int dim, int spacedim>
 bool
-FE_Nothing<dim> ::
+FE_Nothing<dim,spacedim>::is_dominating() const
+{
+  return dominate;
+}
+
+
+template <int dim, int spacedim>
+FiniteElementDomination::Domination
+FE_Nothing<dim,spacedim> ::
+compare_for_face_domination (const FiniteElement<dim,spacedim> &fe) const
+{
+  // if FE_Nothing does not dominate, there are no requirements
+  if (!dominate)
+    {
+      return FiniteElementDomination::no_requirements;
+    }
+  // if it does and the other is FE_Nothing, either can dominate
+  else if (dynamic_cast<const FE_Nothing<dim>*>(&fe) != 0)
+    {
+      return FiniteElementDomination::either_element_can_dominate;
+    }
+  // otherwise we dominate whatever fe is provided
+  else
+    {
+      return FiniteElementDomination::this_element_dominates;
+    }
+}
+
+
+template <int dim, int spacedim>
+std::vector<std::pair<unsigned int, unsigned int> >
+FE_Nothing<dim,spacedim> ::
+hp_vertex_dof_identities (const FiniteElement<dim,spacedim> &/*fe_other*/) const
+{
+  // the FE_Nothing has no
+  // degrees of freedom, so there
+  // are no equivalencies to be
+  // recorded
+  return std::vector<std::pair<unsigned int, unsigned int> > ();
+}
+
+
+template <int dim, int spacedim>
+std::vector<std::pair<unsigned int, unsigned int> >
+FE_Nothing<dim,spacedim> ::
+hp_line_dof_identities (const FiniteElement<dim,spacedim> &/*fe_other*/) const
+{
+  // the FE_Nothing has no
+  // degrees of freedom, so there
+  // are no equivalencies to be
+  // recorded
+  return std::vector<std::pair<unsigned int, unsigned int> > ();
+}
+
+
+template <int dim, int spacedim>
+std::vector<std::pair<unsigned int, unsigned int> >
+FE_Nothing<dim,spacedim> ::
+hp_quad_dof_identities (const FiniteElement<dim,spacedim> &/*fe_other*/) const
+{
+  // the FE_Nothing has no
+  // degrees of freedom, so there
+  // are no equivalencies to be
+  // recorded
+  return std::vector<std::pair<unsigned int, unsigned int> > ();
+}
+
+
+template <int dim, int spacedim>
+bool
+FE_Nothing<dim,spacedim> ::
 hp_constraints_are_implemented () const
 {
   return true;
 }
 
 
-template <int dim>
+template <int dim, int spacedim>
 void
-FE_Nothing<dim>::
-get_face_interpolation_matrix (const FiniteElement<dim> &/*source_fe*/,
+FE_Nothing<dim,spacedim>::
+get_face_interpolation_matrix (const FiniteElement<dim,spacedim> &/*source_fe*/,
                                FullMatrix<double>       &interpolation_matrix) const
 {
   // since this element has no face dofs, the
   // interpolation matrix is necessarily empty
+  (void)interpolation_matrix;
 
   Assert (interpolation_matrix.m() == 0,
           ExcDimensionMismatch (interpolation_matrix.m(),
@@ -234,16 +258,17 @@ get_face_interpolation_matrix (const FiniteElement<dim> &/*source_fe*/,
 }
 
 
-template <int dim>
+template <int dim, int spacedim>
 void
-FE_Nothing<dim>::
-get_subface_interpolation_matrix (const FiniteElement<dim> & /*source_fe*/,
+FE_Nothing<dim,spacedim>::
+get_subface_interpolation_matrix (const FiniteElement<dim,spacedim> & /*source_fe*/,
                                   const unsigned int /*index*/,
                                   FullMatrix<double>  &interpolation_matrix) const
 {
   // since this element has no face dofs, the
   // interpolation matrix is necessarily empty
 
+  (void)interpolation_matrix;
   Assert (interpolation_matrix.m() == 0,
           ExcDimensionMismatch (interpolation_matrix.m(),
                                 0));

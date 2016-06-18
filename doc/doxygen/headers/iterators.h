@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2013, 2014 by the deal.II authors
+// Copyright (C) 2013, 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,7 +17,7 @@
  @defgroup Iterators Iterators on mesh-like containers
  @{
 
-deal.II has several classes which are understood conceptionally as
+deal.II has several classes which are understood conceptually as
 meshes. Apart from the obvious Triangulation, these are, for example,
 DoFHandler and hp::DoFHandler. All of those define a set
 of iterators, allowing the user to traverse the whole mesh, i.e. the
@@ -33,7 +33,7 @@ Basically, the template signature of TriaIterator is
 Conceptually, this type represents something like a pointer to an object
 represented by the <code>Accessor</code> class.  Usually, you will not use the
 actual class names spelled out directly, but employ one of the typedefs
-provided by the container classes, such as <code>typename
+provided by the mesh classes, such as <code>typename
 Triangulation::cell_iterator</code>. Before going into this, let us
 first discuss the concept of iterators, before delving into what the accessors
 do.
@@ -43,7 +43,7 @@ element using <tt>operator ++</tt>, and decremented to the previous element
 using <tt>operator --</tt>. One can also jump <tt>n</tt> elements ahead using
 the addition operator, <tt>it=it+n</tt>, and correspondingly to move a number
 of elements back. In addition, and keeping with the tradition of the standard
-template library, containers provide member functions <tt>begin()</tt> and
+template library, meshes provide member functions <tt>begin()</tt> and
 <tt>end()</tt> that provide the first element of a collection and a
 one-past-the-end iterator, respectively. Since there are a number of different
 iterators available, there is actually a whole family of such functions, such
@@ -78,9 +78,9 @@ quadtree (in 2d), or an octree (in 3d). The collection of these trees
 emanating from the cells of the coarse mesh then constitutes the forest that
 completely describes the triangulation, including all of its active and
 inactive cells. In particular, the active cells are those terminal nodes in
-the tree that have no decendants, i.e. cells which are not further
+the tree that have no descendants, i.e. cells which are not further
 refined. Correspondingly, inactive cells correspond to nodes in the tree with
-descendents, i.e. cells that are further refined.
+descendants, i.e. cells that are further refined.
 
 A triangulation contains forests for lines (each of which may have 2
 children), quads (each with possibly four children), and hexes (each with no
@@ -225,11 +225,11 @@ iterator are
   line->child(0);
   hex->face(3);
   cell->at_boundary();
-  face->boundary_indicator();
+  face->boundary_id();
 @endcode
 
 Since dereferencing iterators yields accessor objects, these calls are to
-member functions <code>Accesor::vertex()</code>,
+member functions <code>Accessor::vertex()</code>,
 <code>Accessor::child()</code> etc. These in turn figure out the relevant data
 from the various data structures that store this data. How this is actually
 done and what data structures are used is not really of concern to authors of
@@ -269,12 +269,12 @@ of accessor classes:
 
 Except to look up member documentation, you will not usually have to deal with
 the actual class names listed above. Rather, one uses the typedefs provided by
-the container classes Triangulation, DoFHandler and hp::DoFHandler, as well
+the mesh classes Triangulation, DoFHandler and hp::DoFHandler, as well
 as the function that generate such objects:
 
 <table border=1>
   <tr>
-    <th>Container</th>
+    <th>Class</th>
     <th>cell_iterator type</th>
     <th>function call</th>
   </tr>
@@ -301,7 +301,7 @@ as the function that generate such objects:
 
 <table border=1>
   <tr>
-    <th>Container</th>
+    <th>Class</th>
     <th>face_iterator type</th>
     <th>function call</th>
   </tr>
@@ -330,7 +330,7 @@ Likewise, active iterators have the following properties:
 
 <table border=1>
   <tr>
-    <th>Container</th>
+    <th>Class</th>
     <th>cell_iterator type</th>
     <th>function call</th>
   </tr>
@@ -357,7 +357,7 @@ Likewise, active iterators have the following properties:
 
 <table border=1>
   <tr>
-    <th>Container</th>
+    <th>Class</th>
     <th>face_iterator type</th>
     <th>function call</th>
   </tr>
@@ -389,7 +389,7 @@ a hexahedron in 3d), there are corresponding types and calls like
 dimension independent geometric objects line, quad, and hex. These calls,
 just as the ones above, exist in active and non-active forms.
 
-The actual definition of all the typedefs local to the container classes are
+The actual definition of all the typedefs local to the mesh classes are
 stated in the
 
 - internal::Triangulation::Iterators<1,spacedim>,
@@ -397,9 +397,9 @@ stated in the
   internal::Triangulation::Iterators<3,spacedim> classes for Triangulation
   iterators,
 
-- internal::DoFHandler::Iterators<DH<1,spacedim> >,
-  internal::DoFHandler::Iterators<DH<2,spacedim> >, and
-  internal::DoFHandler::Iterators<DH<3,spacedim> > classes for DoFHandler
+- internal::DoFHandler::Iterators<DoFHandlerType<1,spacedim> >,
+  internal::DoFHandler::Iterators<DoFHandlerType<2,spacedim> >, and
+  internal::DoFHandler::Iterators<DoFHandlerType<3,spacedim> > classes for DoFHandler
   and hp::DoFHandler iterators,
 
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -27,7 +27,7 @@ void test()
   constraints.add_line(1);
   constraints.add_entry(1,2,1.);
   constraints.add_entry(1,3,1.);
-  
+
   constraints.add_line(3);
   constraints.add_entry(3,4,1.);
   constraints.add_entry(3,5,1.);
@@ -42,7 +42,7 @@ void test()
   indices[1] = 2;
   indices[2] = 3;
   indices[3] = 5;
-  
+
   constraints.resolve_indices(indices);
 
   for (unsigned int i=0; i<indices.size(); ++i)
@@ -55,7 +55,6 @@ int main()
   logfile.precision(2);
 
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test();

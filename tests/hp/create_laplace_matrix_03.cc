@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2000 - 2013 by the deal.II authors
+// Copyright (C) 2000 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -71,7 +71,7 @@ check ()
   hp::FECollection<dim> element;
   element.push_back (FE_Q<dim>(1));
   element.push_back (FE_Q<dim>(2));
-  element.push_back (FE_Q<dim>(3));
+  element.push_back (FE_Q<dim>(QIterated<1>(QTrapez<1>(),3)));
 
   hp::DoFHandler<dim> dof(tr);
 
@@ -121,8 +121,9 @@ check ()
   // multiply matrix by 100 to
   // make test more sensitive
   deallog << "Matrix: " << std::endl;
-  for (unsigned int i=0; i<matrix.n_nonzero_elements(); ++i)
-    deallog << matrix.global_entry(i) * 100
+  for (SparseMatrix<double>::const_iterator p=matrix.begin();
+       p!=matrix.end(); ++p)
+    deallog << p->value() * 100
             << std::endl;
 
   deallog << "RHS vector: " << std::endl;
@@ -138,7 +139,6 @@ int main ()
   deallog << std::setprecision (2);
   deallog << std::fixed;
   deallog.attach(logfile);
-  deallog.depth_console (0);
 
   deallog.push ("1d");
   check<1> ();

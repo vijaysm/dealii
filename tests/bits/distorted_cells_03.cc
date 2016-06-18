@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -85,7 +85,7 @@ void check ()
   // set bottom face to use MyBoundary
   for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
     if (coarse_grid.begin_active()->face(f)->center()[dim-1] == -1)
-      coarse_grid.begin_active()->face(f)->set_boundary_indicator (1);
+      coarse_grid.begin_active()->face(f)->set_boundary_id (1);
   coarse_grid.set_boundary (1, my_boundary);
 
   // now try to refine this one
@@ -124,7 +124,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   check<2> ();

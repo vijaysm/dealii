@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2013 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -25,7 +25,7 @@
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 #include <deal.II/lac/trilinos_sparsity_pattern.h>
 #include <deal.II/lac/trilinos_vector.h>
-#include <deal.II/lac/parallel_vector.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -86,7 +86,7 @@ void test ()
   x.reinit (col_partitioning, MPI_COMM_WORLD);
   y.reinit (row_partitioning, MPI_COMM_WORLD);
 
-  parallel::distributed::Vector<double>
+  LinearAlgebra::distributed::Vector<double>
   dx (col_partitioning, col_partitioning, MPI_COMM_WORLD),
   dy (row_partitioning, row_partitioning, MPI_COMM_WORLD);
 
@@ -106,7 +106,7 @@ void test ()
   for (unsigned int i=0; i<row_partitioning.n_elements(); ++i)
     {
       const unsigned int global_index = row_partitioning.nth_index_in_set(i);
-      Assert (dy(global_index) == y(global_index), ExcInternalError());
+      AssertThrow (dy(global_index) == y(global_index), ExcInternalError());
     }
 
   A.vmult_add (y, x);
@@ -117,7 +117,7 @@ void test ()
   for (unsigned int i=0; i<row_partitioning.n_elements(); ++i)
     {
       const unsigned int global_index = row_partitioning.nth_index_in_set(i);
-      Assert (dy(global_index) == y(global_index), ExcInternalError());
+      AssertThrow (dy(global_index) == y(global_index), ExcInternalError());
     }
 
   A.Tvmult (x, y);
@@ -125,7 +125,7 @@ void test ()
   for (unsigned int i=0; i<col_partitioning.n_elements(); ++i)
     {
       const unsigned int global_index = col_partitioning.nth_index_in_set(i);
-      Assert (dx(global_index) == x(global_index), ExcInternalError());
+      AssertThrow (dx(global_index) == x(global_index), ExcInternalError());
     }
 
   A.Tvmult_add (x, y);
@@ -133,7 +133,7 @@ void test ()
   for (unsigned int i=0; i<col_partitioning.n_elements(); ++i)
     {
       const unsigned int global_index = col_partitioning.nth_index_in_set(i);
-      Assert (dx(global_index) == x(global_index), ExcInternalError());
+      AssertThrow (dx(global_index) == x(global_index), ExcInternalError());
     }
 
   if (my_id == 0) deallog << "OK" << std::endl;
@@ -143,7 +143,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, testing_max_num_threads());
 
   const unsigned int n_procs = Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
   unsigned int myid = Utilities::MPI::this_mpi_process (MPI_COMM_WORLD);
@@ -154,7 +154,6 @@ int main (int argc, char **argv)
       std::ofstream logfile("output");
       deallog.attach(logfile);
       deallog << std::setprecision(4);
-      deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
 
       test();

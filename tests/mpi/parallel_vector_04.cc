@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2011 - 2013 by the deal.II authors
+// Copyright (C) 2011 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -20,7 +20,7 @@
 #include "../tests.h"
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/index_set.h>
-#include <deal.II/lac/parallel_vector.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -42,7 +42,7 @@ void test ()
   local_relevant = local_owned;
   local_relevant.add_range(1,2);
 
-  parallel::distributed::Vector<double> v(local_owned, local_relevant, MPI_COMM_WORLD);
+  LinearAlgebra::distributed::Vector<double> v(local_owned, local_relevant, MPI_COMM_WORLD);
 
   // set local values and check them
   v(myid*2)=myid*2.0;
@@ -51,49 +51,49 @@ void test ()
   v.compress(VectorOperation::insert);
   v*=2.0;
 
-  Assert(v(myid*2) == myid*4.0, ExcInternalError());
-  Assert(v(myid*2+1) == myid*4.0+2.0, ExcInternalError());
+  AssertThrow(v(myid*2) == myid*4.0, ExcInternalError());
+  AssertThrow(v(myid*2+1) == myid*4.0+2.0, ExcInternalError());
 
   // set ghost dof on remote process, no
   // compress called
   if (myid > 0)
     v(1) = 7;
 
-  Assert(v(myid*2) == myid*4.0, ExcInternalError());
-  Assert(v(myid*2+1) == myid*4.0+2.0, ExcInternalError());
+  AssertThrow(v(myid*2) == myid*4.0, ExcInternalError());
+  AssertThrow(v(myid*2+1) == myid*4.0+2.0, ExcInternalError());
 
   if (myid > 0)
-    Assert (v(1) == 7.0, ExcInternalError());
+    AssertThrow (v(1) == 7.0, ExcInternalError());
 
   // reset to zero
   v = 0;
 
-  Assert(v(myid*2) == 0., ExcInternalError());
-  Assert(v(myid*2+1) == 0., ExcInternalError());
+  AssertThrow (v(myid*2) == 0., ExcInternalError());
+  AssertThrow (v(myid*2+1) == 0., ExcInternalError());
 
   // check that everything remains zero also
   // after compress
   v.compress(VectorOperation::add);
 
-  Assert(v(myid*2) == 0., ExcInternalError());
-  Assert(v(myid*2+1) == 0., ExcInternalError());
+  AssertThrow (v(myid*2) == 0., ExcInternalError());
+  AssertThrow (v(myid*2+1) == 0., ExcInternalError());
 
   // set element 1 on owning process to
   // something nonzero
   if (myid == 0)
     v(1) = 2.;
   if (myid > 0)
-    Assert (v(1) == 0., ExcInternalError());
+    AssertThrow (v(1) == 0., ExcInternalError());
 
   // check that all processors get the correct
   // value again, and that it is erased by
   // operator=
   v.update_ghost_values();
 
-  Assert (v(1) == 2.0, ExcInternalError());
+  AssertThrow (v(1) == 2.0, ExcInternalError());
 
   v = 0;
-  Assert (v(1) == 0.0, ExcInternalError());
+  AssertThrow (v(1) == 0.0, ExcInternalError());
 
   if (myid == 0)
     deallog << "OK" << std::endl;
@@ -103,7 +103,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::System::MPI_InitFinalize mpi_initialization(argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, testing_max_num_threads());
 
   unsigned int myid = Utilities::MPI::this_mpi_process (MPI_COMM_WORLD);
   deallog.push(Utilities::int_to_string(myid));
@@ -113,7 +113,6 @@ int main (int argc, char **argv)
       std::ofstream logfile("output");
       deallog.attach(logfile);
       deallog << std::setprecision(4);
-      deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
 
       test();

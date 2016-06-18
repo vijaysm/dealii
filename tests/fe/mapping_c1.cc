@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2001 - 2013 by the deal.II authors
+// Copyright (C) 2001 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -37,7 +37,6 @@ int main ()
   deallog << std::fixed;
   deallog << std::setprecision(PRECISION) << std::fixed;
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   // create grid of circle, somehow
@@ -96,7 +95,7 @@ int main ()
           // there should now be two
           // normal vectors, one for
           // each vertex of the face
-          Assert (c1_values.get_normal_vectors().size() == 2,
+          Assert (c1_values.get_all_normal_vectors().size() == 2,
                   ExcInternalError());
 
           // check that these two
@@ -118,14 +117,14 @@ int main ()
           // some numerical checks for correctness
           for (unsigned int i=0; i<2; ++i)
             {
-              Assert (std::fabs(c1_values.normal_vector(i) *
-                                c1_values.normal_vector(i) - 1) < 1e-14,
-                      ExcInternalError());
+              AssertThrow (std::fabs(c1_values.normal_vector(i) *
+                                     c1_values.normal_vector(i) - 1) < 1e-14,
+                           ExcInternalError());
               Point<2> radius = c1_values.quadrature_point(i);
               radius /= std::sqrt(radius.square());
 
-              Assert ((radius-c1_values.normal_vector(i)).square() < 1e-14,
-                      ExcInternalError());
+              AssertThrow ((radius-c1_values.normal_vector(i)).norm_square() < 1e-14,
+                           ExcInternalError());
             };
         };
 }

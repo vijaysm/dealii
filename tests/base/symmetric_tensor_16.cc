@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2005 - 2013 by the deal.II authors
+// Copyright (C) 2005 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -33,8 +33,8 @@ void test ()
        - 1./dim * outer_product(unit_symmetric_tensor<dim>(),
                                 unit_symmetric_tensor<dim>()));
 
-  Assert ((T-deviator_tensor<dim>()).norm()
-          <= 1e-15*T.norm(), ExcInternalError());
+  AssertThrow ((T-deviator_tensor<dim>()).norm()
+               <= 1e-15*T.norm(), ExcInternalError());
 }
 
 
@@ -45,7 +45,6 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test<1> ();

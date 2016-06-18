@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2003 - 2013 by the deal.II authors
+// Copyright (C) 2003 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -29,7 +29,6 @@ int main ()
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   const unsigned int N = 4;
@@ -52,7 +51,7 @@ int main ()
     for (unsigned int j=0; j<N; ++j)
       {
         deallog << i << ' ' << j << ' ' << f(i,j) << std::endl;
-        Assert (f(i,j) == sm(i,j), ExcInternalError());
+        AssertThrow (f(i,j) == sm(i,j), ExcInternalError());
       }
 
   deallog << "OK" << std::endl;

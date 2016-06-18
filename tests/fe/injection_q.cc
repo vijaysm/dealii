@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2006 - 2013 by the deal.II authors
+// Copyright (C) 2006 - 2014 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -17,6 +17,7 @@
 
 char logname[] = "output";
 
+#include <deal.II/base/quadrature_lib.h>
 
 #include "injection_common.h"
 
@@ -27,5 +28,6 @@ void test ()
   deallog << std::setprecision (10);
   for (unsigned int i=1; i<4; ++i)
     for (unsigned int j=i; j<4; ++j)
-      do_check (FE_Q<dim>(i), FE_Q<dim>(j));
+      do_check (FE_Q<dim>(QIterated<1>(QTrapez<1>(),i)),
+                FE_Q<dim>(QIterated<1>(QTrapez<1>(),j)));
 }

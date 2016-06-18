@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2012 - 2013 by the deal.II authors
+## Copyright (C) 2012 - 2016 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -25,16 +25,17 @@ SET(_src
   exceptions.cc
   flow_function.cc
   function.cc
+  function_cspline.cc
   function_derivative.cc
   function_lib.cc
   function_lib_cutoff.cc
   function_parser.cc
   function_time.cc
   geometry_info.cc
+  geometric_utilities.cc
   index_set.cc
   job_identifier.cc
   logstream.cc
-  memory_consumption.cc
   mpi.cc
   multithread_info.cc
   named_selection.cc
@@ -46,11 +47,13 @@ SET(_src
   polynomial.cc
   polynomials_abf.cc
   polynomials_adini.cc
+  polynomials_bernstein.cc
   polynomials_bdm.cc
   polynomials_nedelec.cc
   polynomial_space.cc
   polynomials_p.cc
   polynomials_piecewise.cc
+  polynomials_rannacher_turek.cc
   polynomials_raviart_thomas.cc
   quadrature.cc
   quadrature_lib.cc
@@ -60,8 +63,10 @@ SET(_src
   table_handler.cc
   tensor_function.cc
   tensor_product_polynomials.cc
+  tensor_product_polynomials_bubbles.cc
   tensor_product_polynomials_const.cc
   thread_management.cc
+  tensor.cc
   timer.cc
   time_stepping.cc
   utilities.cc
@@ -69,6 +74,12 @@ SET(_src
 
 SET(_inst
   data_out_base.inst.in
+  function.inst.in
+  function_time.inst.in
+  mpi.inst.in
+  polynomials_rannacher_turek.inst.in
+  tensor.inst.in
+  tensor_function.inst.in
   time_stepping.inst.in
   )
 

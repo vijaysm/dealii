@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------
 ##
-## Copyright (C) 2014 by the deal.II authors
+## Copyright (C) 2014 - 2016 by the deal.II authors
 ##
 ## This file is part of the deal.II library.
 ##
@@ -12,6 +12,25 @@
 ## the top level of the deal.II distribution.
 ##
 ## ---------------------------------------------------------------------
+
+
+########################################################################
+#                                                                      #
+#                Query for git repository information:                 #
+#                                                                      #
+########################################################################
+
+DEAL_II_QUERY_GIT_INFORMATION()
+
+FILE(WRITE ${CMAKE_BINARY_DIR}/revision.log
+"###
+#
+#  Git information:
+#        Branch:   ${DEAL_II_GIT_BRANCH}
+#        Revision: ${DEAL_II_GIT_REVISION}
+#
+###"
+  )
 
 
 ########################################################################
@@ -45,8 +64,16 @@ _both(
 #        CMAKE_BUILD_TYPE:       ${CMAKE_BUILD_TYPE}
 #        BUILD_SHARED_LIBS:      ${BUILD_SHARED_LIBS}
 #        CMAKE_INSTALL_PREFIX:   ${CMAKE_INSTALL_PREFIX}
-#        CMAKE_SOURCE_DIR:       ${CMAKE_SOURCE_DIR} (Version ${DEAL_II_PACKAGE_VERSION})
-#        CMAKE_BINARY_DIR:       ${CMAKE_BINARY_DIR}
+#        CMAKE_SOURCE_DIR:       ${CMAKE_SOURCE_DIR}
+"
+  )
+IF("${DEAL_II_GIT_SHORTREV}" STREQUAL "")
+  _both("#                                (version ${DEAL_II_PACKAGE_VERSION})\n")
+ELSE()
+  _both("#                                (version ${DEAL_II_PACKAGE_VERSION}, shortrev ${DEAL_II_GIT_SHORTREV})\n")
+ENDIF()
+_both(
+"#        CMAKE_BINARY_DIR:       ${CMAKE_BINARY_DIR}
 #        CMAKE_CXX_COMPILER:     ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} on platform ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}
 #                                ${CMAKE_CXX_COMPILER}
 "
@@ -137,22 +164,15 @@ ENDIF()
 _both("DEAL_II_ALLOW_AUTODETECTION = ${DEAL_II_ALLOW_AUTODETECTION}):\n")
 
 
-GET_CMAKE_PROPERTY(_variables VARIABLES)
-FOREACH(_var ${_variables})
-  IF(_var MATCHES "DEAL_II_WITH")
-    LIST(APPEND _features "${_var}")
-  ELSEIF(_var MATCHES "DEAL_II_COMPONENT")
-    LIST(APPEND _components "${_var}")
-  ENDIF()
-ENDFOREACH()
+SET(_deal_ii_features_sorted ${DEAL_II_FEATURES})
+LIST(SORT _deal_ii_features_sorted)
+FOREACH(_feature ${_deal_ii_features_sorted})
+  SET(_var DEAL_II_WITH_${_feature})
 
-FOREACH(_var ${_features})
   IF(${${_var}})
-
     #
     # The feature is enabled:
     #
-    STRING(REGEX REPLACE "^DEAL_II_WITH_" "" _feature ${_var})
     IF(FEATURE_${_feature}_EXTERNAL_CONFIGURED)
       _both("#        ${_var} set up with external dependencies\n")
     ELSEIF(FEATURE_${_feature}_BUNDLED_CONFIGURED)
@@ -209,15 +229,13 @@ ENDFOREACH()
 _both(
   "#\n#  Component configuration:\n"
   )
-FOREACH(_var ${_components})
-  IF(_var MATCHES "DEAL_II_COMPONENT")
-    IF(${${_var}})
-      _both("#        ${_var}\n")
-      STRING(REPLACE "DEAL_II_COMPONENT_" "" _component ${_var})
-      LIST(APPEND _components ${_component})
-    ELSE()
-      _both("#      ( ${_var} = ${${_var}} )\n")
-    ENDIF()
+
+FOREACH(_component ${DEAL_II_COMPONENTS})
+  SET(_var DEAL_II_COMPONENT_${_component})
+  IF(${${_var}})
+    _both("#        ${_var}\n")
+  ELSE()
+    _both("#      ( ${_var} = ${${_var}} )\n")
   ENDIF()
 ENDFOREACH()
 

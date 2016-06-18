@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2004 - 2013 by the deal.II authors
+// Copyright (C) 2004 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -39,12 +39,12 @@ void test (PETScWrappers::Vector &v)
 
   // check that the vector is really
   // non-negative
-  Assert (v.is_non_negative() == true, ExcInternalError());
+  AssertThrow (v.is_non_negative() == true, ExcInternalError());
 
   // then set a single element to a negative
   // value and check again
   v(v.size()/2) = -1;
-  Assert (v.is_non_negative() == false, ExcInternalError());
+  AssertThrow (v.is_non_negative() == false, ExcInternalError());
 
   deallog << "OK" << std::endl;
 }
@@ -55,12 +55,11 @@ int main (int argc,char **argv)
 {
   std::ofstream logfile("output");
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   try
     {
-      Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+      Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
       {
         PETScWrappers::Vector v (100);
         test (v);

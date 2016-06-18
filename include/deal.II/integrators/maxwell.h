@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2013 by the deal.II authors
+// Copyright (C) 2010 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -13,8 +13,8 @@
 //
 // ---------------------------------------------------------------------
 
-#ifndef __deal2__integrators_maxwell_h
-#define __deal2__integrators_maxwell_h
+#ifndef dealii__integrators_maxwell_h
+#define dealii__integrators_maxwell_h
 
 
 #include <deal.II/base/config.h>
@@ -30,27 +30,26 @@ DEAL_II_NAMESPACE_OPEN
 namespace LocalIntegrators
 {
   /**
-   * @brief Local integrators related to curl operators and their
-   * traces.
+   * @brief Local integrators related to curl operators and their traces.
    *
-   * We use the following conventions for curl
-   * operators. First, in three space dimensions
+   * We use the following conventions for curl operators. First, in three
+   * space dimensions
    *
    * @f[
    * \nabla\times \mathbf u = \begin{pmatrix}
-   *   \partial_3 u_2 - \partial_2 u_3 \\
-   *   \partial_1 u_3 - \partial_3 u_1 \\
-   *   \partial_2 u_1 - \partial_1 u_2
+   *   \partial_2 u_3 - \partial_3 u_2 \\
+   *   \partial_3 u_1 - \partial_1 u_3 \\
+   *   \partial_1 u_2 - \partial_2 u_1
    * \end{pmatrix}.
    * @f]
    *
    * In two space dimensions, the curl is obtained by extending a vector
    * <b>u</b> to $(u_1, u_2, 0)^T$ and a scalar <i>p</i> to $(0,0,p)^T$.
-   * Computing the nonzero components, we obtain the scalar
-   * curl of a vector function and the vector curl of a scalar
-   * function. The current implementation exchanges the sign and we have:
+   * Computing the nonzero components, we obtain the scalar curl of a vector
+   * function and the vector curl of a scalar function. The current
+   * implementation exchanges the sign and we have:
    * @f[
-   *  \nabla \times \mathbf u = \partial_1 u_2 - \partial 2 u_1,
+   *  \nabla \times \mathbf u = \partial_1 u_2 - \partial_2 u_1,
    *  \qquad
    *  \nabla \times p = \begin{pmatrix}
    *    \partial_2 p \\ -\partial_1 p
@@ -64,9 +63,9 @@ namespace LocalIntegrators
   namespace Maxwell
   {
     /**
-     * Auxiliary function. Given the tensors of <tt>dim</tt> second derivatives,
-     * compute the curl of the curl of a vector function. The result in
-     * two and three dimensions is:
+     * Auxiliary function. Given the tensors of <tt>dim</tt> second
+     * derivatives, compute the curl of the curl of a vector function. The
+     * result in two and three dimensions is:
      * @f[
      * \nabla\times\nabla\times \mathbf u = \begin{pmatrix}
      * \partial_1\partial_2 u_2 - \partial_2^2 u_1 \\
@@ -83,8 +82,8 @@ namespace LocalIntegrators
      * \end{pmatrix}
      * @f]
      *
-     * @note The third tensor argument is not used in two dimensions and
-     * can for instance duplicate one of the previous.
+     * @note The third tensor argument is not used in two dimensions and can
+     * for instance duplicate one of the previous.
      *
      * @author Guido Kanschat
      * @date 2011
@@ -115,14 +114,14 @@ namespace LocalIntegrators
     }
 
     /**
-     * Auxiliary function. Given <tt>dim</tt> tensors of first
-     * derivatives and a normal vector, compute the tangential curl
+     * Auxiliary function. Given <tt>dim</tt> tensors of first derivatives and
+     * a normal vector, compute the tangential curl
      * @f[
      * \mathbf n \times \nabla \times u.
      * @f]
      *
-     * @note The third tensor argument is not used in two dimensions and
-     * can for instance duplicate one of the previous.
+     * @note The third tensor argument is not used in two dimensions and can
+     * for instance duplicate one of the previous.
      *
      * @author Guido Kanschat
      * @date 2011
@@ -198,8 +197,8 @@ namespace LocalIntegrators
                   const unsigned int d1 = (d+1)%dim;
                   const unsigned int d2 = (d+2)%dim;
 
-                  const double cv = fe.shape_grad_component(i,k,d1)[d2] - fe.shape_grad_component(i,k,d2)[d1];
-                  const double cu = fe.shape_grad_component(j,k,d1)[d2] - fe.shape_grad_component(j,k,d2)[d1];
+                  const double cv = fe.shape_grad_component(i,k,d2)[d1] - fe.shape_grad_component(i,k,d1)[d2];
+                  const double cu = fe.shape_grad_component(j,k,d2)[d1] - fe.shape_grad_component(j,k,d1)[d2];
 
                   M(i,j) += dx * cu * cv;
                 }
@@ -212,13 +211,13 @@ namespace LocalIntegrators
      * \int_Z \nabla\!\times\! u \cdot v \,dx.
      * @f]
      *
-     * This is the standard curl operator in 3D and the scalar curl in
-     * 2D. The vector curl operator can be obtained by exchanging test and
-     * trial functions.
+     * This is the standard curl operator in 3D and the scalar curl in 2D. The
+     * vector curl operator can be obtained by exchanging test and trial
+     * functions.
      *
      * @author Guido Kanschat
      * @date 2011
-    */
+     */
     template <int dim>
     void curl_matrix (
       FullMatrix<double> &M,
@@ -247,17 +246,15 @@ namespace LocalIntegrators
                   const unsigned int d2 = (d+2)%dim;
 
                   const double vv = fetest.shape_value_component(i,k,d);
-                  const double cu = fe.shape_grad_component(j,k,d1)[d2] - fe.shape_grad_component(j,k,d2)[d1];
+                  const double cu = fe.shape_grad_component(j,k,d2)[d1] - fe.shape_grad_component(j,k,d1)[d2];
                   M(i,j) += dx * cu * vv;
                 }
         }
     }
 
     /**
-     * The matrix for weak boundary
-     * condition of Nitsche type for
-     * the tangential component in
-     * Maxwell systems.
+     * The matrix for weak boundary condition of Nitsche type for the
+     * tangential component in Maxwell systems.
      *
      * @f[
      * \int_F \biggl( 2\gamma
@@ -275,6 +272,7 @@ namespace LocalIntegrators
     void nitsche_curl_matrix (
       FullMatrix<double> &M,
       const FEValuesBase<dim> &fe,
+      const unsigned int face_no,
       double penalty,
       double factor = 1.)
     {
@@ -299,26 +297,28 @@ namespace LocalIntegrators
       for (unsigned int k=0; k<fe.n_quadrature_points; ++k)
         {
           const double dx = factor * fe.JxW(k);
-          const Point<dim> &n = fe.normal_vector(k);
+          const Tensor<1,dim> n = fe.normal_vector(k);
           for (unsigned int i=0; i<n_dofs; ++i)
             for (unsigned int j=0; j<n_dofs; ++j)
-              for (unsigned int d=0; d<d_max; ++d)
+              if (fe.get_fe().has_support_on_face(i, face_no) && fe.get_fe().has_support_on_face(j, face_no))
                 {
-                  const unsigned int d1 = (d+1)%dim;
-                  const unsigned int d2 = (d+2)%dim;
+                  for (unsigned int d=0; d<d_max; ++d)
+                    {
+                      const unsigned int d1 = (d+1)%dim;
+                      const unsigned int d2 = (d+2)%dim;
 
-                  const double cv = fe.shape_grad_component(i,k,d1)[d2] - fe.shape_grad_component(i,k,d2)[d1];
-                  const double cu = fe.shape_grad_component(j,k,d1)[d2] - fe.shape_grad_component(j,k,d2)[d1];
-                  const double v= fe.shape_value_component(i,k,d1)*n(d2) - fe.shape_value_component(i,k,d2)*n(d1);
-                  const double u= fe.shape_value_component(j,k,d1)*n(d2) - fe.shape_value_component(j,k,d2)*n(d1);
+                      const double cv = fe.shape_grad_component(i,k,d2)[d1] - fe.shape_grad_component(i,k,d1)[d2];
+                      const double cu = fe.shape_grad_component(j,k,d2)[d1] - fe.shape_grad_component(j,k,d1)[d2];
+                      const double v= fe.shape_value_component(i,k,d1)*n[d2] - fe.shape_value_component(i,k,d2)*n[d1];
+                      const double u= fe.shape_value_component(j,k,d1)*n[d2] - fe.shape_value_component(j,k,d2)*n[d1];
 
-                  M(i,j) += dx*(2.*penalty*u*v - cv*u - cu*v);
+                      M(i,j) += dx*(2.*penalty*u*v - cv*u - cu*v);
+                    }
                 }
         }
     }
     /**
-     * The product of two tangential
-     * traces,
+     * The product of two tangential traces,
      * @f[
      * \int_F (u\times n)(v\times n)
      * \, ds.
@@ -354,7 +354,7 @@ namespace LocalIntegrators
       for (unsigned int k=0; k<fe.n_quadrature_points; ++k)
         {
           const double dx = factor * fe.JxW(k);
-          const Point<dim> &n = fe.normal_vector(k);
+          const Tensor<1,dim> n = fe.normal_vector(k);
           for (unsigned int i=0; i<n_dofs; ++i)
             for (unsigned int j=0; j<n_dofs; ++j)
               for (unsigned int d=0; d<d_max; ++d)
@@ -371,8 +371,7 @@ namespace LocalIntegrators
     }
 
     /**
-     * The interior penalty fluxes
-     * for Maxwell systems.
+     * The interior penalty fluxes for Maxwell systems.
      *
      * @f[
      * \int_F \biggl( \gamma
@@ -382,9 +381,9 @@ namespace LocalIntegrators
      * n\}\{\nu \nabla\times u\}
      * \biggr)\;dx
      * @f]
-    *
-    * @author Guido Kanschat
-    * @date 2011
+     *
+     * @author Guido Kanschat
+     * @date 2011
      */
     template <int dim>
     inline void ip_curl_matrix (
@@ -430,7 +429,7 @@ namespace LocalIntegrators
       for (unsigned int k=0; k<fe1.n_quadrature_points; ++k)
         {
           const double dx = fe1.JxW(k);
-          const Point<dim> &n = fe1.normal_vector(k);
+          const Tensor<1,dim> n = fe1.normal_vector(k);
           for (unsigned int i=0; i<n_dofs; ++i)
             for (unsigned int j=0; j<n_dofs; ++j)
               for (unsigned int d=0; d<d_max; ++d)
@@ -438,10 +437,10 @@ namespace LocalIntegrators
                   const unsigned int d1 = (d+1)%dim;
                   const unsigned int d2 = (d+2)%dim;
                   // curl u, curl v
-                  const double cv1 = nu1*fe1.shape_grad_component(i,k,d1)[d2] - fe1.shape_grad_component(i,k,d2)[d1];
-                  const double cv2 = nu2*fe2.shape_grad_component(i,k,d1)[d2] - fe2.shape_grad_component(i,k,d2)[d1];
-                  const double cu1 = nu1*fe1.shape_grad_component(j,k,d1)[d2] - fe1.shape_grad_component(j,k,d2)[d1];
-                  const double cu2 = nu2*fe2.shape_grad_component(j,k,d1)[d2] - fe2.shape_grad_component(j,k,d2)[d1];
+                  const double cv1 = nu1*fe1.shape_grad_component(i,k,d2)[d1] - fe1.shape_grad_component(i,k,d1)[d2];
+                  const double cv2 = nu2*fe2.shape_grad_component(i,k,d2)[d1] - fe2.shape_grad_component(i,k,d1)[d2];
+                  const double cu1 = nu1*fe1.shape_grad_component(j,k,d2)[d1] - fe1.shape_grad_component(j,k,d1)[d2];
+                  const double cu2 = nu2*fe2.shape_grad_component(j,k,d2)[d1] - fe2.shape_grad_component(j,k,d1)[d2];
 
                   // u x n, v x n
                   const double u1= fe1.shape_value_component(j,k,d1)*n(d2) - fe1.shape_value_component(j,k,d2)*n(d1);

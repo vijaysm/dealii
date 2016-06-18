@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2009 - 2013 by the deal.II authors
+// Copyright (C) 2009 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -31,7 +31,7 @@
 
 void test_mpi()
 {
-  Assert( Utilities::System::job_supports_mpi(), ExcInternalError());
+  Assert( Utilities::MPI::job_supports_mpi(), ExcInternalError());
 
   unsigned int myid = Utilities::MPI::this_mpi_process (MPI_COMM_WORLD);
   const unsigned int numprocs = Utilities::MPI::n_mpi_processes (MPI_COMM_WORLD);
@@ -66,10 +66,10 @@ void test_mpi()
       deallog << "size: " << csp.n_rows() << "x" << csp.n_cols() << std::endl;
     }
 
-  SparsityTools::distribute_sparsity_pattern<>(csp,
-                                               locally_owned_dofs_per_cpu,
-                                               MPI_COMM_WORLD,
-                                               locally_rel);
+  SparsityTools::distribute_sparsity_pattern(csp,
+                                             locally_owned_dofs_per_cpu,
+                                             MPI_COMM_WORLD,
+                                             locally_rel);
   /*  {
       std::ofstream f((std::string("after")+Utilities::int_to_string(myid)).c_str());
       csp.print(f);
@@ -105,7 +105,7 @@ void test_mpi()
     bla.add_index(0);
 
   partitioning.push_back(bla);
-  
+
   csp.reinit(partitioning);
   for (unsigned int i=0; i<n; ++i)
     csp.add(i, myid);
@@ -114,11 +114,11 @@ void test_mpi()
   for (unsigned int i=0; i<numprocs; ++i)
     locally_owned_dofs_per_cpu2[i].add_range((i)*num_local, (i+1)*num_local);
 
-  
-  SparsityTools::distribute_sparsity_pattern<>(csp,
-                                               locally_owned_dofs_per_cpu2,
-                                               MPI_COMM_WORLD,
-                                               locally_rel);
+
+  SparsityTools::distribute_sparsity_pattern(csp,
+                                             locally_owned_dofs_per_cpu2,
+                                             MPI_COMM_WORLD,
+                                             locally_rel);
 
   if (myid==0)
     {
@@ -155,7 +155,7 @@ void test_mpi()
 int main(int argc, char *argv[])
 {
 #ifdef DEAL_II_WITH_MPI
-  Utilities::MPI::MPI_InitFinalize mpi (argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, testing_max_num_threads());
 #else
   (void)argc;
   (void)argv;
@@ -167,7 +167,6 @@ int main(int argc, char *argv[])
     {
       std::ofstream logfile("output");
       deallog.attach(logfile);
-      deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
 
       deallog.push("mpi");

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2010 - 2013 by the deal.II authors
+// Copyright (C) 2010 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -92,8 +92,8 @@ void test ()
     // consequently re-create only one object
     // that the two components of the
     // re-created pair point to
-    Assert (pair_2.first == pair_2.second, ExcInternalError());
-    Assert (object_number == 3, ExcInternalError());
+    AssertThrow (pair_2.first == pair_2.second, ExcInternalError());
+    AssertThrow (object_number == 3, ExcInternalError());
 
     // destroy the newly created object. this
     // must succeed
@@ -109,7 +109,6 @@ int main ()
   std::ofstream logfile("output");
   deallog << std::setprecision(3);
   deallog.attach(logfile);
-  deallog.depth_console(0);
   deallog.threshold_double(1.e-10);
 
   test ();

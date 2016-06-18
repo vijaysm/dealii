@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 //
-// Copyright (C) 2014 by the deal.II authors
+// Copyright (C) 2014 - 2015 by the deal.II authors
 //
 // This file is part of the deal.II library.
 //
@@ -15,11 +15,11 @@
 
 
 
-// Test parallel::distributed::Vector::operator=(TrilinosWrappers::MPI::Vector&)
+// Test LinearAlgebra::distributed::Vector::operator=(TrilinosWrappers::MPI::Vector&)
 
 #include "../tests.h"
 #include <deal.II/lac/trilinos_vector.h>
-#include <deal.II/lac/parallel_vector.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/base/index_set.h>
 #include <fstream>
 #include <iostream>
@@ -46,7 +46,7 @@ void test ()
   TrilinosWrappers::MPI::Vector vb(local_active, MPI_COMM_WORLD);
   TrilinosWrappers::MPI::Vector v(local_active, local_relevant, MPI_COMM_WORLD);
 
-  parallel::distributed::Vector<double> copied(local_active, local_relevant, MPI_COMM_WORLD);
+  LinearAlgebra::distributed::Vector<double> copied(local_active, local_relevant, MPI_COMM_WORLD);
 
   // set local values
   vb(myid*2)=myid*2.0;
@@ -72,7 +72,7 @@ void test ()
   Assert(copied(myid*2) == myid*4.0, ExcInternalError());
   Assert(copied(myid*2+1) == myid*4.0+2.0, ExcInternalError());
 
-  copied = v;
+  copied.update_ghost_values();
 
   // check ghost values
   if (Utilities::MPI::this_mpi_process (MPI_COMM_WORLD) == 0)
@@ -99,7 +99,7 @@ void test ()
 
 int main (int argc, char **argv)
 {
-  Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv);
+  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, testing_max_num_threads());
   unsigned int myid = Utilities::MPI::this_mpi_process (MPI_COMM_WORLD);
 
   deallog.push(Utilities::int_to_string(myid));
@@ -109,7 +109,6 @@ int main (int argc, char **argv)
       std::ofstream logfile("output");
       deallog.attach(logfile);
       deallog << std::setprecision(4);
-      deallog.depth_console(0);
       deallog.threshold_double(1.e-10);
 
       test();
